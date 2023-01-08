@@ -8,6 +8,7 @@ import com.github.rushyverse.core.supplier.http.IHttpEntitySupplier
 import com.github.rushyverse.core.supplier.http.IHttpStrategizable
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
+import kotlin.time.Duration
 
 public interface IProfileSkinCacheService {
     /**
@@ -31,6 +32,7 @@ public interface IProfileSkinCacheService {
  */
 public class ProfileSkinCacheService(
     private val client: CacheClient,
+    public val expiration: Duration? = null,
     prefixKey: String = "skin:"
 ) : CacheService(prefixKey), IProfileSkinCacheService {
 
@@ -47,8 +49,12 @@ public class ProfileSkinCacheService(
         client.connect {
             val binaryFormat = client.binaryFormat
             val key = encodeKey(binaryFormat, profile.id)
-            val data = encodeToByteArray(binaryFormat, ProfileSkin.serializer(), profile)
-            it.set(key, data)
+            val value = encodeToByteArray(binaryFormat, ProfileSkin.serializer(), profile)
+            if (expiration != null) {
+                it.psetex(key, expiration.inWholeMilliseconds, value)
+            } else {
+                it.set(key, value)
+            }
         }
     }
 }

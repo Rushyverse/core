@@ -9,6 +9,7 @@ import com.github.rushyverse.core.supplier.http.IHttpStrategizable
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import kotlinx.serialization.builtins.serializer
+import kotlin.time.Duration
 
 /**
  * Service to manage [ProfileId] data in cache.
@@ -35,7 +36,8 @@ public interface IProfileIdCacheService {
  */
 public class ProfileIdCacheService(
     public val client: CacheClient,
-    prefixKey: String = "profileId:"
+    public val expiration: Duration? = null,
+    prefixKey: String = "profileId:",
 ) : CacheService(prefixKey), IProfileIdCacheService {
 
     override suspend fun getByName(name: String): ProfileId? {
@@ -52,7 +54,12 @@ public class ProfileIdCacheService(
         client.connect {
             val binaryFormat = client.binaryFormat
             val key = encodeKey(binaryFormat, profile.name)
-            it.set(key, encodeToByteArray(binaryFormat, String.serializer(), profile.id))
+            val value = encodeToByteArray(binaryFormat, String.serializer(), profile.id)
+            if (expiration != null) {
+                it.psetex(key, expiration.inWholeMilliseconds, value)
+            } else {
+                it.set(key, value)
+            }
         }
     }
 }

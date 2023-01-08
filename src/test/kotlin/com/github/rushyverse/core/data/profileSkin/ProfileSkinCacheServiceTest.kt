@@ -10,6 +10,7 @@ import com.github.rushyverse.core.utils.getRandomString
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisURI
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Nested
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import kotlin.test.*
+import kotlin.time.Duration.Companion.seconds
 
 @Testcontainers
 class ProfileSkinCacheServiceTest {
@@ -116,6 +118,25 @@ class ProfileSkinCacheServiceTest {
             }!!
 
             assertEquals(profile, cacheClient.binaryFormat.decodeFromByteArray(ProfileSkin.serializer(), value))
+        }
+
+    }
+
+    @Nested
+    inner class Expiration {
+
+        @Test
+        fun `should can't retrieve data after expiration`() = runBlocking {
+            val expiration = 1.seconds
+            service = ProfileSkinCacheService(cacheClient, expiration)
+            val profile = createProfileSkin()
+            val key = profile.id
+            service.save(profile)
+            assertEquals(profile, service.getByUUID(key))
+            delay(0.5.seconds)
+            assertEquals(profile, service.getByUUID(key))
+            delay(0.5.seconds)
+            assertNull(service.getByUUID(key))
         }
 
     }

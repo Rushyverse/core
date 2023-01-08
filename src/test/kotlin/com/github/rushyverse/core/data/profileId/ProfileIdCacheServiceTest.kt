@@ -9,6 +9,7 @@ import com.github.rushyverse.core.utils.createProfileId
 import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisURI
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Nested
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import kotlin.test.*
+import kotlin.time.Duration.Companion.seconds
 
 @Testcontainers
 class ProfileIdCacheServiceTest {
@@ -117,6 +119,24 @@ class ProfileIdCacheServiceTest {
             val expected = profile.id
             assertEquals(expected, cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), value))
             assertNotEquals(expected, value.decodeToString())
+        }
+
+    }
+
+    @Nested
+    inner class Expiration {
+
+        @Test
+        fun `should can't retrieve data after expiration`() = runBlocking {
+            val profile = createProfileId()
+            val expiration = 1.seconds
+            service = ProfileIdCacheService(cacheClient, expiration)
+            service.save(profile)
+            assertEquals(profile, service.getByName(profile.name))
+            delay(0.5.seconds)
+            assertEquals(profile, service.getByName(profile.name))
+            delay(0.5.seconds)
+            assertNull(service.getByName(profile.name))
         }
 
     }
