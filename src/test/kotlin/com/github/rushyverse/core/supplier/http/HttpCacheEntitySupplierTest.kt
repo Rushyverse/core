@@ -9,7 +9,7 @@ import io.mockk.coEvery
 import io.mockk.coJustRun
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -39,7 +39,7 @@ class HttpCacheEntitySupplierTest {
         }
 
         @Test
-        fun `get id use the mock method`() = runBlocking {
+        fun `get id use the mock method`() = runTest {
             val cacheService = mockk<ProfileIdCacheService>()
             val supplier = HttpCacheEntitySupplier(mockk(), cacheService)
 
@@ -52,7 +52,7 @@ class HttpCacheEntitySupplierTest {
         }
 
         @Test
-        fun `save id use the mock method`() = runBlocking {
+        fun `save id use the mock method`() = runTest {
             val cacheService = mockk<ProfileIdCacheService>()
             val supplier = HttpCacheEntitySupplier(mockk(), cacheService)
 
@@ -80,7 +80,7 @@ class HttpCacheEntitySupplierTest {
         }
 
         @Test
-        fun `get skin use the mock method`() = runBlocking {
+        fun `get skin use the mock method`() = runTest {
             val cacheService = mockk<ProfileSkinCacheService>()
             val supplier = HttpCacheEntitySupplier(cacheService, mockk())
 
@@ -93,7 +93,7 @@ class HttpCacheEntitySupplierTest {
         }
 
         @Test
-        fun `save id use the mock method`() = runBlocking {
+        fun `save id use the mock method`() = runTest {
             val cacheService = mockk<ProfileSkinCacheService>()
             val supplier = HttpCacheEntitySupplier(cacheService, mockk())
 

@@ -11,7 +11,7 @@ import io.mockk.every
 import io.mockk.justRun
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.concurrent.CompletableFuture
@@ -30,7 +30,7 @@ class CacheClientTest {
     }
 
     @Test
-    fun `pool is used to get connection from client`() = runBlocking {
+    fun `pool is used to get connection from client`() = runTest {
         val client = CacheClient {
             uri = RedisURI.create(redisContainer.url)
         }
@@ -61,7 +61,7 @@ class CacheClientTest {
     }
 
     @Test
-    fun `close instance will stop the client`() = runBlocking {
+    fun `close instance will stop the client`() = runTest {
         val redisClient = mockk<RedisClient>()
         justRun { redisClient.shutdown() }
         val client = CacheClient {
@@ -77,7 +77,7 @@ class CacheClientTest {
     }
 
     @Test
-    fun `close async instance will stop the client`() = runBlocking {
+    fun `close async instance will stop the client`() = runTest {
         val redisClient = mockk<RedisClient>()
         every { redisClient.shutdownAsync() } returns CompletableFuture.completedFuture(mockk())
         val client = CacheClient {
@@ -93,7 +93,7 @@ class CacheClientTest {
     }
 
     @Test
-    fun `pool configuration is used to create pool`() = runBlocking {
+    fun `pool configuration is used to create pool`() = runTest {
         val poolConfig = BoundedPoolConfig.builder()
             .maxIdle(Random.nextInt(0, 100))
             .minIdle(Random.nextInt(-100, 0))

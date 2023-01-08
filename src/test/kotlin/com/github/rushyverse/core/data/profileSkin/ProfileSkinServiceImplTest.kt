@@ -7,7 +7,7 @@ import com.github.rushyverse.core.utils.getRandomString
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -45,13 +45,13 @@ class ProfileSkinServiceImplTest {
     inner class GetByUUID : ProfileSkinServiceTest {
 
         @Test
-        override fun `data is not found into supplier`() = runBlocking {
+        override fun `data is not found into supplier`() = runTest {
             coEvery { supplier.getSkin(any()) } returns null
             assertNull(serviceImpl.getByUUID(getRandomString()))
         }
 
         @Test
-        override fun `data is retrieved from supplier`() = runBlocking {
+        override fun `data is retrieved from supplier`() = runTest {
             val profile = createProfileSkin()
             val id = profile.id
             coEvery { supplier.getSkin(id) } returns profile

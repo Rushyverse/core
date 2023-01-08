@@ -7,7 +7,7 @@ import com.github.rushyverse.core.utils.createProfileSkin
 import com.github.rushyverse.core.utils.getRandomString
 import io.mockk.coEvery
 import io.mockk.mockk
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -45,7 +45,7 @@ class MojangServiceTest {
     inner class GetSkinByName : MojangServiceTest {
 
         @Test
-        override fun `data is not found into supplier`() = runBlocking {
+        override fun `data is not found into supplier`() = runTest {
             val profileId = createProfileId()
             val profileSkin = createProfileSkin(profileId)
             val id = profileId.id
@@ -60,7 +60,7 @@ class MojangServiceTest {
         }
 
         @Test
-        override fun `data is retrieved from supplier`() = runBlocking {
+        override fun `data is retrieved from supplier`() = runTest {
             val profileId = createProfileId()
             val profileSkin = createProfileSkin(profileId)
             val id = profileId.id
@@ -76,13 +76,13 @@ class MojangServiceTest {
     inner class GetId : MojangServiceTest {
 
         @Test
-        override fun `data is not found into supplier`() = runBlocking {
+        override fun `data is not found into supplier`() = runTest {
             coEvery { supplier.getUUID(any()) } returns null
             assertNull(serviceImpl.getId(getRandomString()))
         }
 
         @Test
-        override fun `data is retrieved from supplier`() = runBlocking {
+        override fun `data is retrieved from supplier`() = runTest {
             val id = createProfileId()
             val name = id.name
             coEvery { supplier.getUUID(name) } returns id
@@ -95,13 +95,13 @@ class MojangServiceTest {
     inner class GetSkin : MojangServiceTest {
 
         @Test
-        override fun `data is not found into supplier`() = runBlocking {
+        override fun `data is not found into supplier`() = runTest {
             coEvery { supplier.getSkin(any()) } returns null
             assertNull(serviceImpl.getSkin(getRandomString()))
         }
 
         @Test
-        override fun `data is retrieved from supplier`() = runBlocking {
+        override fun `data is retrieved from supplier`() = runTest {
             val skin = createProfileSkin()
             val id = skin.id
             coEvery { supplier.getSkin(id) } returns skin

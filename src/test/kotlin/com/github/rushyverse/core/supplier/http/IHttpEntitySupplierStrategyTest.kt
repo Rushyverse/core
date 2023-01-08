@@ -13,6 +13,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.testcontainers.junit.jupiter.Container
@@ -79,7 +80,7 @@ class IHttpEntitySupplierStrategyTest {
         }
 
         @Test
-        fun `data found in rest is saved into cache`() = runBlocking {
+        fun `data found in rest is saved into cache`() = runTest {
             val profileId = createProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
@@ -89,7 +90,7 @@ class IHttpEntitySupplierStrategyTest {
         }
 
         @Test
-        fun `data present in cache is not used to find value`() = runBlocking {
+        fun `data present in cache is not used to find value`() = runTest {
             val profileId = createProfileId()
             val name = profileId.name
             cacheEntitySupplier.save(profileId)
@@ -112,7 +113,7 @@ class IHttpEntitySupplierStrategyTest {
         }
 
         @Test
-        fun `data found in rest is not saved into cache`() = runBlocking {
+        fun `data found in rest is not saved into cache`() = runTest {
             val profileId = createProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
@@ -122,7 +123,7 @@ class IHttpEntitySupplierStrategyTest {
         }
 
         @Test
-        fun `data present in cache is use to avoid rest call`() = runBlocking {
+        fun `data present in cache is use to avoid rest call`() = runTest {
             val profileId = createProfileId()
             val name = profileId.name
             cacheEntitySupplier.save(profileId)
@@ -145,7 +146,7 @@ class IHttpEntitySupplierStrategyTest {
         }
 
         @Test
-        fun `data found in rest is saved into cache`() = runBlocking {
+        fun `data found in rest is saved into cache`() = runTest {
             val profileId = createProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
@@ -155,7 +156,7 @@ class IHttpEntitySupplierStrategyTest {
         }
 
         @Test
-        fun `data present in cache is use to avoid rest call`() = runBlocking {
+        fun `data present in cache is use to avoid rest call`() = runTest {
             val profileId = createProfileId()
             val name = profileId.name
             cacheEntitySupplier.save(profileId)

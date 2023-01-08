@@ -10,6 +10,7 @@ import io.lettuce.core.RedisURI
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.testcontainers.junit.jupiter.Container
@@ -60,7 +61,7 @@ class HttpStoreEntitySupplierTest {
     inner class GetId : StoreTest {
 
         @Test
-        override fun `data not stored into cache if data not exists`() = runBlocking {
+        override fun `data not stored into cache if data not exists`() = runTest {
             val id = createProfileId()
             val name = id.name
             coEvery { mockSupplier.getUUID(name) } returns null
@@ -69,7 +70,7 @@ class HttpStoreEntitySupplierTest {
         }
 
         @Test
-        override fun `data stored if found`() = runBlocking {
+        override fun `data stored if found`() = runTest {
             val id = createProfileId()
             val name = id.name
             coEvery { mockSupplier.getUUID(name) } returns id
@@ -84,7 +85,7 @@ class HttpStoreEntitySupplierTest {
     inner class GetSkin : StoreTest {
 
         @Test
-        override fun `data not stored into cache if data not exists`() = runBlocking {
+        override fun `data not stored into cache if data not exists`() = runTest {
             val skin = createProfileSkin()
             val uuid = skin.id
             coEvery { mockSupplier.getSkin(uuid) } returns null
@@ -93,7 +94,7 @@ class HttpStoreEntitySupplierTest {
         }
 
         @Test
-        override fun `data stored if found`() = runBlocking {
+        override fun `data stored if found`() = runTest {
             val skin = createProfileSkin()
             val uuid = skin.id
             coEvery { mockSupplier.getSkin(uuid) } returns skin

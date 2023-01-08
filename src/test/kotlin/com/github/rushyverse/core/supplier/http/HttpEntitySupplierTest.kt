@@ -7,7 +7,7 @@ import io.github.universeproject.kotlinmojangapi.MojangAPI
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import kotlin.test.BeforeTest
@@ -36,7 +36,7 @@ class HttpEntitySupplierTest {
     inner class GetId : RestTest {
 
         @Test
-        override fun `data not found from rest`() = runBlocking {
+        override fun `data not found from rest`() = runTest {
             coEvery { mojangAPI.getUUID(any<String>()) } returns null
             val id = getRandomString()
             assertNull(restEntitySupplier.getUUID(id))
@@ -44,7 +44,7 @@ class HttpEntitySupplierTest {
         }
 
         @Test
-        override fun `data is retrieved from rest`() = runBlocking {
+        override fun `data is retrieved from rest`() = runTest {
             val profileId = createProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
@@ -59,7 +59,7 @@ class HttpEntitySupplierTest {
     inner class GetSkin : RestTest {
 
         @Test
-        override fun `data not found from rest`() = runBlocking {
+        override fun `data not found from rest`() = runTest {
             coEvery { mojangAPI.getSkin(any()) } returns null
             val name = getRandomString()
             assertNull(restEntitySupplier.getSkin(name))
@@ -67,7 +67,7 @@ class HttpEntitySupplierTest {
         }
 
         @Test
-        override fun `data is retrieved from rest`() = runBlocking {
+        override fun `data is retrieved from rest`() = runTest {
             val skin = createProfileSkin()
             val id = skin.id
             coEvery { mojangAPI.getSkin(id) } returns skin

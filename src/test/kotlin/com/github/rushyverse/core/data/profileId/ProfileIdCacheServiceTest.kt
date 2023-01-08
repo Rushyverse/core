@@ -10,6 +10,7 @@ import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisURI
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -35,7 +36,7 @@ class ProfileIdCacheServiceTest {
         cacheClient = CacheClient {
             uri = RedisURI.create(redisContainer.url)
         }
-        service = ProfileIdCacheService(cacheClient, getRandomString())
+        service = ProfileIdCacheService(cacheClient, null, getRandomString())
     }
 
     @AfterTest
@@ -48,21 +49,21 @@ class ProfileIdCacheServiceTest {
     inner class Get {
 
         @Test
-        fun `data is not into the cache`() = runBlocking {
+        fun `data is not into the cache`() = runTest {
             val profile = createProfileId()
             service.save(profile)
             assertNull(service.getByName(getRandomString()))
         }
 
         @Test
-        fun `data is retrieved from the cache`() = runBlocking {
+        fun `data is retrieved from the cache`() = runTest {
             val profile = createProfileId()
             service.save(profile)
             assertEquals(profile, service.getByName(profile.name))
         }
 
         @Test
-        fun `data is retrieved from the cache with name key but serial value is not valid`() = runBlocking {
+        fun `data is retrieved from the cache with name key but serial value is not valid`() = runTest {
             val profile = createProfileId()
             val key = profile.name
             cacheClient.connect {
@@ -79,7 +80,7 @@ class ProfileIdCacheServiceTest {
     inner class Save {
 
         @Test
-        fun `save identity with key not exists`() = runBlocking {
+        fun `save identity with key not exists`() = runTest {
             val profile = createProfileId()
             val key = profile.name
             assertNull(service.getByName(key))
@@ -88,7 +89,7 @@ class ProfileIdCacheServiceTest {
         }
 
         @Test
-        fun `save identity but key already exists`() = runBlocking {
+        fun `save identity but key already exists`() = runTest {
             val profile = createProfileId()
             val key = profile.name
 
@@ -102,7 +103,7 @@ class ProfileIdCacheServiceTest {
         }
 
         @Test
-        fun `data is saved using the binary format from client`(): Unit = runBlocking {
+        fun `data is saved using the binary format from client`(): Unit = runTest {
             val profile = createProfileId()
             val key = profile.name
             service.save(profile)

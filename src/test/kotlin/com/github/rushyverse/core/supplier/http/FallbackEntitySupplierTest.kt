@@ -6,7 +6,7 @@ import com.github.rushyverse.core.utils.getRandomString
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import kotlin.test.BeforeTest
@@ -33,7 +33,7 @@ class FallbackEntitySupplierTest {
     inner class GetId : FallbackTest {
 
         @Test
-        override fun `data is not present into both supplier`() = runBlocking {
+        override fun `data is not present into both supplier`() = runTest {
             val first = fallbackEntitySupplier.first
             val second = fallbackEntitySupplier.second
             val id = createProfileId()
@@ -49,7 +49,7 @@ class FallbackEntitySupplierTest {
         }
 
         @Test
-        override fun `data is present into one of both supplier`() = runBlocking {
+        override fun `data is present into one of both supplier`() = runTest {
             val first = fallbackEntitySupplier.first
             val second = fallbackEntitySupplier.second
             val id = createProfileId()
@@ -78,7 +78,7 @@ class FallbackEntitySupplierTest {
     inner class GetSkin : FallbackTest {
 
         @Test
-        override fun `data is not present into both supplier`() = runBlocking {
+        override fun `data is not present into both supplier`() = runTest {
             val first = fallbackEntitySupplier.first
             val second = fallbackEntitySupplier.second
             val skin = createProfileSkin()
@@ -94,7 +94,7 @@ class FallbackEntitySupplierTest {
         }
 
         @Test
-        override fun `data is present into one of both supplier`() = runBlocking {
+        override fun `data is present into one of both supplier`() = runTest {
             val first = fallbackEntitySupplier.first
             val second = fallbackEntitySupplier.second
             val skin = createProfileSkin()

@@ -11,6 +11,7 @@ import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisURI
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -36,7 +37,7 @@ class ProfileSkinCacheServiceTest {
         cacheClient = CacheClient {
             uri = RedisURI.create(redisContainer.url)
         }
-        service = ProfileSkinCacheService(cacheClient, getRandomString())
+        service = ProfileSkinCacheService(cacheClient, null, getRandomString())
     }
 
     @AfterTest
@@ -49,21 +50,21 @@ class ProfileSkinCacheServiceTest {
     inner class Get {
 
         @Test
-        fun `data is not into the cache`() = runBlocking {
+        fun `data is not into the cache`() = runTest {
             val profile = createProfileSkin()
             service.save(profile)
             assertNull(service.getByUUID(getRandomString()))
         }
 
         @Test
-        fun `data is retrieved from the cache`() = runBlocking {
+        fun `data is retrieved from the cache`() = runTest {
             val profile = createProfileSkin()
             service.save(profile)
             assertEquals(profile, service.getByUUID(profile.id))
         }
 
         @Test
-        fun `data is retrieved from the cache with name key but serial value is not valid`() = runBlocking {
+        fun `data is retrieved from the cache with name key but serial value is not valid`() = runTest {
             val profile = createProfileSkin()
             val key = profile.id
             cacheClient.connect {
@@ -80,7 +81,7 @@ class ProfileSkinCacheServiceTest {
     inner class Save {
 
         @Test
-        fun `save identity with key not exists`() = runBlocking {
+        fun `save identity with key not exists`() = runTest {
             val profile = createProfileSkin()
             val key = profile.id
             assertNull(service.getByUUID(key))
@@ -89,7 +90,7 @@ class ProfileSkinCacheServiceTest {
         }
 
         @Test
-        fun `save identity but key already exists`() = runBlocking {
+        fun `save identity but key already exists`() = runTest {
             val profile = createProfileSkin()
             val key = profile.id
 
@@ -103,7 +104,7 @@ class ProfileSkinCacheServiceTest {
         }
 
         @Test
-        fun `data is saved using the binary format from client`(): Unit = runBlocking {
+        fun `data is saved using the binary format from client`(): Unit = runTest {
             val profile = createProfileSkin()
             val key = profile.id
             service.save(profile)

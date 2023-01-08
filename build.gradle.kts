@@ -18,6 +18,7 @@ dependencies {
     val kotlinCoroutineReactiveVersion = "1.6.4"
     val ktorVersion = "2.2.2"
     val ktSerializationVersion = "1.4.1"
+    val coroutinesCoreVersion = "1.6.4"
     val exposedVersion = "0.41.1"
     val loggingVersion = "3.0.4"
     val slf4jVersion = "2.0.6"
@@ -60,6 +61,8 @@ dependencies {
     implementation("io.github.microutils:kotlin-logging:$loggingVersion")
     implementation("org.slf4j:slf4j-api:$slf4jVersion")
     implementation("org.slf4j:slf4j-simple:$slf4jVersion")
+
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesCoreVersion")
 
     // Create fake instance (mock) of components for tests
     testImplementation("io.mockk:mockk:$mockkVersion")
