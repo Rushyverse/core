@@ -1,0 +1,34 @@
+name: Check
+
+on:
+  push:
+    branches-ignore:
+      - 'dependabot-**'
+    paths-ignore:
+      - '**.md'
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3
+
+      - name: Initialization
+        uses: ./.github/actions/init
+        with:
+          jdk: 17
+
+      - name: Build
+        uses: gradle/gradle-build-action@v2.3.3
+        with:
+          arguments: build -x test
+
+      - name: Test
+        uses: gradle/gradle-build-action@v2.3.3
+        with:
+          arguments: test
