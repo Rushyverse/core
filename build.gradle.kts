@@ -28,6 +28,7 @@ dependencies {
     val psqlVersion = "42.5.1"
     val lettuceVersion = "6.2.2.RELEASE"
     val kotlinMojangApi = "2.1.0"
+    val nettyCodecVersion = "4.1.86.Final"
 
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
@@ -55,7 +56,7 @@ dependencies {
 
     // Redis cache
     implementation("io.lettuce:lettuce-core:$lettuceVersion")
-    implementation("io.netty:netty-codec:4.1.86.Final")
+    implementation("io.netty:netty-codec:$nettyCodecVersion")
 
     // Logging information
     implementation("io.github.microutils:kotlin-logging:$loggingVersion")
