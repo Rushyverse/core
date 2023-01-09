@@ -13,27 +13,15 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.toSet
-import kotlinx.serialization.Serializable
+import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.Column
-import org.jetbrains.exposed.sql.Table
 import java.util.*
 import kotlin.time.Duration
 
-public object FriendTable : Table(Friend::class.simpleName!!) {
-    public val id: Column<Int> = integer("id").autoIncrement()
+public object Friends : IntIdTable("friends") {
     public val uuid1: Column<UUID> = uuid("uuid1").uniqueIndex()
     public val uuid2: Column<UUID> = uuid("uuid2").uniqueIndex()
-    override val primaryKey: PrimaryKey = PrimaryKey(id)
 }
-
-@Serializable
-public data class Friend(
-    var id: Int,
-    @Serializable(with = UUIDSerializer::class)
-    var uuid1: UUID,
-    @Serializable(with = UUIDSerializer::class)
-    var uuid2: UUID
-)
 
 public interface IFriendCacheService {
 
@@ -89,10 +77,12 @@ public class FriendCacheService(
         val friends = friend.asSequence().map { encodeToByteArray(binaryFormat, UUIDSerializer, it) }.toTypedArray(size)
 
         val result = connection.sadd(key, *friends)
-        return if (expiration != null && result != null && result > 0) {
+        val isAdded = result != null && result > 0
+        if(expiration != null && isAdded) {
             connection.pexpire(key, expiration.inWholeMilliseconds)
-            true
-        } else false
+        }
+
+        return isAdded
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
