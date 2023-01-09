@@ -57,12 +57,15 @@ public class FriendCacheService(
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return client.connect {
-            coroutineScope {
-                val duplicate = if (duplicateForFriend) {
-                    async { addFriend(it, friend, listOf(uuid)) }
-                } else null
+            if (!duplicateForFriend) {
+                return@connect addFriend(it, uuid, listOf(friend))
+            }
 
-                addFriend(it, uuid, listOf(friend)) && (duplicate?.await() ?: true)
+            coroutineScope {
+                val duplicateTask = async { addFriend(it, friend, listOf(uuid)) }
+                val primaryResult = addFriend(it, uuid, listOf(friend))
+                val duplicateResult = duplicateTask.await()
+                primaryResult || duplicateResult
             }
         }
     }
@@ -78,7 +81,7 @@ public class FriendCacheService(
 
         val result = connection.sadd(key, *friends)
         val isAdded = result != null && result > 0
-        if(expiration != null && isAdded) {
+        if (expiration != null && isAdded) {
             connection.pexpire(key, expiration.inWholeMilliseconds)
         }
 
@@ -87,12 +90,15 @@ public class FriendCacheService(
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
         return client.connect {
-            coroutineScope {
-                val duplicate = if (duplicateForFriend) {
-                    async { removeFriend(it, friend, uuid) }
-                } else null
+            if (!duplicateForFriend) {
+                return@connect removeFriend(it, uuid, friend)
+            }
 
-                removeFriend(it, uuid, friend) && (duplicate?.await() ?: true)
+            coroutineScope {
+                val duplicateTask = async { removeFriend(it, friend, uuid) }
+                val primaryResult = removeFriend(it, uuid, friend)
+                val duplicateResult = duplicateTask.await()
+                primaryResult || duplicateResult
             }
         }
     }
@@ -123,23 +129,31 @@ public class FriendCacheService(
 
     override suspend fun setFriends(uuid: UUID, friends: Set<UUID>): Boolean {
         return client.connect {
+            if (!duplicateForFriend) {
+                deleteKey(it, uuid)
+                return@connect addFriend(it, uuid, friends)
+            }
+
             coroutineScope {
-                val duplicate = if (duplicateForFriend) {
-                    val uuidList = listOf(uuid)
-                    friends.map { friendUUID ->
-                        async {
-                            addFriend(it, friendUUID, uuidList)
-                        }
-                    }
-                } else null
+                val uuidList = listOf(uuid)
+                val duplicateTask = friends.map { friendUUID ->
+                    async { addFriend(it, friendUUID, uuidList) }
+                }
 
-                val binaryFormat = client.binaryFormat
-                val key = encodeKey(binaryFormat, uuid.toString())
-                it.del(key)
+                deleteKey(it, uuid)
 
-                addFriend(it, uuid, friends) && (duplicate?.awaitAll()?.any { it } ?: true)
+                val primaryResult = addFriend(it, uuid, friends)
+                val duplicateResult = duplicateTask.awaitAll()
+                primaryResult || duplicateResult.any { it }
             }
         }
+    }
+
+    private suspend fun deleteKey(
+        it: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        uuid: UUID
+    ): Long? {
+        return it.del(encodeKey(client.binaryFormat, uuid.toString()))
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
