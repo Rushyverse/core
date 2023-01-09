@@ -75,6 +75,8 @@ public class FriendCacheService(
         uuid: UUID,
         friend: Collection<UUID>,
     ): Boolean {
+        if(friend.isEmpty()) return true
+
         val size = friend.size
         val key = encodeKey(binaryFormat, uuid.toString())
         val friends = friend.asSequence().map { encodeToByteArray(binaryFormat, UUIDSerializer, it) }.toTypedArray(size)
