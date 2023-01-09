@@ -29,6 +29,7 @@ dependencies {
     val lettuceVersion = "6.2.2.RELEASE"
     val kotlinMojangApi = "2.1.0"
     val nettyCodecVersion = "4.1.86.Final"
+    val assertJcoreVersion = "3.24.1"
 
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
@@ -70,6 +71,7 @@ dependencies {
 
     // Junit to run tests
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
+    testImplementation("org.assertj:assertj-core:$assertJcoreVersion")
     testImplementation("org.junit.jupiter:junit-jupiter-params:$junitVersion")
     testImplementation("org.testcontainers:junit-jupiter:$testContainersVersion")
     testImplementation("org.testcontainers:postgresql:$testContainersVersion")

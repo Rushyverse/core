@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Nested
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -107,6 +108,7 @@ class FriendCacheServiceTest {
             val service = FriendCacheService(cacheClient, expiration = 1.seconds, duplicateForFriend = false)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
+            assertEquals(1L, getTTL(service, uuid1))
 
             delay(0.5.seconds)
 
@@ -127,6 +129,8 @@ class FriendCacheServiceTest {
             val service = FriendCacheService(cacheClient, expiration = 1.seconds, duplicateForFriend = true)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
+            assertEquals(1L, getTTL(service, uuid1))
+            assertEquals(1L, getTTL(service, uuid2))
 
             delay(0.5.seconds)
 
@@ -141,18 +145,98 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should not set expiration if relation not added`() = runTest {
-            TODO()
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = true)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertEquals(-1, getTTL(service, uuid1))
+            assertEquals(-1, getTTL(service, uuid2))
+
+            val serviceWithExpiration = FriendCacheService(cacheClient, expiration = 40.seconds, duplicateForFriend = true)
+            assertFalse { serviceWithExpiration.addFriend(uuid1, uuid2) }
+            assertEquals(-1, getTTL(service, uuid1))
+            assertEquals(-1, getTTL(service, uuid2))
         }
 
-        private suspend fun getFriends(
-            service: FriendCacheService,
-            uuid1: UUID
-        ) = cacheClient.connect {
-            val keySerial =
-                cacheClient.binaryFormat.encodeToByteArray(String.serializer(), service.prefixKey + uuid1.toString())
-            it.smembers(keySerial).mapNotNull { member ->
-                binaryFormat.decodeFromByteArray(UUIDSerializer, member)
-            }
+        @Test
+        fun `should reset expiration when a new friend is added`() = runBlocking {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, expiration = 5.seconds, duplicateForFriend = false)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertEquals(5, getTTL(service, uuid1))
+
+            delay(1.seconds)
+
+            assertEquals(4, getTTL(service, uuid1))
+
+            assertTrue { service.addFriend(uuid1, uuid3) }
+            assertEquals(5, getTTL(service, uuid1))
         }
+
+        @Test
+        fun `should add several friends without duplicate`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = false)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
+
+            assertTrue { service.addFriend(uuid1, uuid3) }
+            assertThat(getFriends(service, uuid1).toList()).containsExactlyInAnyOrder(uuid3, uuid2)
+        }
+
+        @Test
+        fun `should add several friends with duplicate`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = true)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
+            assertEquals(listOf(uuid1), getFriends(service, uuid2).toList())
+            assertEquals(emptyList(), getFriends(service, uuid3).toList())
+
+            assertTrue { service.addFriend(uuid1, uuid3) }
+            assertThat(getFriends(service, uuid1).toList()).containsExactlyInAnyOrder(uuid3, uuid2)
+            assertEquals(listOf(uuid1), getFriends(service, uuid2).toList())
+            assertEquals(listOf(uuid1), getFriends(service, uuid3).toList())
+        }
+
+    }
+
+    private suspend fun getFriends(
+        service: FriendCacheService,
+        uuid: UUID
+    ) = cacheClient.connect {
+        val keySerial = createKey(service, uuid)
+        it.smembers(keySerial).mapNotNull { member ->
+            binaryFormat.decodeFromByteArray(UUIDSerializer, member)
+        }
+    }
+
+    private suspend fun getTTL(service: FriendCacheService, uuid: UUID): Long? {
+        return cacheClient.connect {
+            it.ttl(createKey(service, uuid))
+        }
+    }
+
+    private fun createKey(
+        service: FriendCacheService,
+        uuid1: UUID
+    ): ByteArray {
+        val keySerial =
+            cacheClient.binaryFormat.encodeToByteArray(String.serializer(), service.prefixKey + uuid1.toString())
+        return keySerial
     }
 }
