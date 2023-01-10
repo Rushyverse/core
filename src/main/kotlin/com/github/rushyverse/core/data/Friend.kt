@@ -113,10 +113,13 @@ public class FriendCacheService(
         val key = encodeKey(binaryFormat, uuid.toString())
         val value = encodeToByteArray(binaryFormat, UUIDSerializer, friend)
         val result = connection.srem(key, value)
-        return if (expiration != null && result == 1L) {
+        val isRemoved = result != null && result > 0
+
+        if (expiration != null && isRemoved) {
             connection.pexpire(key, expiration.inWholeMilliseconds)
-            true
-        } else false
+        }
+
+        return isRemoved
     }
 
     override suspend fun getFriends(uuid: UUID): Set<UUID> {
@@ -143,18 +146,12 @@ public class FriendCacheService(
                 }
 
                 deleteKey(it, uuid)
-
-                val primaryResult = addFriend(it, uuid, friends)
-                val duplicateResult = duplicateTask.awaitAll()
-                primaryResult || duplicateResult.any { it }
+                addFriend(it, uuid, friends).also { duplicateTask.awaitAll() }
             }
         }
     }
 
-    private suspend fun deleteKey(
-        it: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        uuid: UUID
-    ): Long? {
+    private suspend fun deleteKey(it: RedisCoroutinesCommands<ByteArray, ByteArray>, uuid: UUID): Long? {
         return it.del(encodeKey(client.binaryFormat, uuid.toString()))
     }
 
