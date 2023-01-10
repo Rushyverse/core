@@ -44,6 +44,29 @@ class FriendCacheServiceTest {
     }
 
     @Nested
+    inner class DefaultParameter {
+
+        @Test
+        fun `default prefix key`() {
+            val service = FriendCacheService(cacheClient)
+            assertEquals("friend:", service.prefixKey)
+        }
+
+        @Test
+        fun `default duplicate`() {
+            val service = FriendCacheService(cacheClient)
+            assertFalse { service.duplicateForFriend }
+        }
+
+        @Test
+        fun `default expiration`() {
+            val service = FriendCacheService(cacheClient)
+            assertNull(service.expiration)
+        }
+
+    }
+
+    @Nested
     inner class AddFriend {
 
         @Test
