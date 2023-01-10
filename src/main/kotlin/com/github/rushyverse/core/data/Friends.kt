@@ -12,9 +12,9 @@ import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.flow.toSet
 import org.komapper.annotation.KomapperAutoIncrement
 import org.komapper.annotation.KomapperEntity
 import org.komapper.annotation.KomapperId
@@ -52,7 +52,7 @@ public interface IFriendService {
      * @param uuid ID of the entity.
      * @return Set of IDs of the friends.
      */
-    public suspend fun getFriends(uuid: UUID): Set<UUID>
+    public suspend fun getFriends(uuid: UUID): Flow<UUID>
 
     /**
      * Check if two entities are friends.
@@ -177,13 +177,13 @@ public class FriendCacheService(
         return isRemoved
     }
 
-    override suspend fun getFriends(uuid: UUID): Set<UUID> {
+    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
         return client.connect {
             val binaryFormat = client.binaryFormat
             val key = encodeKey(binaryFormat, uuid.toString())
             it.smembers(key).mapNotNull { member ->
                 decodeFromByteArrayOrNull(binaryFormat, UUIDSerializer, member)
-            }.toSet()
+            }
         }
     }
 
@@ -244,7 +244,7 @@ public class FriendDatabaseService(val database: R2dbcDatabase) : IFriendDatabas
         return database.runQuery(query) > 0
     }
 
-    override suspend fun getFriends(uuid: UUID): Set<UUID> {
+    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
         val w1: WhereDeclaration = { friends.uuid1 eq uuid }
         val w2: WhereDeclaration = { friends.uuid2 eq uuid }
         val where = (w1.or(w2))
@@ -253,7 +253,7 @@ public class FriendDatabaseService(val database: R2dbcDatabase) : IFriendDatabas
         return database.flowQuery(query).map {
             val uuid1 = it.uuid1
             if (uuid1 == uuid) it.uuid2 else uuid1
-        }.toSet()
+        }
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
@@ -286,7 +286,7 @@ public class FriendService(override val supplier: IEntitySupplier) : IFriendServ
         return supplier.removeFriend(uuid, friend)
     }
 
-    override suspend fun getFriends(uuid: UUID): Set<UUID> {
+    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
         return supplier.getFriends(uuid)
     }
 

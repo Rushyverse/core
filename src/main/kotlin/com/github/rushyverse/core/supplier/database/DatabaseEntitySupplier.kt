@@ -1,6 +1,7 @@
 package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.data.IFriendDatabaseService
+import kotlinx.coroutines.flow.Flow
 import java.util.*
 
 /**
@@ -17,7 +18,7 @@ public class DatabaseEntitySupplier(public val service: IFriendDatabaseService) 
         return service.removeFriend(uuid, friend)
     }
 
-    override suspend fun getFriends(uuid: UUID): Set<UUID> {
+    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
         return service.getFriends(uuid)
     }
 

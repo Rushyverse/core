@@ -487,7 +487,7 @@ class FriendCacheServiceTest {
         fun `should return empty list when no friends`() = runTest {
             val uuid = UUID.randomUUID()
             val service = FriendCacheService(cacheClient)
-            assertEquals(emptySet(), service.getFriends(uuid))
+            assertEquals(emptyList(), service.getFriends(uuid).toList())
         }
 
         @Test
@@ -501,7 +501,7 @@ class FriendCacheServiceTest {
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertTrue { service.addFriend(uuid1, uuid3) }
 
-            assertThat(service.getFriends(uuid1)).containsExactlyInAnyOrder(uuid2, uuid3)
+            assertThat(service.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid2, uuid3)
         }
 
         @Test
@@ -518,7 +518,7 @@ class FriendCacheServiceTest {
             }
             assertTrue { service.addFriend(uuid1, uuid3) }
 
-            assertThat(service.getFriends(uuid1)).containsExactlyInAnyOrder(uuid2, uuid3)
+            assertThat(service.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid2, uuid3)
         }
 
     }

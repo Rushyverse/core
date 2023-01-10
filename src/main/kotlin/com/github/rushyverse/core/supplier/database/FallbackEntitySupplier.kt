@@ -1,5 +1,8 @@
 package com.github.rushyverse.core.supplier.database
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.onEmpty
 import java.util.*
 
 /**
@@ -29,9 +32,9 @@ public class FallbackEntitySupplier(
         } else false
     }
 
-    override suspend fun getFriends(uuid: UUID): Set<UUID> {
-        return getPriority.getFriends(uuid).ifEmpty {
-            setPriority.getFriends(uuid)
+    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
+        return getPriority.getFriends(uuid).onEmpty {
+            emitAll(setPriority.getFriends(uuid))
         }
     }
 

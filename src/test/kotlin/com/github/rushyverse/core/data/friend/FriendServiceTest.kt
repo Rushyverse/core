@@ -6,6 +6,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import java.util.*
@@ -96,10 +99,10 @@ class FriendServiceTest {
         fun `should get friends in supplier`() = runTest {
             val slotUuid = slot<UUID>()
 
-            coEvery { supplier.getFriends(capture(slotUuid)) } returns emptySet()
+            coEvery { supplier.getFriends(capture(slotUuid)) } returns emptyFlow()
 
             val uuid1 = UUID.randomUUID()
-            assertEquals(emptySet(), serviceImpl.getFriends(uuid1))
+            assertEquals(emptyList(), serviceImpl.getFriends(uuid1).toList())
             coVerify(exactly = 1) { supplier.getFriends(any()) }
 
             assertEquals(uuid1, slotUuid.captured)
@@ -107,16 +110,16 @@ class FriendServiceTest {
 
         @Test
         fun `should return empty collection when supplier returns empty collection`() = runTest {
-            coEvery { supplier.getFriends(any()) } returns emptySet()
-            assertEquals(emptySet(), serviceImpl.getFriends(mockk()))
+            coEvery { supplier.getFriends(any()) } returns emptyFlow()
+            assertEquals(emptyList(), serviceImpl.getFriends(mockk()).toList())
             coVerify(exactly = 1) { supplier.getFriends(any()) }
         }
 
         @Test
         fun `should return not empty collection when supplier returns not empty collection`() = runTest {
-            val expected = List(5) { UUID.randomUUID() }.toSet()
-            coEvery { supplier.getFriends(any()) } returns expected
-            assertEquals(expected, serviceImpl.getFriends(mockk()))
+            val expected = List(5) { UUID.randomUUID() }
+            coEvery { supplier.getFriends(any()) } returns expected.asFlow()
+            assertEquals(expected, serviceImpl.getFriends(mockk()).toList())
             coVerify(exactly = 1) { supplier.getFriends(any()) }
         }
 

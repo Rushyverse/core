@@ -5,6 +5,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
@@ -98,10 +101,10 @@ class CacheEntitySupplierTest {
         fun `should get friends in supplier`() = runTest {
             val slotUuid = slot<UUID>()
 
-            coEvery { cacheService.getFriends(capture(slotUuid)) } returns emptySet()
+            coEvery { cacheService.getFriends(capture(slotUuid)) } returns emptyFlow()
 
             val uuid1 = UUID.randomUUID()
-            assertEquals(emptySet(), cacheEntitySupplier.getFriends(uuid1))
+            assertEquals(emptyList(), cacheEntitySupplier.getFriends(uuid1).toList())
             coVerify(exactly = 1) { cacheService.getFriends(any()) }
 
             assertEquals(uuid1, slotUuid.captured)
@@ -109,16 +112,16 @@ class CacheEntitySupplierTest {
 
         @Test
         fun `should return empty collection when supplier returns empty collection`() = runTest {
-            coEvery { cacheService.getFriends(any()) } returns emptySet()
-            assertEquals(emptySet(), cacheEntitySupplier.getFriends(mockk()))
+            coEvery { cacheService.getFriends(any()) } returns emptyFlow()
+            assertEquals(emptyList(), cacheEntitySupplier.getFriends(mockk()).toList())
             coVerify(exactly = 1) { cacheService.getFriends(any()) }
         }
 
         @Test
         fun `should return not empty collection when supplier returns not empty collection`() = runTest {
-            val expected = List(5) { UUID.randomUUID() }.toSet()
-            coEvery { cacheService.getFriends(any()) } returns expected
-            assertEquals(expected, cacheEntitySupplier.getFriends(mockk()))
+            val expected = List(5) { UUID.randomUUID() }
+            coEvery { cacheService.getFriends(any()) } returns expected.asFlow()
+            assertEquals(expected, cacheEntitySupplier.getFriends(mockk()).toList())
             coVerify(exactly = 1) { cacheService.getFriends(any()) }
         }
 

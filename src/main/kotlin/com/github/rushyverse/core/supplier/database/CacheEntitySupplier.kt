@@ -1,6 +1,7 @@
 package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.data.IFriendCacheService
+import kotlinx.coroutines.flow.Flow
 import java.util.*
 
 /**
@@ -17,8 +18,8 @@ public class CacheEntitySupplier(public val service: IFriendCacheService) : IEnt
         return service.removeFriend(uuid, friend)
     }
 
-    override suspend fun getFriends(uuid: UUID): Set<UUID> {
-        return service.getFriends(uuid).toSet()
+    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
+        return service.getFriends(uuid)
     }
 
     public suspend fun setFriends(uuid: UUID, friends: Set<UUID>): Boolean {

@@ -141,7 +141,7 @@ class FriendDatabaseServiceTest {
         @Test
         fun `should return empty list if no friends`() = runTest {
             val uuid = UUID.randomUUID()
-            assertTrue { service.getFriends(uuid).isEmpty() }
+            assertTrue { service.getFriends(uuid).toList().isEmpty() }
         }
 
         @Test
@@ -153,7 +153,7 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertTrue { service.addFriend(uuid1, uuid3) }
 
-            assertThat(service.getFriends(uuid1)).containsExactlyInAnyOrder(uuid2, uuid3)
+            assertThat(service.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid2, uuid3)
         }
 
         @Test
@@ -165,7 +165,7 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertTrue { service.addFriend(uuid3, uuid1) }
 
-            assertThat(service.getFriends(uuid1)).containsExactlyInAnyOrder(uuid2, uuid3)
+            assertThat(service.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid2, uuid3)
         }
 
     }
