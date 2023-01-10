@@ -3,6 +3,7 @@ package com.github.rushyverse.core.data
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.cache.CacheClient.Default.binaryFormat
 import com.github.rushyverse.core.cache.CacheService
+import com.github.rushyverse.core.data._Friends.Companion.friends
 import com.github.rushyverse.core.extension.toTypedArray
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.supplier.database.IEntitySupplier
@@ -11,12 +12,17 @@ import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.toSet
-import org.jetbrains.exposed.dao.id.IntIdTable
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.komapper.annotation.KomapperAutoIncrement
+import org.komapper.annotation.KomapperEntity
+import org.komapper.annotation.KomapperId
+import org.komapper.core.dsl.QueryDsl
+import org.komapper.core.dsl.expression.WhereDeclaration
+import org.komapper.core.dsl.operator.and
+import org.komapper.core.dsl.operator.or
+import org.komapper.r2dbc.R2dbcDatabase
 import java.util.*
 import kotlin.time.Duration
 
@@ -80,10 +86,14 @@ public interface IFriendDatabaseService : IFriendService
 /**
  * Table to store the friendship relationship in database.
  */
-public object Friends : IntIdTable("friends") {
-    public val uuid1: Column<UUID> = uuid("uuid1").uniqueIndex()
-    public val uuid2: Column<UUID> = uuid("uuid2").uniqueIndex()
-}
+@KomapperEntity
+public data class Friends(
+    val uuid1: UUID,
+    val uuid2: UUID,
+    @KomapperId
+    @KomapperAutoIncrement
+    val id: Int = 0,
+)
 
 /**
  * Implementation of [IFriendCacheService] that uses [CacheClient] to manage data in cache.
@@ -219,44 +229,47 @@ public class FriendCacheService(
 /**
  * Implementation of [IFriendDatabaseService] to manage data in database.
  */
-public class FriendDatabaseService : IFriendDatabaseService {
+public class FriendDatabaseService(val database: R2dbcDatabase) : IFriendDatabaseService {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
-        return newSuspendedTransaction {
-            Friends.insertIgnore {
-                it[uuid1] = uuid
-                it[uuid2] = friend
-            }
-        }.insertedCount == 1
+        if (isFriend(uuid, friend)) return false
+        val query = QueryDsl.insert(friends).single(Friends(uuid, friend))
+        database.runQuery(query)
+        return true
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
-        return newSuspendedTransaction {
-            Friends.deleteWhere {
-                (uuid1.eq(uuid) and uuid2.eq(friend)) or (uuid1.eq(friend) and uuid2.eq(uuid))
-            }
-        } > 0
+        val where = createWhereBidirectional(uuid, friend)
+        val query = QueryDsl.delete(friends).where(where)
+        return database.runQuery(query) > 0
     }
 
     override suspend fun getFriends(uuid: UUID): Set<UUID> {
-        return newSuspendedTransaction {
-            Friends.select { (Friends.uuid1.eq(uuid) or Friends.uuid2.eq(uuid)) }
-                .mapTo(mutableSetOf()) {
-                    val uuid1 = it[Friends.uuid1]
-                    val uuid2 = it[Friends.uuid2]
-                    if (uuid1 == uuid) uuid2 else uuid1
-                }
-        }
+        val w1: WhereDeclaration = { friends.uuid1 eq uuid }
+        val w2: WhereDeclaration = { friends.uuid2 eq uuid }
+        val where = (w1.or(w2))
+
+        val query = QueryDsl.from(friends).where(where)
+        return database.flowQuery(query).map {
+            val uuid1 = it.uuid1
+            if (uuid1 == uuid) it.uuid2 else uuid1
+        }.toSet()
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
-        return newSuspendedTransaction {
-            !Friends.select {
-                (Friends.uuid1.eq(uuid) and Friends.uuid2.eq(friend)) or (Friends.uuid1.eq(friend) and Friends.uuid2.eq(
-                    uuid
-                ))
-            }.empty()
-        }
+        val where = createWhereBidirectional(uuid, friend)
+        val query = QueryDsl.from(friends).where(where).limit(1)
+        return database.runQuery(query).isNotEmpty()
+    }
+
+    private fun createWhereBidirectional(uuid: UUID, friend: UUID): WhereDeclaration {
+        val w1: WhereDeclaration = { friends.uuid1 eq uuid }
+        val w2: WhereDeclaration = { friends.uuid2 eq friend }
+
+        val w3: WhereDeclaration = { friends.uuid1 eq friend }
+        val w4: WhereDeclaration = { friends.uuid2 eq uuid }
+
+        return (w1.and(w2)).or(w3.and(w4))
     }
 }
 
