@@ -216,8 +216,7 @@ class FriendDatabaseServiceTest {
 
     private suspend fun getAllFriends(): List<Friends> {
         val query = QueryDsl.from(friends)
-        val result = database.flowQuery { query }.toList()
-        return result
+        return database.flowQuery(query).toList()
     }
 
 }
