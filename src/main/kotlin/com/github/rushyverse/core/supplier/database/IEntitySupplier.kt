@@ -1,6 +1,5 @@
 package com.github.rushyverse.core.supplier.database
 
-import com.github.rushyverse.core.supplier.SupplierConfiguration
 import java.util.*
 
 /**
@@ -23,15 +22,15 @@ public interface IEntitySupplier {
          * A supplier providing a strategy which exclusively uses cache to fetch entities.
          * See [CacheEntitySupplier] for more details.
          */
-        public fun cache(configuration: SupplierConfiguration): CacheEntitySupplier =
-            CacheEntitySupplier(configuration.friendCache)
+        public fun cache(configuration: DatabaseSupplierServices): CacheEntitySupplier =
+            CacheEntitySupplier(configuration.friendCacheService)
 
         /**
          * A supplier providing a strategy which exclusively uses database calls to fetch entities.
          * fetched entities are stored in [cache].
          * See [StoreEntitySupplier] for more details.
          */
-        public fun cachingDatabase(configuration: SupplierConfiguration): StoreEntitySupplier =
+        public fun cachingDatabase(configuration: DatabaseSupplierServices): StoreEntitySupplier =
             StoreEntitySupplier(cache(configuration), database())
 
         /**
@@ -39,7 +38,7 @@ public interface IEntitySupplier {
          * is not present from cache it will be fetched from [database] instead. Operations that return flows
          * will only fall back to rest when the returned flow contained no elements.
          */
-        public fun cacheWithDatabaseFallback(configuration: SupplierConfiguration): IEntitySupplier =
+        public fun cacheWithDatabaseFallback(configuration: DatabaseSupplierServices): IEntitySupplier =
             FallbackEntitySupplier(getPriority = cache(configuration), setPriority = database())
 
         /**
@@ -47,7 +46,7 @@ public interface IEntitySupplier {
          * is not present from cache it will be fetched from [cachingDatabase] instead which will update [cache] with fetched elements.
          * Operations that return flows will only fall back to rest when the returned flow contained no elements.
          */
-        public fun cacheWithCachingDatabaseFallback(configuration: SupplierConfiguration): IEntitySupplier =
+        public fun cacheWithCachingDatabaseFallback(configuration: DatabaseSupplierServices): IEntitySupplier =
             FallbackEntitySupplier(getPriority = cache(configuration), setPriority = cachingDatabase(configuration))
 
     }

@@ -11,24 +11,21 @@ public class FallbackEntitySupplier(
 ) : IEntitySupplier {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
-        val result = setPriority.addFriend(uuid, friend)
-        return if (result) {
+        return if (setPriority.addFriend(uuid, friend)) {
             getPriority.addFriend(uuid, friend)
             true
         } else false
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
-        val result = setPriority.removeFriend(uuid, friend)
-        return if (result) {
+        return if (setPriority.removeFriend(uuid, friend)) {
             getPriority.removeFriend(uuid, friend)
             true
         } else false
     }
 
     override suspend fun getFriends(uuid: UUID): Set<UUID> {
-        val resultFirst = getPriority.getFriends(uuid)
-        return resultFirst.ifEmpty {
+        return getPriority.getFriends(uuid).ifEmpty {
             setPriority.getFriends(uuid)
         }
     }

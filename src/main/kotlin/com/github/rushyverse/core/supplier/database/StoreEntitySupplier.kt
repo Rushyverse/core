@@ -13,8 +13,7 @@ public class StoreEntitySupplier(
 ) : IEntitySupplier {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
-        val result = supplier.addFriend(uuid, friend)
-        return if (result) {
+        return if (supplier.addFriend(uuid, friend)) {
             cache.addFriend(uuid, friend)
             true
         } else {
@@ -23,8 +22,7 @@ public class StoreEntitySupplier(
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
-        val result = supplier.removeFriend(uuid, friend)
-        return if (result) {
+        return if (supplier.removeFriend(uuid, friend)) {
             cache.removeFriend(uuid, friend)
             true
         } else {
@@ -33,11 +31,7 @@ public class StoreEntitySupplier(
     }
 
     override suspend fun getFriends(uuid: UUID): Set<UUID> {
-        val friends = supplier.getFriends(uuid)
-        if (friends.isNotEmpty()) {
-            cache.setFriends(uuid, friends)
-        }
-        return friends
+        return supplier.getFriends(uuid).also { cache.setFriends(uuid, it) }
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
