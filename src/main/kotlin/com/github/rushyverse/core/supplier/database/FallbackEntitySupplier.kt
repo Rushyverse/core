@@ -3,7 +3,12 @@ package com.github.rushyverse.core.supplier.database
 import java.util.*
 
 /**
- * [IEntitySupplier] that uses the first supplier to retrieve a data, if the value is null, get the data through the second supplier.
+ * [IEntitySupplier] that uses two suppliers.
+ * Each supplier is used according to a priority.
+ * [getPriority] is used first when a data is retrieved. If the data is not found, [setPriority] is used.
+ * [setPriority] is used first when a data is set. If the data is set, the same information is set using [getPriority].
+ * @property getPriority Priority of the supplier used when a data is retrieved.
+ * @property setPriority Priority of the supplier used when a data is set.
  */
 public class FallbackEntitySupplier(
     public val getPriority: IEntitySupplier,
