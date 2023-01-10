@@ -223,7 +223,7 @@ public class FriendDatabaseService : IFriendDatabaseService {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return newSuspendedTransaction {
-            Friends.insert {
+            Friends.insertIgnore {
                 it[uuid1] = uuid
                 it[uuid2] = friend
             }
@@ -232,7 +232,7 @@ public class FriendDatabaseService : IFriendDatabaseService {
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
         return newSuspendedTransaction {
-            Friends.deleteWhere(1) {
+            Friends.deleteWhere {
                 (uuid1.eq(uuid) and uuid2.eq(friend)) or (uuid1.eq(friend) and uuid2.eq(uuid))
             }
         } > 0
@@ -241,7 +241,6 @@ public class FriendDatabaseService : IFriendDatabaseService {
     override suspend fun getFriends(uuid: UUID): Set<UUID> {
         return newSuspendedTransaction {
             Friends.select { (Friends.uuid1.eq(uuid) or Friends.uuid2.eq(uuid)) }
-                .withDistinct()
                 .mapTo(mutableSetOf()) {
                     val uuid1 = it[Friends.uuid1]
                     val uuid2 = it[Friends.uuid2]
