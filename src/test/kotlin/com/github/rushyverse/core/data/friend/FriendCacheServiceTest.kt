@@ -63,8 +63,8 @@ class FriendCacheServiceTest {
             assertFalse { service.addFriend(uuid1, uuid2) }
             assertFalse { service.addFriend(uuid2, uuid1) }
 
-            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
-            assertEquals(listOf(uuid1), getFriends(service, uuid2).toList())
+            assertEquals(listOf(uuid2), getFriends(service, uuid1))
+            assertEquals(listOf(uuid1), getFriends(service, uuid2))
         }
 
         @Test
@@ -76,8 +76,8 @@ class FriendCacheServiceTest {
 
             assertTrue { service.addFriend(uuid1, uuid2) }
 
-            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
-            assertEquals(listOf(uuid1), getFriends(service, uuid2).toList())
+            assertEquals(listOf(uuid2), getFriends(service, uuid1))
+            assertEquals(listOf(uuid1), getFriends(service, uuid2))
         }
 
         @Test
@@ -88,34 +88,35 @@ class FriendCacheServiceTest {
             val service = FriendCacheService(cacheClient, duplicateForFriend = false)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
-            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
-            assertEquals(emptyList(), getFriends(service, uuid2).toList())
+            assertEquals(listOf(uuid2), getFriends(service, uuid1))
+            assertEquals(emptyList(), getFriends(service, uuid2))
 
             assertFalse { service.addFriend(uuid1, uuid2) }
-            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
-            assertEquals(emptyList(), getFriends(service, uuid2).toList())
+            assertEquals(listOf(uuid2), getFriends(service, uuid1))
+            assertEquals(emptyList(), getFriends(service, uuid2))
 
             assertTrue { service.addFriend(uuid2, uuid1) }
-            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
-            assertEquals(listOf(uuid1), getFriends(service, uuid2).toList())
+            assertEquals(listOf(uuid2), getFriends(service, uuid1))
+            assertEquals(listOf(uuid1), getFriends(service, uuid2))
         }
 
         @Test
-        fun `should return true when A becomes friend with B but B is already friend with A with duplicate`() = runTest {
-            val uuid1 = UUID.randomUUID()
-            val uuid2 = UUID.randomUUID()
+        fun `should return true when A becomes friend with B but B is already friend with A with duplicate`() =
+            runTest {
+                val uuid1 = UUID.randomUUID()
+                val uuid2 = UUID.randomUUID()
 
-            val service = FriendCacheService(cacheClient, duplicateForFriend = false)
+                val service = FriendCacheService(cacheClient, duplicateForFriend = false)
 
-            assertTrue { service.addFriend(uuid1, uuid2) }
-            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
+                assertTrue { service.addFriend(uuid1, uuid2) }
+                assertEquals(listOf(uuid2), getFriends(service, uuid1))
 
-            val serviceWithDuplicate = FriendCacheService(cacheClient, duplicateForFriend = true)
+                val serviceWithDuplicate = FriendCacheService(cacheClient, duplicateForFriend = true)
 
-            assertTrue { serviceWithDuplicate.addFriend(uuid2, uuid1) }
-            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
-            assertEquals(listOf(uuid1), getFriends(service, uuid2).toList())
-        }
+                assertTrue { serviceWithDuplicate.addFriend(uuid2, uuid1) }
+                assertEquals(listOf(uuid2), getFriends(service, uuid1))
+                assertEquals(listOf(uuid1), getFriends(service, uuid2))
+            }
 
         @Test
         fun `should add friend with expiration without duplicate`() = runBlocking {
@@ -129,13 +130,13 @@ class FriendCacheServiceTest {
 
             delay(0.5.seconds)
 
-            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
-            assertEquals(emptyList(), getFriends(service, uuid2).toList())
+            assertEquals(listOf(uuid2), getFriends(service, uuid1))
+            assertEquals(emptyList(), getFriends(service, uuid2))
 
             delay(0.5.seconds)
 
-            assertEquals(emptyList(), getFriends(service, uuid1).toList())
-            assertEquals(emptyList(), getFriends(service, uuid2).toList())
+            assertEquals(emptyList(), getFriends(service, uuid1))
+            assertEquals(emptyList(), getFriends(service, uuid2))
         }
 
         @Test
@@ -151,13 +152,13 @@ class FriendCacheServiceTest {
 
             delay(0.5.seconds)
 
-            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
-            assertEquals(listOf(uuid1), getFriends(service, uuid2).toList())
+            assertEquals(listOf(uuid2), getFriends(service, uuid1))
+            assertEquals(listOf(uuid1), getFriends(service, uuid2))
 
             delay(0.5.seconds)
 
-            assertEquals(emptyList(), getFriends(service, uuid1).toList())
-            assertEquals(emptyList(), getFriends(service, uuid2).toList())
+            assertEquals(emptyList(), getFriends(service, uuid1))
+            assertEquals(emptyList(), getFriends(service, uuid2))
         }
 
         @Test
@@ -171,7 +172,8 @@ class FriendCacheServiceTest {
             assertEquals(-1, getTTL(service, uuid1))
             assertEquals(-1, getTTL(service, uuid2))
 
-            val serviceWithExpiration = FriendCacheService(cacheClient, expiration = 40.seconds, duplicateForFriend = true)
+            val serviceWithExpiration =
+                FriendCacheService(cacheClient, expiration = 40.seconds, duplicateForFriend = true)
             assertFalse { serviceWithExpiration.addFriend(uuid1, uuid2) }
             assertEquals(-1, getTTL(service, uuid1))
             assertEquals(-1, getTTL(service, uuid2))
@@ -205,10 +207,10 @@ class FriendCacheServiceTest {
             val service = FriendCacheService(cacheClient, duplicateForFriend = false)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
-            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
+            assertEquals(listOf(uuid2), getFriends(service, uuid1))
 
             assertTrue { service.addFriend(uuid1, uuid3) }
-            assertThat(getFriends(service, uuid1).toList()).containsExactlyInAnyOrder(uuid3, uuid2)
+            assertThat(getFriends(service, uuid1)).containsExactlyInAnyOrder(uuid3, uuid2)
         }
 
         @Test
@@ -220,14 +222,14 @@ class FriendCacheServiceTest {
             val service = FriendCacheService(cacheClient, duplicateForFriend = true)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
-            assertEquals(listOf(uuid2), getFriends(service, uuid1).toList())
-            assertEquals(listOf(uuid1), getFriends(service, uuid2).toList())
-            assertEquals(emptyList(), getFriends(service, uuid3).toList())
+            assertEquals(listOf(uuid2), getFriends(service, uuid1))
+            assertEquals(listOf(uuid1), getFriends(service, uuid2))
+            assertEquals(emptyList(), getFriends(service, uuid3))
 
             assertTrue { service.addFriend(uuid1, uuid3) }
-            assertThat(getFriends(service, uuid1).toList()).containsExactlyInAnyOrder(uuid3, uuid2)
-            assertEquals(listOf(uuid1), getFriends(service, uuid2).toList())
-            assertEquals(listOf(uuid1), getFriends(service, uuid3).toList())
+            assertThat(getFriends(service, uuid1)).containsExactlyInAnyOrder(uuid3, uuid2)
+            assertEquals(listOf(uuid1), getFriends(service, uuid2))
+            assertEquals(listOf(uuid1), getFriends(service, uuid3))
         }
 
     }
@@ -235,6 +237,224 @@ class FriendCacheServiceTest {
     @Nested
     inner class RemoveFriend {
 
+        @Test
+        fun `should return false when A is not friend with B without duplicate`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = false)
+
+            assertFalse { service.removeFriend(uuid1, uuid2) }
+        }
+
+        @Test
+        fun `should return true when A is friend with B without duplicate`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = false)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertTrue { service.removeFriend(uuid1, uuid2) }
+
+            assertEquals(emptyList(), getFriends(service, uuid1))
+        }
+
+        @Test
+        fun `should return true when A is friend with B with duplicate`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = true)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertTrue { service.removeFriend(uuid1, uuid2) }
+
+            assertEquals(emptyList(), getFriends(service, uuid1))
+            assertEquals(emptyList(), getFriends(service, uuid2))
+        }
+
+        @Test
+        fun `should return true when A is not friend with B but B is friend with A with duplicate`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = false)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+
+            val serviceWithDuplicate = FriendCacheService(cacheClient, duplicateForFriend = true)
+            assertTrue { serviceWithDuplicate.removeFriend(uuid1, uuid2) }
+
+            assertEquals(emptyList(), getFriends(serviceWithDuplicate, uuid1))
+        }
+
+        @Test
+        fun `should return false when A is not friend with B and vice versa with duplicate`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val serviceWithDuplicate = FriendCacheService(cacheClient, duplicateForFriend = true)
+            assertFalse { serviceWithDuplicate.removeFriend(uuid1, uuid2) }
+        }
+
+        @Test
+        fun `should remove a friend from the friends list without duplicate`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
+            val uuid4 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = false)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertTrue { service.addFriend(uuid1, uuid3) }
+            assertTrue { service.addFriend(uuid1, uuid4) }
+
+            assertTrue { service.addFriend(uuid2, uuid3) }
+            assertTrue { service.addFriend(uuid2, uuid1) }
+
+            assertTrue { service.removeFriend(uuid1, uuid2) }
+
+            assertThat(getFriends(service, uuid2)).containsExactlyInAnyOrder(uuid1, uuid3)
+
+            assertThat(getFriends(service, uuid1)).containsExactlyInAnyOrder(uuid3, uuid4)
+            assertTrue { service.removeFriend(uuid1, uuid4) }
+            assertThat(getFriends(service, uuid1)).containsExactlyInAnyOrder(uuid3)
+        }
+
+        @Test
+        fun `should remove a friend from the friends list with duplicate`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
+            val uuid4 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = true)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertTrue { service.addFriend(uuid1, uuid3) }
+            assertTrue { service.addFriend(uuid1, uuid4) }
+
+            assertTrue { service.addFriend(uuid2, uuid3) }
+
+            assertTrue { service.removeFriend(uuid1, uuid2) }
+
+            assertThat(getFriends(service, uuid2)).containsExactlyInAnyOrder(uuid3)
+            assertThat(getFriends(service, uuid3)).containsExactlyInAnyOrder(uuid1, uuid2)
+            assertThat(getFriends(service, uuid4)).containsExactlyInAnyOrder(uuid1)
+            assertThat(getFriends(service, uuid1)).containsExactlyInAnyOrder(uuid3, uuid4)
+
+            assertTrue { service.removeFriend(uuid1, uuid4) }
+            assertThat(getFriends(service, uuid1)).containsExactlyInAnyOrder(uuid3)
+            assertThat(getFriends(service, uuid3)).containsExactlyInAnyOrder(uuid1, uuid2)
+        }
+
+        @Test
+        fun `should not set expiration when expiration is null`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
+            val uuid4 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, expiration = null, duplicateForFriend = false)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertTrue { service.addFriend(uuid1, uuid3) }
+            assertTrue { service.addFriend(uuid1, uuid4) }
+
+            assertTrue { service.removeFriend(uuid1, uuid2) }
+            assertEquals(-1, getTTL(service, uuid1))
+        }
+
+        @Test
+        fun `should set expiration when expiration is defined without duplicate`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
+            val uuid4 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, expiration = null, duplicateForFriend = false)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertTrue { service.addFriend(uuid1, uuid3) }
+            assertTrue { service.addFriend(uuid1, uuid4) }
+
+            assertEquals(-1, getTTL(service, uuid1))
+
+            val serviceWithExpiration =
+                FriendCacheService(cacheClient, expiration = 10.seconds, duplicateForFriend = false)
+            assertTrue { serviceWithExpiration.removeFriend(uuid1, uuid2) }
+            assertEquals(10, getTTL(serviceWithExpiration, uuid1))
+            assertEquals(-2, getTTL(serviceWithExpiration, uuid2))
+            assertEquals(-2, getTTL(serviceWithExpiration, uuid3))
+            assertEquals(-2, getTTL(serviceWithExpiration, uuid4))
+        }
+
+        @Test
+        fun `should set expiration when expiration is defined with duplicate`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
+            val uuid4 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, expiration = null, duplicateForFriend = true)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertTrue { service.addFriend(uuid1, uuid3) }
+            assertTrue { service.addFriend(uuid1, uuid4) }
+
+            assertTrue { service.addFriend(uuid3, uuid2) }
+
+            assertEquals(-1, getTTL(service, uuid1))
+
+            val serviceWithExpiration =
+                FriendCacheService(cacheClient, expiration = 10.seconds, duplicateForFriend = true)
+            assertTrue { serviceWithExpiration.removeFriend(uuid1, uuid2) }
+            assertEquals(10, getTTL(serviceWithExpiration, uuid1))
+            assertEquals(10, getTTL(serviceWithExpiration, uuid2))
+            assertEquals(-1, getTTL(serviceWithExpiration, uuid3))
+            assertEquals(-1, getTTL(serviceWithExpiration, uuid4))
+        }
+
+        @Test
+        fun `should not set expiration when friend is not removed`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
+            val uuid4 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, expiration = null, duplicateForFriend = false)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertTrue { service.addFriend(uuid1, uuid3) }
+            assertTrue { service.addFriend(uuid1, uuid4) }
+
+            assertTrue { service.addFriend(uuid2, uuid3) }
+
+            assertEquals(-1, getTTL(service, uuid1))
+
+            val serviceWithExpiration =
+                FriendCacheService(cacheClient, expiration = 10.seconds, duplicateForFriend = true)
+            assertTrue { serviceWithExpiration.removeFriend(uuid1, uuid2) }
+            assertEquals(10, getTTL(serviceWithExpiration, uuid1))
+            assertEquals(-1, getTTL(serviceWithExpiration, uuid2))
+        }
+
+        @Test
+        fun `should delete key the last friend is removed`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, expiration = null, duplicateForFriend = false)
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+            assertTrue { service.addFriend(uuid2, uuid1) }
+
+            assertTrue { service.removeFriend(uuid1, uuid2) }
+            assertFalse { keyExists(service, uuid1) }
+            assertTrue { keyExists(service, uuid2) }
+        }
     }
 
     @Nested
@@ -291,7 +511,8 @@ class FriendCacheServiceTest {
             assertTrue { service.addFriend(uuid, UUID.randomUUID()) }
 
             assertTrue { service.setFriends(uuid, emptySet()) }
-            assertEquals(emptyList(), getFriends(service, uuid).toList())
+            assertFalse { keyExists(service, uuid) }
+
         }
 
         @Test
@@ -307,14 +528,113 @@ class FriendCacheServiceTest {
             assertTrue { service.addFriend(uuid, uuid3) }
 
             assertTrue { service.setFriends(uuid, setOf(uuid4)) }
-            assertEquals(listOf(uuid4), getFriends(service, uuid).toList())
+            assertEquals(listOf(uuid4), getFriends(service, uuid))
         }
 
         @Test
         fun `should add friend to friends when duplicate is enabled`() = runTest {
-            TODO()
+            val uuid = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
+            val uuid4 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = true)
+
+            assertTrue { service.addFriend(uuid, uuid2) }
+            assertTrue { service.addFriend(uuid, uuid3) }
+
+            assertTrue { service.addFriend(uuid4, uuid2) }
+
+            assertTrue { service.setFriends(uuid, setOf(uuid4)) }
+            assertEquals(listOf(uuid4), getFriends(service, uuid))
+            assertThat(getFriends(service, uuid4)).containsExactlyInAnyOrder(uuid, uuid2)
         }
 
+    }
+
+    private suspend fun keyExists(
+        service: FriendCacheService,
+        uuid: UUID
+    ) = cacheClient.connect {
+        val numberOfKeys = it.exists(createKey(service, uuid))
+        numberOfKeys != null && numberOfKeys > 0
+    }
+
+    @Nested
+    inner class IsFriend {
+
+        @Test
+        fun `should return false when A is not friend with B without duplicate`() = runTest {
+            val uuid = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = false)
+
+            assertFalse { service.isFriend(uuid, uuid2) }
+
+            assertTrue { service.addFriend(uuid2, uuid) }
+
+            assertFalse { service.isFriend(uuid, uuid2) }
+        }
+
+        @Test
+        fun `should return false when A is not friend with B with duplicate`() = runTest {
+            val uuid = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = false)
+
+            assertFalse { service.isFriend(uuid, uuid2) }
+
+            assertTrue { service.addFriend(uuid2, uuid) }
+
+            val serviceWithDuplicate = FriendCacheService(cacheClient, duplicateForFriend = true)
+
+            assertFalse { serviceWithDuplicate.isFriend(uuid, uuid2) }
+        }
+
+        @Test
+        fun `should return true when A is friend with B with duplicate`() = runTest {
+            val uuid = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = true)
+
+            assertTrue { service.addFriend(uuid, uuid2) }
+
+            assertTrue { service.isFriend(uuid, uuid2) }
+            assertTrue { service.isFriend(uuid2, uuid) }
+
+        }
+
+        @Test
+        fun `should return true when A has only B as friend`() = runTest {
+            val uuid = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = false)
+
+            assertTrue { service.addFriend(uuid, uuid2) }
+
+            assertTrue { service.isFriend(uuid, uuid2) }
+
+            assertFalse { service.isFriend(uuid2, uuid) }
+        }
+
+        @Test
+        fun `should return true when A has several friends including B`() = runTest {
+            val uuid = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, duplicateForFriend = false)
+
+            assertTrue { service.addFriend(uuid, UUID.randomUUID()) }
+            assertTrue { service.addFriend(uuid, UUID.randomUUID()) }
+            assertTrue { service.addFriend(uuid, uuid2) }
+            assertTrue { service.addFriend(uuid, UUID.randomUUID()) }
+
+            assertTrue { service.isFriend(uuid, uuid2) }
+        }
     }
 
     private suspend fun getFriends(
@@ -324,7 +644,7 @@ class FriendCacheServiceTest {
         val keySerial = createKey(service, uuid)
         it.smembers(keySerial).mapNotNull { member ->
             binaryFormat.decodeFromByteArray(UUIDSerializer, member)
-        }
+        }.toList()
     }
 
     private suspend fun getTTL(service: FriendCacheService, uuid: UUID): Long? {
