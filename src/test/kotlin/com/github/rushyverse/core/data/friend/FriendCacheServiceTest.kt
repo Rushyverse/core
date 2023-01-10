@@ -573,6 +573,27 @@ class FriendCacheServiceTest {
             assertThat(getFriends(service, uuid4)).containsExactlyInAnyOrder(uuid, uuid2)
         }
 
+        @Test
+        fun `should set expiration for the key when friends list is not empty`() = runTest {
+            val uuid = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, expiration = 20.seconds, duplicateForFriend = true)
+
+            assertTrue { service.setFriends(uuid, setOf(uuid2)) }
+            assertEquals(20, getTTL(service, uuid))
+        }
+
+        @Test
+        fun `should not set expiration for the key when friends list is empty`() = runTest {
+            val uuid = UUID.randomUUID()
+
+            val service = FriendCacheService(cacheClient, expiration = 20.seconds, duplicateForFriend = true)
+
+            assertTrue { service.setFriends(uuid, emptySet()) }
+            assertEquals(-2, getTTL(service, uuid))
+        }
+
     }
 
     private suspend fun keyExists(
