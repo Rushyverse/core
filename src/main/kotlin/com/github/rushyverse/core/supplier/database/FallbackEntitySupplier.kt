@@ -19,17 +19,11 @@ class FallbackEntitySupplier(
 ) : IEntitySupplier {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
-        return if (setPriority.addFriend(uuid, friend)) {
-            getPriority.addFriend(uuid, friend)
-            true
-        } else false
+        return setPriority.addFriend(uuid, friend)
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
-        return if (setPriority.removeFriend(uuid, friend)) {
-            getPriority.removeFriend(uuid, friend)
-            true
-        } else false
+        return setPriority.removeFriend(uuid, friend)
     }
 
     override suspend fun getFriends(uuid: UUID): Flow<UUID> {

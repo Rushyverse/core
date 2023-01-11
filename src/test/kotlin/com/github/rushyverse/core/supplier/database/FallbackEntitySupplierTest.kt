@@ -29,39 +29,22 @@ class FallbackEntitySupplierTest {
     inner class AddFriend {
 
         @Test
-        fun `should invoke setPriority supplier first and not getPriority if return false`() = runTest {
+        fun `should invoke setPriority supplier first and not getPriority`() = runTest {
             val id = UUID.randomUUID()
             val friend = UUID.randomUUID()
             coEvery { setPrioritySupplier.addFriend(id, friend) } returns false
-            coEvery { getPrioritySupplier.addFriend(id, friend) } returns true
+            coEvery { getPrioritySupplier.addFriend(id, friend) } returns false
 
             assertFalse(fallbackEntitySupplier.addFriend(id, friend))
             coVerify(exactly = 1) { setPrioritySupplier.addFriend(id, friend) }
             coVerify(exactly = 0) { getPrioritySupplier.addFriend(id, friend) }
-        }
 
-        @Test
-        fun `should invoke setPriority supplier first and getPriority if return true`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
-            coEvery { setPrioritySupplier.addFriend(id, friend) } returns true
-            coEvery { getPrioritySupplier.addFriend(id, friend) } returns true
-
-            assertTrue(fallbackEntitySupplier.addFriend(id, friend))
-            coVerify(exactly = 1) { setPrioritySupplier.addFriend(id, friend) }
-            coVerify(exactly = 1) { getPrioritySupplier.addFriend(id, friend) }
-        }
-
-        @Test
-        fun `should return true if setPriority return first but not getPriority`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
             coEvery { setPrioritySupplier.addFriend(id, friend) } returns true
             coEvery { getPrioritySupplier.addFriend(id, friend) } returns false
 
             assertTrue(fallbackEntitySupplier.addFriend(id, friend))
-            coVerify(exactly = 1) { setPrioritySupplier.addFriend(id, friend) }
-            coVerify(exactly = 1) { getPrioritySupplier.addFriend(id, friend) }
+            coVerify(exactly = 2) { setPrioritySupplier.addFriend(id, friend) }
+            coVerify(exactly = 0) { getPrioritySupplier.addFriend(id, friend) }
         }
 
     }
@@ -70,39 +53,22 @@ class FallbackEntitySupplierTest {
     inner class RemoveFriend {
 
         @Test
-        fun `should invoke setPriority supplier first and not getPriority if return false`() = runTest {
+        fun `should invoke setPriority supplier first and not getPriority`() = runTest {
             val id = UUID.randomUUID()
             val friend = UUID.randomUUID()
             coEvery { setPrioritySupplier.removeFriend(id, friend) } returns false
-            coEvery { getPrioritySupplier.removeFriend(id, friend) } returns true
+            coEvery { getPrioritySupplier.removeFriend(id, friend) } returns false
 
             assertFalse(fallbackEntitySupplier.removeFriend(id, friend))
             coVerify(exactly = 1) { setPrioritySupplier.removeFriend(id, friend) }
             coVerify(exactly = 0) { getPrioritySupplier.removeFriend(id, friend) }
-        }
 
-        @Test
-        fun `should invoke setPriority supplier first and getPriority if return true`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
-            coEvery { setPrioritySupplier.removeFriend(id, friend) } returns true
-            coEvery { getPrioritySupplier.removeFriend(id, friend) } returns true
-
-            assertTrue(fallbackEntitySupplier.removeFriend(id, friend))
-            coVerify(exactly = 1) { setPrioritySupplier.removeFriend(id, friend) }
-            coVerify(exactly = 1) { getPrioritySupplier.removeFriend(id, friend) }
-        }
-
-        @Test
-        fun `should return true if setPriority return first but not getPriority`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
             coEvery { setPrioritySupplier.removeFriend(id, friend) } returns true
             coEvery { getPrioritySupplier.removeFriend(id, friend) } returns false
 
             assertTrue(fallbackEntitySupplier.removeFriend(id, friend))
-            coVerify(exactly = 1) { setPrioritySupplier.removeFriend(id, friend) }
-            coVerify(exactly = 1) { getPrioritySupplier.removeFriend(id, friend) }
+            coVerify(exactly = 2) { setPrioritySupplier.removeFriend(id, friend) }
+            coVerify(exactly = 0) { getPrioritySupplier.removeFriend(id, friend) }
         }
 
     }
