@@ -10,7 +10,7 @@ import java.util.*
  *
  * Resolved entities will always be stored in [cache] if it wasn't null or empty for flows.
  */
-public class StoreEntitySupplier(
+class StoreEntitySupplier(
     private val cache: CacheEntitySupplier,
     private val supplier: IEntitySupplier
 ) : IEntitySupplier {

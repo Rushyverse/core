@@ -8,21 +8,21 @@ import io.github.universeproject.kotlinmojangapi.ProfileSkin
 /**
  * Service to retrieve data about players.
  */
-public interface IMojangService : IHttpStrategizable {
+interface IMojangService : IHttpStrategizable {
 
     /**
      * Get the skin data using the name of a player.
      * @param name Player's name.
      * @return Information about player's skin.
      */
-    public suspend fun getSkinByName(name: String): ProfileSkin?
+    suspend fun getSkinByName(name: String): ProfileSkin?
 
     /**
      * Retrieve the id information about a player with his name.
      * @param name Player's name.
      * @return Information about the player's id.
      */
-    public suspend fun getId(name: String): ProfileId?
+    suspend fun getId(name: String): ProfileId?
 
     /**
      * Retrieve the skin data for a player.
@@ -30,14 +30,14 @@ public interface IMojangService : IHttpStrategizable {
      * @param uuid Player's UUID.
      * @return Information about player's skin.
      */
-    public suspend fun getSkin(uuid: String): ProfileSkin?
+    suspend fun getSkin(uuid: String): ProfileSkin?
 }
 
 /**
  * Service to retrieve data using Mojang api.
  * @property supplier Strategy to retrieve data.
  */
-public class MojangService(override val supplier: IHttpEntitySupplier) : IMojangService {
+class MojangService(override val supplier: IHttpEntitySupplier) : IMojangService {
 
     override suspend fun getSkinByName(name: String): ProfileSkin? {
         return supplier.getUUID(name)?.let { supplier.getSkin(it.id) }

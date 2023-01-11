@@ -10,19 +10,19 @@ import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import kotlin.time.Duration
 
-public interface IProfileSkinCacheService {
+interface IProfileSkinCacheService {
     /**
      * Get the instance of [ProfileSkin] linked to the [uuid] data.
      * @param uuid UUID of the user.
      * @return The instance stored if found, or null if not found.
      */
-    public suspend fun getByUUID(uuid: String): ProfileSkin?
+    suspend fun getByUUID(uuid: String): ProfileSkin?
 
     /**
      * Save the instance into cache using the key defined by the configuration.
      * @param profile Data that will be stored.
      */
-    public suspend fun save(profile: ProfileSkin)
+    suspend fun save(profile: ProfileSkin)
 }
 
 /**
@@ -30,9 +30,9 @@ public interface IProfileSkinCacheService {
  * @property client Cache client.
  * @property prefixKey Prefix key to identify the data in cache.
  */
-public class ProfileSkinCacheService(
+class ProfileSkinCacheService(
     private val client: CacheClient,
-    public val expiration: Duration? = null,
+    val expiration: Duration? = null,
     prefixKey: String = "skin:"
 ) : CacheService(prefixKey), IProfileSkinCacheService {
 
@@ -62,20 +62,20 @@ public class ProfileSkinCacheService(
 /**
  * Service to retrieve data about profile.
  */
-public interface IProfileSkinService : IHttpStrategizable {
+interface IProfileSkinService : IHttpStrategizable {
 
     /**
      * Get the skin information of a player from his [ProfileSkin.id].
      * @param uuid Profile's id.
      */
-    public suspend fun getByUUID(uuid: String): ProfileSkin?
+    suspend fun getByUUID(uuid: String): ProfileSkin?
 }
 
 /**
  * Service to retrieve data about client identity.
  * @property supplier Strategy to manage data.
  */
-public class ProfileSkinService(override val supplier: IHttpEntitySupplier) : IProfileSkinService {
+class ProfileSkinService(override val supplier: IHttpEntitySupplier) : IProfileSkinService {
 
     override suspend fun getByUUID(uuid: String): ProfileSkin? = supplier.getSkin(uuid)
 

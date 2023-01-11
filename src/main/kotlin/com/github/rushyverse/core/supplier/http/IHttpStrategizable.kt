@@ -6,16 +6,16 @@ package com.github.rushyverse.core.supplier.http
  *
  * Unless stated otherwise, all members that fetch entities will delegate to the [supplier].
  */
-public interface IHttpStrategizable {
+interface IHttpStrategizable {
 
     /**
      * The supplier used to request entities.
      */
-    public val supplier: IHttpEntitySupplier
+    val supplier: IHttpEntitySupplier
 
 
     /**
      * Returns a copy of this class with a new [supplier] provided by the [strategy].
      */
-    public fun withStrategy(strategy: IHttpEntitySupplier): IHttpStrategizable
+    fun withStrategy(strategy: IHttpEntitySupplier): IHttpStrategizable
 }

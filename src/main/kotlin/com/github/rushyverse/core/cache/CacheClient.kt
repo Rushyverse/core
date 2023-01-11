@@ -25,30 +25,30 @@ import kotlinx.serialization.protobuf.ProtoBuf
  * @property binaryFormat Object to encode and decode information.
  * @property pool Pool of connection from [client].
  */
-public class CacheClient(
-    public val uri: RedisURI,
-    public val client: RedisClient,
-    public val binaryFormat: BinaryFormat,
-    public val pool: BoundedAsyncPool<StatefulRedisConnection<ByteArray, ByteArray>>
+class CacheClient(
+    val uri: RedisURI,
+    val client: RedisClient,
+    val binaryFormat: BinaryFormat,
+    val pool: BoundedAsyncPool<StatefulRedisConnection<ByteArray, ByteArray>>
 ) : AutoCloseable {
 
-    public companion object {
-        public suspend inline operator fun invoke(builder: Builder.() -> Unit): CacheClient =
+    companion object {
+        suspend inline operator fun invoke(builder: Builder.() -> Unit): CacheClient =
             Builder().apply(builder).build()
     }
 
-    public object Default {
+    object Default {
         /**
          * @see [CacheClient.binaryFormat].
          */
-        public val binaryFormat: ProtoBuf = ProtoBuf {
+        val binaryFormat: ProtoBuf = ProtoBuf {
             encodeDefaults = false
         }
 
         /**
          * Codec to encode/decode keys and values.
          */
-        public val codec: ByteArrayCodec get() = ByteArrayCodec.INSTANCE
+        val codec: ByteArrayCodec get() = ByteArrayCodec.INSTANCE
     }
 
     /**
@@ -60,18 +60,18 @@ public class CacheClient(
      * @property poolConfiguration Configuration to create the pool of connections to interact with cache.
      */
     @Suppress("MemberVisibilityCanBePrivate")
-    public class Builder {
-        public lateinit var uri: RedisURI
-        public var client: RedisClient? = null
-        public var binaryFormat: BinaryFormat = Default.binaryFormat
-        public var codec: RedisCodec<ByteArray, ByteArray> = Default.codec
-        public var poolConfiguration: BoundedPoolConfig? = null
+    class Builder {
+        lateinit var uri: RedisURI
+        var client: RedisClient? = null
+        var binaryFormat: BinaryFormat = Default.binaryFormat
+        var codec: RedisCodec<ByteArray, ByteArray> = Default.codec
+        var poolConfiguration: BoundedPoolConfig? = null
 
         /**
          * Build the instance of [CacheClient] with the values defined in builder.
          * @return A new instance.
          */
-        public suspend fun build(): CacheClient {
+        suspend fun build(): CacheClient {
             val redisClient: RedisClient = client ?: RedisClient.create()
             val codec: RedisCodec<ByteArray, ByteArray> = this.codec
 
@@ -93,7 +93,7 @@ public class CacheClient(
      * @param body Function using the connection.
      * @return An instance from [body].
      */
-    public suspend inline fun <T> connect(body: (RedisCoroutinesCommands<ByteArray, ByteArray>) -> T): T {
+    suspend inline fun <T> connect(body: (RedisCoroutinesCommands<ByteArray, ByteArray>) -> T): T {
         val connection = pool.acquire().await()
         return try {
             body(connection.coroutines())
@@ -114,7 +114,7 @@ public class CacheClient(
      * Requests to close this object and releases any system resources associated with it. If the object is already closed then invoking this method has no effect.
      * All connections from the [pool] will be closed.
      */
-    public suspend fun closeAsync() {
+    suspend fun closeAsync() {
         try {
             pool.closeAsync().await()
         } finally {

@@ -9,20 +9,20 @@ import com.github.rushyverse.core.cache.CacheService
 /**
  * [IHttpEntitySupplier] that uses [CacheService] to resolve entities.
  */
-public class HttpCacheEntitySupplier(
-    public val profileSkinCache: IProfileSkinCacheService,
-    public val profileIdCache: IProfileIdCacheService
+class HttpCacheEntitySupplier(
+    val profileSkinCache: IProfileSkinCacheService,
+    val profileIdCache: IProfileIdCacheService
 ) : IHttpEntitySupplier {
 
     override suspend fun getUUID(name: String): ProfileId? = profileIdCache.getByName(name)
 
     override suspend fun getSkin(uuid: String): ProfileSkin? = profileSkinCache.getByUUID(uuid)
 
-    public suspend fun save(profile: ProfileId) {
+    suspend fun save(profile: ProfileId) {
         profileIdCache.save(profile)
     }
 
-    public suspend fun save(profile: ProfileSkin) {
+    suspend fun save(profile: ProfileSkin) {
         profileSkinCache.save(profile)
     }
 }
