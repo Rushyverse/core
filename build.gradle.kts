@@ -23,7 +23,7 @@ dependencies {
     val loggingVersion = "3.0.4"
     val slf4jVersion = "2.0.6"
     val mockkVersion = "1.13.3"
-    val junitVersion = "5.9.1"
+    val junitVersion = "5.9.2"
     val testContainersVersion = "1.17.6"
     val psqlR2DBCVersion = "1.0.0.RELEASE"
     val lettuceVersion = "6.2.2.RELEASE"
