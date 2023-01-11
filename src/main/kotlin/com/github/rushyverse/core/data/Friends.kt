@@ -178,9 +178,10 @@ class FriendCacheService(
     }
 
     override suspend fun getFriends(uuid: UUID): Flow<UUID> {
+        val binaryFormat = client.binaryFormat
+        val key = encodeKey(binaryFormat, uuid.toString())
+
         return client.connect {
-            val binaryFormat = client.binaryFormat
-            val key = encodeKey(binaryFormat, uuid.toString())
             it.smembers(key).mapNotNull { member ->
                 decodeFromByteArrayOrNull(binaryFormat, UUIDSerializer, member)
             }
@@ -207,12 +208,11 @@ class FriendCacheService(
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
-        return client.connect {
-            val binaryFormat = client.binaryFormat
-            val key = encodeKey(binaryFormat, uuid.toString())
-            val value = encodeToByteArray(binaryFormat, UUIDSerializer, friend)
-            it.sismember(key, value)
-        } == true
+        val binaryFormat = client.binaryFormat
+        val key = encodeKey(binaryFormat, uuid.toString())
+        val value = encodeToByteArray(binaryFormat, UUIDSerializer, friend)
+
+        return client.connect { it.sismember(key, value) } == true
     }
 
     /**

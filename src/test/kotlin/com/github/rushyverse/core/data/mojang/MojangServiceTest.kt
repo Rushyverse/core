@@ -78,7 +78,7 @@ class MojangServiceTest {
         @Test
         override fun `data is not found into supplier`() = runTest {
             coEvery { supplier.getUUID(any()) } returns null
-            assertNull(serviceImpl.getId(getRandomString()))
+            assertNull(serviceImpl.getUUIDByName(getRandomString()))
         }
 
         @Test
@@ -86,7 +86,7 @@ class MojangServiceTest {
             val id = createProfileId()
             val name = id.name
             coEvery { supplier.getUUID(name) } returns id
-            assertEquals(id, serviceImpl.getId(name))
+            assertEquals(id, serviceImpl.getUUIDByName(name))
         }
     }
 
@@ -97,7 +97,7 @@ class MojangServiceTest {
         @Test
         override fun `data is not found into supplier`() = runTest {
             coEvery { supplier.getSkin(any()) } returns null
-            assertNull(serviceImpl.getSkin(getRandomString()))
+            assertNull(serviceImpl.getSkinByUUID(getRandomString()))
         }
 
         @Test
@@ -105,7 +105,7 @@ class MojangServiceTest {
             val skin = createProfileSkin()
             val id = skin.id
             coEvery { supplier.getSkin(id) } returns skin
-            assertEquals(skin, serviceImpl.getSkin(id))
+            assertEquals(skin, serviceImpl.getSkinByUUID(id))
         }
     }
 }

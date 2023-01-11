@@ -47,7 +47,7 @@ class ProfileIdServiceTest {
         @Test
         override fun `data is not found into supplier`() = runTest {
             coEvery { supplier.getUUID(any()) } returns null
-            assertNull(serviceImpl.getByName(getRandomString()))
+            assertNull(serviceImpl.getUUIDByName(getRandomString()))
         }
 
         @Test
@@ -55,7 +55,7 @@ class ProfileIdServiceTest {
             val profile = createProfileId()
             val name = profile.name
             coEvery { supplier.getUUID(name) } returns profile
-            assertEquals(profile, serviceImpl.getByName(name))
+            assertEquals(profile, serviceImpl.getUUIDByName(name))
             coVerify(exactly = 1) { supplier.getUUID(name) }
         }
     }

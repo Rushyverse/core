@@ -14,9 +14,13 @@ class HttpCacheEntitySupplier(
     val profileIdCache: IProfileIdCacheService
 ) : IHttpEntitySupplier {
 
-    override suspend fun getUUID(name: String): ProfileId? = profileIdCache.getByName(name)
+    override suspend fun getSkinByUUID(uuid: String): ProfileSkin? {
+        return profileSkinCache.getSkinByUUID(uuid)
+    }
 
-    override suspend fun getSkin(uuid: String): ProfileSkin? = profileSkinCache.getByUUID(uuid)
+    override suspend fun getUUIDByName(name: String): ProfileId? {
+        return profileIdCache.getUUIDByName(name)
+    }
 
     suspend fun save(profile: ProfileId) {
         profileIdCache.save(profile)

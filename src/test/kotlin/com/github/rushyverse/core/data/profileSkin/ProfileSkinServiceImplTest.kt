@@ -47,7 +47,7 @@ class ProfileSkinServiceImplTest {
         @Test
         override fun `data is not found into supplier`() = runTest {
             coEvery { supplier.getSkin(any()) } returns null
-            assertNull(serviceImpl.getByUUID(getRandomString()))
+            assertNull(serviceImpl.getSkinByUUID(getRandomString()))
         }
 
         @Test
@@ -55,7 +55,7 @@ class ProfileSkinServiceImplTest {
             val profile = createProfileSkin()
             val id = profile.id
             coEvery { supplier.getSkin(id) } returns profile
-            assertEquals(profile, serviceImpl.getByUUID(id))
+            assertEquals(profile, serviceImpl.getSkinByUUID(id))
             coVerify(exactly = 1) { supplier.getSkin(id) }
         }
     }

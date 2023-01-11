@@ -1,5 +1,7 @@
 package com.github.rushyverse.core.supplier.http
 
+import com.github.rushyverse.core.data.IProfileIdService
+import com.github.rushyverse.core.data.IProfileSkinService
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 
@@ -10,7 +12,7 @@ import io.github.universeproject.kotlinmojangapi.ProfileSkin
  * @see HttpCacheEntitySupplier
  * @see HttpStoreEntitySupplier
  */
-interface IHttpEntitySupplier {
+interface IHttpEntitySupplier : IProfileSkinService, IProfileIdService {
 
     companion object {
 
@@ -52,20 +54,5 @@ interface IHttpEntitySupplier {
         fun cacheWithCachingRestFallback(configuration: HttpSupplierServices): IHttpEntitySupplier =
             HttpFallbackEntitySupplier(cache(configuration), cachingRest(configuration))
     }
-
-    /**
-     * Retrieve the id information about a player with his name.
-     * @param name Player's name.
-     * @return Information about the player's id.
-     */
-    suspend fun getUUID(name: String): ProfileId?
-
-    /**
-     * Retrieve the skin data for a player.
-     * A player is represented by his UUID.
-     * @param uuid Player's UUID.
-     * @return Information about player's skin.
-     */
-    suspend fun getSkin(uuid: String): ProfileSkin?
 
 }
