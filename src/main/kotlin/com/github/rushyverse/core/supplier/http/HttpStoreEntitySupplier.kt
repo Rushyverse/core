@@ -8,7 +8,7 @@ import io.github.universeproject.kotlinmojangapi.ProfileSkin
  *
  * Resolved entities will always be stored in [cache] if it wasn't null or empty for flows.
  */
-public class HttpStoreEntitySupplier(private val cache: HttpCacheEntitySupplier, private val supplier: IHttpEntitySupplier) :
+class HttpStoreEntitySupplier(private val cache: HttpCacheEntitySupplier, private val supplier: IHttpEntitySupplier) :
     IHttpEntitySupplier {
 
     override suspend fun getUUID(name: String): ProfileId? {

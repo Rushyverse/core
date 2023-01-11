@@ -14,19 +14,19 @@ import kotlin.time.Duration
 /**
  * Service to manage [ProfileId] data in cache.
  */
-public interface IProfileIdCacheService {
+interface IProfileIdCacheService {
     /**
      * Get the instance of [ProfileId] linked to the [name] data.
      * @param name Name of the user.
      * @return The instance stored if found, or null if not found.
      */
-    public suspend fun getByName(name: String): ProfileId?
+    suspend fun getByName(name: String): ProfileId?
 
     /**
      * Save the instance into cache using the key defined by the configuration.
      * @param profile Data that will be stored.
      */
-    public suspend fun save(profile: ProfileId)
+    suspend fun save(profile: ProfileId)
 }
 
 /**
@@ -34,9 +34,9 @@ public interface IProfileIdCacheService {
  * @property client Cache client.
  * @property prefixKey Prefix key to identify the data in cache.
  */
-public class ProfileIdCacheService(
-    public val client: CacheClient,
-    public val expiration: Duration? = null,
+class ProfileIdCacheService(
+    val client: CacheClient,
+    val expiration: Duration? = null,
     prefixKey: String = "profileId:",
 ) : CacheService(prefixKey), IProfileIdCacheService {
 
@@ -67,20 +67,20 @@ public class ProfileIdCacheService(
 /**
  * Service to retrieve data about profile.
  */
-public interface IProfileIdService : IHttpStrategizable {
+interface IProfileIdService : IHttpStrategizable {
 
     /**
      * Get the profile of a client from his [ProfileId.name].
      * @param name Profile's name.
      */
-    public suspend fun getByName(name: String): ProfileId?
+    suspend fun getByName(name: String): ProfileId?
 }
 
 /**
  * Service to retrieve data about client identity.
  * @property supplier Strategy to manage data.
  */
-public class ProfileIdService(override val supplier: IHttpEntitySupplier) : IProfileIdService {
+class ProfileIdService(override val supplier: IHttpEntitySupplier) : IProfileIdService {
 
     override suspend fun getByName(name: String): ProfileId? = supplier.getUUID(name)
 

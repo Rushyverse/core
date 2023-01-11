@@ -6,9 +6,9 @@ import io.github.universeproject.kotlinmojangapi.ProfileSkin
 /**
  * [IHttpEntitySupplier] that uses the first supplier to retrieve a data, if the value is null, get the data through the second supplier.
  */
-public class HttpFallbackEntitySupplier(
-    public val first: IHttpEntitySupplier,
-    public val second: IHttpEntitySupplier
+class HttpFallbackEntitySupplier(
+    val first: IHttpEntitySupplier,
+    val second: IHttpEntitySupplier
 ) : IHttpEntitySupplier {
 
     override suspend fun getUUID(name: String): ProfileId? {

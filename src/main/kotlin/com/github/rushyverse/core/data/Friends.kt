@@ -29,7 +29,7 @@ import kotlin.time.Duration
 /**
  * Service to manage the friendship relationship.
  */
-public interface IFriendService {
+interface IFriendService {
 
     /**
      * Add a new relationship of friendship between two entities.
@@ -37,7 +37,7 @@ public interface IFriendService {
      * @param friend ID of the second entity.
      * @return `true` if the relationship was added successfully, `false` otherwise.
      */
-    public suspend fun addFriend(uuid: UUID, friend: UUID): Boolean
+    suspend fun addFriend(uuid: UUID, friend: UUID): Boolean
 
     /**
      * Remove a relationship of friendship between two entities.
@@ -45,14 +45,14 @@ public interface IFriendService {
      * @param friend ID of the second entity.
      * @return `true` if the relationship was removed successfully, `false` otherwise.
      */
-    public suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean
+    suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean
 
     /**
      * Get all the friends of an entity.
      * @param uuid ID of the entity.
      * @return Set of IDs of the friends.
      */
-    public suspend fun getFriends(uuid: UUID): Flow<UUID>
+    suspend fun getFriends(uuid: UUID): Flow<UUID>
 
     /**
      * Check if two entities are friends.
@@ -60,13 +60,13 @@ public interface IFriendService {
      * @param friend ID of the second entity.
      * @return `true` if the two entities are friends, `false` otherwise.
      */
-    public suspend fun isFriend(uuid: UUID, friend: UUID): Boolean
+    suspend fun isFriend(uuid: UUID, friend: UUID): Boolean
 }
 
 /**
  * Service to manage the friendship relationship in cache.
  */
-public interface IFriendCacheService : IFriendService {
+interface IFriendCacheService : IFriendService {
 
     /**
      * Set the friends of an entity.
@@ -74,20 +74,20 @@ public interface IFriendCacheService : IFriendService {
      * @param friends Set of new friends.
      * @return `true` if the friends were set successfully, `false` otherwise.
      */
-    public suspend fun setFriends(uuid: UUID, friends: Set<UUID>): Boolean
+    suspend fun setFriends(uuid: UUID, friends: Set<UUID>): Boolean
 
 }
 
 /**
  * Service to manage the friendship relationship in database.
  */
-public interface IFriendDatabaseService : IFriendService
+interface IFriendDatabaseService : IFriendService
 
 /**
  * Table to store the friendship relationship in database.
  */
 @KomapperEntity
-public data class Friends(
+data class Friends(
     val uuid1: UUID,
     val uuid2: UUID,
     @KomapperId
@@ -103,11 +103,11 @@ public data class Friends(
  * When `true`, if `uuid` is friends with `friend`, `friend` will be friends with `uuid`.
  * This behavior is applied for each available operations
  */
-public class FriendCacheService(
-    public val client: CacheClient,
-    public val expiration: Duration? = null,
+class FriendCacheService(
+    val client: CacheClient,
+    val expiration: Duration? = null,
     prefixKey: String = "friend:",
-    public val duplicateForFriend: Boolean = false
+    val duplicateForFriend: Boolean = false
 ) : CacheService(prefixKey), IFriendCacheService {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
@@ -229,7 +229,7 @@ public class FriendCacheService(
 /**
  * Implementation of [IFriendDatabaseService] to manage data in database.
  */
-public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriendDatabaseService {
+class FriendDatabaseService(val database: R2dbcDatabase) : IFriendDatabaseService {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         if (isFriend(uuid, friend)) return false
@@ -282,7 +282,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
 /**
  * Implementation of [IFriendService] to manage friends according to a [IEntitySupplier].
  */
-public class FriendService(override val supplier: IEntitySupplier) : IFriendService, Strategizable {
+class FriendService(override val supplier: IEntitySupplier) : IFriendService, Strategizable {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return supplier.addFriend(uuid, friend)

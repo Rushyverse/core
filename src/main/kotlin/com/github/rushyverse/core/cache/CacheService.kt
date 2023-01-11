@@ -9,7 +9,7 @@ import kotlinx.serialization.builtins.serializer
  * Service to encode and decode information with cache.
  * @property prefixKey Prefix key to identify the data in cache.
  */
-public abstract class CacheService(public val prefixKey: String) {
+abstract class CacheService(val prefixKey: String) {
 
     /**
      * Create the key from a [String] value to identify data in cache.
