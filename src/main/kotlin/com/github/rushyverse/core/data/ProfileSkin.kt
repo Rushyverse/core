@@ -16,10 +16,10 @@ interface IProfileSkinService {
     /**
      * Retrieve the skin data for a player.
      * A player is represented by his UUID.
-     * @param uuid Player's UUID.
+     * @param id Player's ID.
      * @return Information about player's skin.
      */
-    suspend fun getSkinByUUID(uuid: String): ProfileSkin?
+    suspend fun getSkinById(id: String): ProfileSkin?
 }
 
 /**
@@ -46,8 +46,8 @@ class ProfileSkinCacheService(
     prefixKey: String = "skin:"
 ) : CacheService(client, prefixKey, expiration), IProfileSkinCacheService {
 
-    override suspend fun getSkinByUUID(uuid: String): ProfileSkin? {
-        val key = encodeKey(uuid)
+    override suspend fun getSkinById(id: String): ProfileSkin? {
+        val key = encodeKey(id)
         val dataSerial = client.connect { it.get(key) } ?: return null
         return decodeFromByteArrayOrNull(ProfileSkin.serializer(), dataSerial)
     }

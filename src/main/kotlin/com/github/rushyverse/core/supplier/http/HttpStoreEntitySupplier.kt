@@ -17,7 +17,7 @@ class HttpStoreEntitySupplier(
         return supplier.getIdByName(name)?.also { cache.save(it) }
     }
 
-    override suspend fun getSkinByUUID(uuid: String): ProfileSkin? {
-        return supplier.getSkinByUUID(uuid)?.also { cache.save(it) }
+    override suspend fun getSkinById(id: String): ProfileSkin? {
+        return supplier.getSkinById(id)?.also { cache.save(it) }
     }
 }

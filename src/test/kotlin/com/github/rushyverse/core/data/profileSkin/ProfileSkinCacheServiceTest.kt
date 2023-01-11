@@ -55,14 +55,14 @@ class ProfileSkinCacheServiceTest {
         fun `data is not into the cache`() = runTest {
             val profile = createProfileSkin()
             service.save(profile)
-            assertNull(service.getSkinByUUID(getRandomString()))
+            assertNull(service.getSkinById(getRandomString()))
         }
 
         @Test
         fun `data is retrieved from the cache`() = runTest {
             val profile = createProfileSkin()
             service.save(profile)
-            assertEquals(profile, service.getSkinByUUID(profile.id))
+            assertEquals(profile, service.getSkinById(profile.id))
         }
 
         @Test
@@ -73,7 +73,7 @@ class ProfileSkinCacheServiceTest {
                 val keySerial = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), service.prefixKey + key)
                 it.set(keySerial, "test".encodeToByteArray())
             }
-            assertNull(service.getSkinByUUID(key))
+            assertNull(service.getSkinById(key))
         }
 
     }
@@ -86,9 +86,9 @@ class ProfileSkinCacheServiceTest {
         fun `save identity with key not exists`() = runTest {
             val profile = createProfileSkin()
             val key = profile.id
-            assertNull(service.getSkinByUUID(key))
+            assertNull(service.getSkinById(key))
             service.save(profile)
-            assertEquals(profile, service.getSkinByUUID(key))
+            assertEquals(profile, service.getSkinById(key))
         }
 
         @Test
@@ -96,13 +96,13 @@ class ProfileSkinCacheServiceTest {
             val profile = createProfileSkin()
             val key = profile.id
 
-            assertNull(service.getSkinByUUID(key))
+            assertNull(service.getSkinById(key))
             service.save(profile)
-            assertEquals(profile, service.getSkinByUUID(key))
+            assertEquals(profile, service.getSkinById(key))
 
             val profile2 = profile.copy(id = key)
             service.save(profile2)
-            assertEquals(profile2, service.getSkinByUUID(key))
+            assertEquals(profile2, service.getSkinById(key))
         }
 
         @Test
@@ -132,11 +132,11 @@ class ProfileSkinCacheServiceTest {
             val profile = createProfileSkin()
             val key = profile.id
             service.save(profile)
-            assertEquals(profile, service.getSkinByUUID(key))
+            assertEquals(profile, service.getSkinById(key))
             delay(0.5.seconds)
-            assertEquals(profile, service.getSkinByUUID(key))
+            assertEquals(profile, service.getSkinById(key))
             delay(0.5.seconds)
-            assertNull(service.getSkinByUUID(key))
+            assertNull(service.getSkinById(key))
         }
 
     }

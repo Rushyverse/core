@@ -25,11 +25,11 @@ interface IMojangService : IProfileIdService, IProfileSkinService {
 class MojangService(override val supplier: IHttpEntitySupplier) : IMojangService, IHttpStrategizable {
 
     override suspend fun getSkinByName(name: String): ProfileSkin? {
-        return getIdByName(name)?.let { getSkinByUUID(it.id) }
+        return getIdByName(name)?.let { getSkinById(it.id) }
     }
 
-    override suspend fun getSkinByUUID(uuid: String): ProfileSkin? {
-        return supplier.getSkinByUUID(uuid)
+    override suspend fun getSkinById(id: String): ProfileSkin? {
+        return supplier.getSkinById(id)
     }
 
     override suspend fun getIdByName(name: String): ProfileId? {

@@ -51,11 +51,11 @@ class MojangServiceTest {
             val id = profileId.id
             val name = profileId.name
             coEvery { supplier.getIdByName(any()) } returns null
-            coEvery { supplier.getSkinByUUID(id) } returns profileSkin
+            coEvery { supplier.getSkinById(id) } returns profileSkin
             assertNull(serviceImpl.getSkinByName(name))
 
             coEvery { supplier.getIdByName(name) } returns profileId
-            coEvery { supplier.getSkinByUUID(any()) } returns null
+            coEvery { supplier.getSkinById(any()) } returns null
             assertNull(serviceImpl.getSkinByName(name))
         }
 
@@ -66,7 +66,7 @@ class MojangServiceTest {
             val id = profileId.id
             val name = profileId.name
             coEvery { supplier.getIdByName(name) } returns profileId
-            coEvery { supplier.getSkinByUUID(id) } returns profileSkin
+            coEvery { supplier.getSkinById(id) } returns profileSkin
             assertEquals(profileSkin, serviceImpl.getSkinByName(name))
         }
     }
@@ -96,16 +96,16 @@ class MojangServiceTest {
 
         @Test
         override fun `data is not found into supplier`() = runTest {
-            coEvery { supplier.getSkinByUUID(any()) } returns null
-            assertNull(serviceImpl.getSkinByUUID(getRandomString()))
+            coEvery { supplier.getSkinById(any()) } returns null
+            assertNull(serviceImpl.getSkinById(getRandomString()))
         }
 
         @Test
         override fun `data is retrieved from supplier`() = runTest {
             val skin = createProfileSkin()
             val id = skin.id
-            coEvery { supplier.getSkinByUUID(id) } returns skin
-            assertEquals(skin, serviceImpl.getSkinByUUID(id))
+            coEvery { supplier.getSkinById(id) } returns skin
+            assertEquals(skin, serviceImpl.getSkinById(id))
         }
     }
 }

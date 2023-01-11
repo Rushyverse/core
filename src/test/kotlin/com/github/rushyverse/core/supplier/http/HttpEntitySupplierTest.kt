@@ -62,7 +62,7 @@ class HttpEntitySupplierTest {
         override fun `data not found from rest`() = runTest {
             coEvery { mojangAPI.getSkin(any()) } returns null
             val name = getRandomString()
-            assertNull(restEntitySupplier.getSkinByUUID(name))
+            assertNull(restEntitySupplier.getSkinById(name))
             coVerify(exactly = 1) { mojangAPI.getSkin(name) }
         }
 
@@ -71,7 +71,7 @@ class HttpEntitySupplierTest {
             val skin = createProfileSkin()
             val id = skin.id
             coEvery { mojangAPI.getSkin(id) } returns skin
-            assertEquals(skin, restEntitySupplier.getSkinByUUID(id))
+            assertEquals(skin, restEntitySupplier.getSkinById(id))
             coVerify(exactly = 1) { mojangAPI.getSkin(id) }
         }
 

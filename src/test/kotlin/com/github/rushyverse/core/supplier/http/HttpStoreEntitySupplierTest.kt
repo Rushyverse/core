@@ -88,18 +88,18 @@ class HttpStoreEntitySupplierTest {
         override fun `data not stored into cache if data not exists`() = runTest {
             val skin = createProfileSkin()
             val uuid = skin.id
-            coEvery { mockSupplier.getSkinByUUID(uuid) } returns null
-            assertNull(storeEntitySupplier.getSkinByUUID(uuid))
-            assertNull(cacheEntitySupplier.getSkinByUUID(uuid))
+            coEvery { mockSupplier.getSkinById(uuid) } returns null
+            assertNull(storeEntitySupplier.getSkinById(uuid))
+            assertNull(cacheEntitySupplier.getSkinById(uuid))
         }
 
         @Test
         override fun `data stored if found`() = runTest {
             val skin = createProfileSkin()
             val uuid = skin.id
-            coEvery { mockSupplier.getSkinByUUID(uuid) } returns skin
-            assertEquals(skin, storeEntitySupplier.getSkinByUUID(uuid))
-            assertEquals(skin, cacheEntitySupplier.getSkinByUUID(uuid))
+            coEvery { mockSupplier.getSkinById(uuid) } returns skin
+            assertEquals(skin, storeEntitySupplier.getSkinById(uuid))
+            assertEquals(skin, cacheEntitySupplier.getSkinById(uuid))
         }
 
     }

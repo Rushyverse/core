@@ -14,7 +14,7 @@ class HttpEntitySupplier(private val mojangAPI: MojangAPI) : IHttpEntitySupplier
         return mojangAPI.getUUID(name)
     }
 
-    override suspend fun getSkinByUUID(uuid: String): ProfileSkin? {
-        return mojangAPI.getSkin(uuid)
+    override suspend fun getSkinById(id: String): ProfileSkin? {
+        return mojangAPI.getSkin(id)
     }
 }

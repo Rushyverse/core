@@ -14,8 +14,8 @@ class HttpCacheEntitySupplier(
     val profileIdCache: IProfileIdCacheService
 ) : IHttpEntitySupplier {
 
-    override suspend fun getSkinByUUID(uuid: String): ProfileSkin? {
-        return profileSkinCache.getSkinByUUID(uuid)
+    override suspend fun getSkinById(id: String): ProfileSkin? {
+        return profileSkinCache.getSkinById(id)
     }
 
     override suspend fun getIdByName(name: String): ProfileId? {

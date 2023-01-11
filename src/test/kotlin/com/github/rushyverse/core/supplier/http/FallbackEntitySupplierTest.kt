@@ -84,13 +84,13 @@ class FallbackEntitySupplierTest {
             val skin = createProfileSkin()
             val id = skin.id
 
-            coEvery { first.getSkinByUUID(any()) } returns null
-            coEvery { second.getSkinByUUID(any()) } returns null
+            coEvery { first.getSkinById(any()) } returns null
+            coEvery { second.getSkinById(any()) } returns null
 
-            assertNull(fallbackEntitySupplier.getSkinByUUID(id))
+            assertNull(fallbackEntitySupplier.getSkinById(id))
 
-            coVerify(exactly = 1) { first.getSkinByUUID(id) }
-            coVerify(exactly = 1) { second.getSkinByUUID(id) }
+            coVerify(exactly = 1) { first.getSkinById(id) }
+            coVerify(exactly = 1) { second.getSkinById(id) }
         }
 
         @Test
@@ -100,20 +100,20 @@ class FallbackEntitySupplierTest {
             val skin = createProfileSkin()
             val id = skin.id
 
-            coEvery { first.getSkinByUUID(any()) } returns skin
-            coEvery { second.getSkinByUUID(any()) } returns null
+            coEvery { first.getSkinById(any()) } returns skin
+            coEvery { second.getSkinById(any()) } returns null
 
-            assertEquals(skin, fallbackEntitySupplier.getSkinByUUID(id))
-            coVerify(exactly = 1) { first.getSkinByUUID(id) }
-            coVerify(exactly = 0) { second.getSkinByUUID(id) }
+            assertEquals(skin, fallbackEntitySupplier.getSkinById(id))
+            coVerify(exactly = 1) { first.getSkinById(id) }
+            coVerify(exactly = 0) { second.getSkinById(id) }
 
-            coEvery { first.getSkinByUUID(any()) } returns null
-            coEvery { second.getSkinByUUID(any()) } returns skin
+            coEvery { first.getSkinById(any()) } returns null
+            coEvery { second.getSkinById(any()) } returns skin
 
-            assertEquals(skin, fallbackEntitySupplier.getSkinByUUID(id))
+            assertEquals(skin, fallbackEntitySupplier.getSkinById(id))
 
-            coVerify(exactly = 2) { first.getSkinByUUID(id) }
-            coVerify(exactly = 1) { second.getSkinByUUID(id) }
+            coVerify(exactly = 2) { first.getSkinById(id) }
+            coVerify(exactly = 1) { second.getSkinById(id) }
         }
 
     }
