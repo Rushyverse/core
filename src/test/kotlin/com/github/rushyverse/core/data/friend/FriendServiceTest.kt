@@ -16,12 +16,12 @@ import kotlin.test.*
 
 class FriendServiceTest {
 
-    private lateinit var serviceImpl: FriendService
-    private val supplier get() = serviceImpl.supplier
+    private lateinit var service: FriendService
+    private val supplier get() = service.supplier
 
     @BeforeTest
     fun onBefore() {
-        serviceImpl = FriendService(mockk(getRandomString()))
+        service = FriendService(mockk(getRandomString()))
     }
 
     @Nested
@@ -36,7 +36,7 @@ class FriendServiceTest {
 
             val uuid1 = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
-            assertTrue { serviceImpl.addFriend(uuid1, uuid2) }
+            assertTrue { service.addFriend(uuid1, uuid2) }
             coVerify(exactly = 1) { supplier.addFriend(any(), any()) }
 
             assertEquals(uuid1, slotUuid1.captured)
@@ -46,14 +46,14 @@ class FriendServiceTest {
         @Test
         fun `should return false when supplier returns false`() = runTest {
             coEvery { supplier.addFriend(any(), any()) } returns false
-            assertFalse { serviceImpl.addFriend(mockk(), mockk()) }
+            assertFalse { service.addFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.addFriend(any(), any()) }
         }
 
         @Test
         fun `should return true when supplier returns false`() = runTest {
             coEvery { supplier.addFriend(any(), any()) } returns true
-            assertTrue { serviceImpl.addFriend(mockk(), mockk()) }
+            assertTrue { service.addFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.addFriend(any(), any()) }
         }
     }
@@ -70,7 +70,7 @@ class FriendServiceTest {
 
             val uuid1 = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
-            assertTrue { serviceImpl.removeFriend(uuid1, uuid2) }
+            assertTrue { service.removeFriend(uuid1, uuid2) }
             coVerify(exactly = 1) { supplier.removeFriend(any(), any()) }
 
             assertEquals(uuid1, slotUuid1.captured)
@@ -80,14 +80,14 @@ class FriendServiceTest {
         @Test
         fun `should return false when supplier returns false`() = runTest {
             coEvery { supplier.removeFriend(any(), any()) } returns false
-            assertFalse { serviceImpl.removeFriend(mockk(), mockk()) }
+            assertFalse { service.removeFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.removeFriend(any(), any()) }
         }
 
         @Test
         fun `should return true when supplier returns false`() = runTest {
             coEvery { supplier.removeFriend(any(), any()) } returns true
-            assertTrue { serviceImpl.removeFriend(mockk(), mockk()) }
+            assertTrue { service.removeFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.removeFriend(any(), any()) }
         }
     }
@@ -102,7 +102,7 @@ class FriendServiceTest {
             coEvery { supplier.getFriends(capture(slotUuid)) } returns emptyFlow()
 
             val uuid1 = UUID.randomUUID()
-            assertEquals(emptyList(), serviceImpl.getFriends(uuid1).toList())
+            assertEquals(emptyList(), service.getFriends(uuid1).toList())
             coVerify(exactly = 1) { supplier.getFriends(any()) }
 
             assertEquals(uuid1, slotUuid.captured)
@@ -111,7 +111,7 @@ class FriendServiceTest {
         @Test
         fun `should return empty collection when supplier returns empty collection`() = runTest {
             coEvery { supplier.getFriends(any()) } returns emptyFlow()
-            assertEquals(emptyList(), serviceImpl.getFriends(mockk()).toList())
+            assertEquals(emptyList(), service.getFriends(mockk()).toList())
             coVerify(exactly = 1) { supplier.getFriends(any()) }
         }
 
@@ -119,7 +119,7 @@ class FriendServiceTest {
         fun `should return not empty collection when supplier returns not empty collection`() = runTest {
             val expected = List(5) { UUID.randomUUID() }
             coEvery { supplier.getFriends(any()) } returns expected.asFlow()
-            assertEquals(expected, serviceImpl.getFriends(mockk()).toList())
+            assertEquals(expected, service.getFriends(mockk()).toList())
             coVerify(exactly = 1) { supplier.getFriends(any()) }
         }
 
@@ -137,7 +137,7 @@ class FriendServiceTest {
 
             val uuid1 = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
-            assertTrue { serviceImpl.isFriend(uuid1, uuid2) }
+            assertTrue { service.isFriend(uuid1, uuid2) }
             coVerify(exactly = 1) { supplier.isFriend(any(), any()) }
 
             assertEquals(uuid1, slotUuid1.captured)
@@ -147,14 +147,14 @@ class FriendServiceTest {
         @Test
         fun `should return false when supplier returns false`() = runTest {
             coEvery { supplier.isFriend(any(), any()) } returns false
-            assertFalse { serviceImpl.isFriend(mockk(), mockk()) }
+            assertFalse { service.isFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.isFriend(any(), any()) }
         }
 
         @Test
         fun `should return true when supplier returns false`() = runTest {
             coEvery { supplier.isFriend(any(), any()) } returns true
-            assertTrue { serviceImpl.isFriend(mockk(), mockk()) }
+            assertTrue { service.isFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.isFriend(any(), any()) }
         }
     }
