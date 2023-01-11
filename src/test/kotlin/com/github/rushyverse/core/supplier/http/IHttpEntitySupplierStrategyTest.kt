@@ -4,7 +4,6 @@ import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.ProfileIdCacheService
 import com.github.rushyverse.core.data.ProfileSkinCacheService
-import com.github.rushyverse.core.supplier.SupplierConfiguration
 import com.github.rushyverse.core.utils.createProfileId
 import com.github.rushyverse.core.utils.getRandomString
 import io.github.universeproject.kotlinmojangapi.MojangAPI
@@ -31,7 +30,7 @@ class IHttpEntitySupplierStrategyTest {
 
     private lateinit var cacheClient: CacheClient
 
-    private lateinit var configuration: SupplierConfiguration
+    private lateinit var configuration: HttpSupplierServices
 
     private lateinit var mojangAPI: MojangAPI
     private lateinit var cacheEntitySupplier: HttpCacheEntitySupplier
@@ -48,7 +47,7 @@ class IHttpEntitySupplierStrategyTest {
             ProfileSkinCacheService(cacheClient),
             ProfileIdCacheService(cacheClient)
         )
-        configuration = SupplierConfiguration(mojangAPI, cacheClient)
+        configuration = HttpSupplierServices(mojangAPI, cacheClient)
     }
 
     @AfterTest
@@ -58,13 +57,13 @@ class IHttpEntitySupplierStrategyTest {
 
     @Test
     fun `rest supplier corresponding to the class`() {
-        val configuration = SupplierConfiguration(mockk(), mockk())
+        val configuration = HttpSupplierServices(mockk(), mockk())
         assertEquals(HttpEntitySupplier::class, IHttpEntitySupplier.rest(configuration)::class)
     }
 
     @Test
     fun `cache supplier corresponding to the class`() {
-        val configuration = SupplierConfiguration(mockk(), mockk())
+        val configuration = HttpSupplierServices(mockk(), mockk())
         assertEquals(HttpCacheEntitySupplier::class, IHttpEntitySupplier.cache(configuration)::class)
     }
 

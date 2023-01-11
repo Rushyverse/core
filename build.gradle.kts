@@ -5,6 +5,7 @@ plugins {
     kotlin("plugin.serialization") version "1.8.0"
     id("com.github.johnrengelman.shadow") version "7.1.2"
     id("org.jetbrains.dokka") version "1.7.20"
+    id("com.google.devtools.ksp") version "1.8.0-1.0.8"
     `java-library`
     `maven-publish`
 }
@@ -19,16 +20,17 @@ dependencies {
     val ktorVersion = "2.2.2"
     val ktSerializationVersion = "1.4.1"
     val coroutinesCoreVersion = "1.6.4"
-    val exposedVersion = "0.41.1"
     val loggingVersion = "3.0.4"
     val slf4jVersion = "2.0.6"
     val mockkVersion = "1.13.3"
     val junitVersion = "5.9.1"
     val testContainersVersion = "1.17.6"
-    val psqlVersion = "42.5.1"
+    val psqlR2DBCVersion = "1.0.0.RELEASE"
     val lettuceVersion = "6.2.2.RELEASE"
     val kotlinMojangApi = "2.1.0"
     val nettyCodecVersion = "4.1.86.Final"
+    val assertJcoreVersion = "3.24.1"
+    val komapperVersion = "1.6.0"
 
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
@@ -48,11 +50,15 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$ktSerializationVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:$ktSerializationVersion")
 
-    // Exposed to interact with the SQL database
-    implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
-    implementation("org.postgresql:postgresql:$psqlVersion")
+    // Interact with database
+    platform("org.komapper:komapper-platform:$komapperVersion").let {
+        implementation(it)
+        ksp(it)
+    }
+    implementation("org.komapper:komapper-starter-r2dbc")
+    implementation("org.komapper:komapper-dialect-postgresql-r2dbc")
+    implementation("org.postgresql:r2dbc-postgresql:$psqlR2DBCVersion")
+    ksp("org.komapper:komapper-processor")
 
     // Redis cache
     implementation("io.lettuce:lettuce-core:$lettuceVersion")
@@ -70,15 +76,22 @@ dependencies {
 
     // Junit to run tests
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
+    testImplementation("org.assertj:assertj-core:$assertJcoreVersion")
     testImplementation("org.junit.jupiter:junit-jupiter-params:$junitVersion")
     testImplementation("org.testcontainers:junit-jupiter:$testContainersVersion")
     testImplementation("org.testcontainers:postgresql:$testContainersVersion")
 }
 
 kotlin {
-    explicitApi = org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode.Strict
+//    explicitApi = org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode.Strict
 
     sourceSets {
+        main {
+            kotlin {
+                srcDir("build/generated")
+            }
+        }
+
         all {
             languageSettings {
                 optIn("kotlin.RequiresOptIn")

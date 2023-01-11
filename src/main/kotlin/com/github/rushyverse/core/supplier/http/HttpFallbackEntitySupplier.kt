@@ -4,14 +4,6 @@ import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 
 /**
- * Creates supplier providing a strategy which will first operate on this supplier. When an entity
- * is not present from the first supplier it will be fetched from [other] instead. Operations that return flows
- * will only fall back to [other] when the returned flow contained no elements.
- */
-public infix fun IHttpEntitySupplier.withFallback(other: IHttpEntitySupplier): IHttpEntitySupplier =
-    HttpFallbackEntitySupplier(this, other)
-
-/**
  * [IHttpEntitySupplier] that uses the first supplier to retrieve a data, if the value is null, get the data through the second supplier.
  */
 public class HttpFallbackEntitySupplier(
