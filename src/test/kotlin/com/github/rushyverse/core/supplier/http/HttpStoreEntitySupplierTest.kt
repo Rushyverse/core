@@ -64,18 +64,18 @@ class HttpStoreEntitySupplierTest {
         override fun `data not stored into cache if data not exists`() = runTest {
             val id = createProfileId()
             val name = id.name
-            coEvery { mockSupplier.getUUID(name) } returns null
-            assertNull(storeEntitySupplier.getUUID(name))
-            assertNull(cacheEntitySupplier.getUUID(name))
+            coEvery { mockSupplier.getIdByName(name) } returns null
+            assertNull(storeEntitySupplier.getIdByName(name))
+            assertNull(cacheEntitySupplier.getIdByName(name))
         }
 
         @Test
         override fun `data stored if found`() = runTest {
             val id = createProfileId()
             val name = id.name
-            coEvery { mockSupplier.getUUID(name) } returns id
-            assertEquals(id, storeEntitySupplier.getUUID(name))
-            assertEquals(id, cacheEntitySupplier.getUUID(name))
+            coEvery { mockSupplier.getIdByName(name) } returns id
+            assertEquals(id, storeEntitySupplier.getIdByName(name))
+            assertEquals(id, cacheEntitySupplier.getIdByName(name))
         }
 
     }
@@ -88,18 +88,18 @@ class HttpStoreEntitySupplierTest {
         override fun `data not stored into cache if data not exists`() = runTest {
             val skin = createProfileSkin()
             val uuid = skin.id
-            coEvery { mockSupplier.getSkin(uuid) } returns null
-            assertNull(storeEntitySupplier.getSkin(uuid))
-            assertNull(cacheEntitySupplier.getSkin(uuid))
+            coEvery { mockSupplier.getSkinById(uuid) } returns null
+            assertNull(storeEntitySupplier.getSkinById(uuid))
+            assertNull(cacheEntitySupplier.getSkinById(uuid))
         }
 
         @Test
         override fun `data stored if found`() = runTest {
             val skin = createProfileSkin()
             val uuid = skin.id
-            coEvery { mockSupplier.getSkin(uuid) } returns skin
-            assertEquals(skin, storeEntitySupplier.getSkin(uuid))
-            assertEquals(skin, cacheEntitySupplier.getSkin(uuid))
+            coEvery { mockSupplier.getSkinById(uuid) } returns skin
+            assertEquals(skin, storeEntitySupplier.getSkinById(uuid))
+            assertEquals(skin, cacheEntitySupplier.getSkinById(uuid))
         }
 
     }

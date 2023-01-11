@@ -1,7 +1,27 @@
 package com.github.rushyverse.core.supplier.http
 
-import io.github.universeproject.kotlinmojangapi.ProfileId
-import io.github.universeproject.kotlinmojangapi.ProfileSkin
+import com.github.rushyverse.core.data.IProfileIdService
+import com.github.rushyverse.core.data.IProfileSkinService
+
+/**
+ * A class that will defer the requesting of entities to a [supplier].
+ * Copies of this class with a different [supplier] can be made through [withStrategy].
+ *
+ * Unless stated otherwise, all members that fetch entities will delegate to the [supplier].
+ */
+interface IHttpStrategizable {
+
+    /**
+     * The supplier used to request entities.
+     */
+    val supplier: IHttpEntitySupplier
+
+
+    /**
+     * Returns a copy of this class with a new [supplier] provided by the [strategy].
+     */
+    fun withStrategy(strategy: IHttpEntitySupplier): IHttpStrategizable
+}
 
 /**
  * An abstraction that allows for requesting entities.
@@ -10,7 +30,7 @@ import io.github.universeproject.kotlinmojangapi.ProfileSkin
  * @see HttpCacheEntitySupplier
  * @see HttpStoreEntitySupplier
  */
-interface IHttpEntitySupplier {
+interface IHttpEntitySupplier : IProfileSkinService, IProfileIdService {
 
     companion object {
 
@@ -52,20 +72,5 @@ interface IHttpEntitySupplier {
         fun cacheWithCachingRestFallback(configuration: HttpSupplierServices): IHttpEntitySupplier =
             HttpFallbackEntitySupplier(cache(configuration), cachingRest(configuration))
     }
-
-    /**
-     * Retrieve the id information about a player with his name.
-     * @param name Player's name.
-     * @return Information about the player's id.
-     */
-    suspend fun getUUID(name: String): ProfileId?
-
-    /**
-     * Retrieve the skin data for a player.
-     * A player is represented by his UUID.
-     * @param uuid Player's UUID.
-     * @return Information about player's skin.
-     */
-    suspend fun getSkin(uuid: String): ProfileSkin?
 
 }

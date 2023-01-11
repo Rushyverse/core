@@ -7,10 +7,10 @@ import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.ProfileSkinCacheService
 import com.github.rushyverse.core.utils.createProfileSkin
 import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.getTTL
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisURI
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
@@ -55,14 +55,14 @@ class ProfileSkinCacheServiceTest {
         fun `data is not into the cache`() = runTest {
             val profile = createProfileSkin()
             service.save(profile)
-            assertNull(service.getByUUID(getRandomString()))
+            assertNull(service.getSkinById(getRandomString()))
         }
 
         @Test
         fun `data is retrieved from the cache`() = runTest {
             val profile = createProfileSkin()
             service.save(profile)
-            assertEquals(profile, service.getByUUID(profile.id))
+            assertEquals(profile, service.getSkinById(profile.id))
         }
 
         @Test
@@ -73,7 +73,29 @@ class ProfileSkinCacheServiceTest {
                 val keySerial = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), service.prefixKey + key)
                 it.set(keySerial, "test".encodeToByteArray())
             }
-            assertNull(service.getByUUID(key))
+            assertNull(service.getSkinById(key))
+        }
+
+        @Test
+        fun `should not set the expiration of the data if expiration defined`() = runTest {
+            val profile = createProfileSkin()
+            service.save(profile)
+            assertEquals(-1, cacheClient.getTTL(service, profile.id))
+
+            service = ProfileSkinCacheService(cacheClient, 30.seconds, service.prefixKey)
+            service.getSkinById(profile.id)
+
+            assertEquals(-1, cacheClient.getTTL(service, profile.id))
+        }
+
+        @Test
+        fun `should not set the expiration of the data if expiration is not defined`() = runTest {
+            val profile = createProfileSkin()
+            service = ProfileSkinCacheService(cacheClient)
+            service.save(profile)
+            assertEquals(-1, cacheClient.getTTL(service, profile.id))
+            service.getSkinById(profile.id)
+            assertEquals(-1, cacheClient.getTTL(service, profile.id))
         }
 
     }
@@ -86,9 +108,9 @@ class ProfileSkinCacheServiceTest {
         fun `save identity with key not exists`() = runTest {
             val profile = createProfileSkin()
             val key = profile.id
-            assertNull(service.getByUUID(key))
+            assertNull(service.getSkinById(key))
             service.save(profile)
-            assertEquals(profile, service.getByUUID(key))
+            assertEquals(profile, service.getSkinById(key))
         }
 
         @Test
@@ -96,13 +118,13 @@ class ProfileSkinCacheServiceTest {
             val profile = createProfileSkin()
             val key = profile.id
 
-            assertNull(service.getByUUID(key))
+            assertNull(service.getSkinById(key))
             service.save(profile)
-            assertEquals(profile, service.getByUUID(key))
+            assertEquals(profile, service.getSkinById(key))
 
             val profile2 = profile.copy(id = key)
             service.save(profile2)
-            assertEquals(profile2, service.getByUUID(key))
+            assertEquals(profile2, service.getSkinById(key))
         }
 
         @Test
@@ -120,23 +142,20 @@ class ProfileSkinCacheServiceTest {
             assertEquals(profile, cacheClient.binaryFormat.decodeFromByteArray(ProfileSkin.serializer(), value))
         }
 
-    }
-
-    @Nested
-    inner class Expiration {
+        @Test
+        fun `should set the expiration of the data if expiration defined`() = runTest {
+            val profile = createProfileSkin()
+            service = ProfileSkinCacheService(cacheClient, 30.seconds)
+            service.save(profile)
+            assertEquals(30, cacheClient.getTTL(service, profile.id))
+        }
 
         @Test
-        fun `should can't retrieve data after expiration`() = runBlocking {
-            val expiration = 1.seconds
-            service = ProfileSkinCacheService(cacheClient, expiration)
+        fun `should not set the expiration of the data if expiration is not defined`() = runTest {
             val profile = createProfileSkin()
-            val key = profile.id
+            service = ProfileSkinCacheService(cacheClient)
             service.save(profile)
-            assertEquals(profile, service.getByUUID(key))
-            delay(0.5.seconds)
-            assertEquals(profile, service.getByUUID(key))
-            delay(0.5.seconds)
-            assertNull(service.getByUUID(key))
+            assertEquals(-1, cacheClient.getTTL(service, profile.id))
         }
 
     }

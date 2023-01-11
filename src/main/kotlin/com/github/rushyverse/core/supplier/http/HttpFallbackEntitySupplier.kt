@@ -11,12 +11,12 @@ class HttpFallbackEntitySupplier(
     val second: IHttpEntitySupplier
 ) : IHttpEntitySupplier {
 
-    override suspend fun getUUID(name: String): ProfileId? {
-        return invoke { it.getUUID(name) }
+    override suspend fun getSkinById(id: String): ProfileSkin? {
+        return invoke { it.getSkinById(id) }
     }
 
-    override suspend fun getSkin(uuid: String): ProfileSkin? {
-        return invoke { it.getSkin(uuid) }
+    override suspend fun getIdByName(name: String): ProfileId? {
+        return invoke { it.getIdByName(name) }
     }
 
     /**

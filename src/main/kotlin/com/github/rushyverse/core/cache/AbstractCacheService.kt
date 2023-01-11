@@ -1,23 +1,46 @@
 package com.github.rushyverse.core.cache
 
-import kotlinx.serialization.BinaryFormat
+import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.builtins.serializer
+import kotlin.time.Duration
 
 /**
  * Service to encode and decode information with cache.
  * @property prefixKey Prefix key to identify the data in cache.
  */
-abstract class CacheService(val prefixKey: String) {
+abstract class AbstractCacheService(
+    val client: CacheClient,
+    val prefixKey: String,
+    val expirationKey: Duration?
+) {
+
+    /**
+     * Set the value for the key.
+     * If [expirationKey] is not null, an expiration time will be applied, otherwise the value will be stored forever.
+     * @param connection Redis connection.
+     * @param key Encoded key.
+     * @param value Encoded value.
+     */
+    protected suspend fun setWithExpiration(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        key: ByteArray,
+        value: ByteArray
+    ) {
+        if (expirationKey != null) {
+            connection.psetex(key, expirationKey.inWholeMilliseconds, value)
+        } else {
+            connection.set(key, value)
+        }
+    }
 
     /**
      * Create the key from a [String] value to identify data in cache.
      * @param key Value using to create key.
      * @return [ByteArray] corresponding to the key using the [prefixKey] and [key].
      */
-    protected fun encodeKey(binaryFormat: BinaryFormat, key: String): ByteArray = encodeToByteArray(
-        binaryFormat,
+    protected fun encodeKey(key: String): ByteArray = encodeToByteArray(
         String.serializer(),
         "$prefixKey$key"
     )
@@ -28,10 +51,9 @@ abstract class CacheService(val prefixKey: String) {
      * @return Result of the serialization of [value].
      */
     protected fun <T> encodeToByteArray(
-        binaryFormat: BinaryFormat,
         serializer: SerializationStrategy<T>,
         value: T
-    ): ByteArray = binaryFormat.encodeToByteArray(serializer, value)
+    ): ByteArray = client.binaryFormat.encodeToByteArray(serializer, value)
 
     /***
      * Transform a [ByteArray] to a value by decoding data using [binaryFormat][CacheClient.binaryFormat].
@@ -39,12 +61,11 @@ abstract class CacheService(val prefixKey: String) {
      * @return The value from the [valueSerial] decoded.
      */
     protected fun <T> decodeFromByteArrayOrNull(
-        binaryFormat: BinaryFormat,
         deserializer: DeserializationStrategy<T>,
         valueSerial: ByteArray
     ): T? =
         try {
-            binaryFormat.decodeFromByteArray(deserializer, valueSerial)
+            client.binaryFormat.decodeFromByteArray(deserializer, valueSerial)
         } catch (_: Exception) {
             null
         }
