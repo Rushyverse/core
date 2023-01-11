@@ -3,7 +3,7 @@
 package com.github.rushyverse.core.data
 
 import com.github.rushyverse.core.cache.CacheClient
-import com.github.rushyverse.core.cache.CacheService
+import com.github.rushyverse.core.cache.AbstractCacheService
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import kotlin.time.Duration
@@ -37,14 +37,14 @@ interface IProfileSkinCacheService : IProfileSkinService {
 /**
  * Cache service for [ProfileSkin].
  * @property client Cache client.
- * @property expiration Expiration time applied when a new relationship is set.
+ * @property expirationKey Expiration time applied when a new relationship is set.
  * @property prefixKey Prefix key to identify the data in cache.
  */
 class ProfileSkinCacheService(
     client: CacheClient,
-    expiration: Duration? = null,
+    expirationKey: Duration? = null,
     prefixKey: String = "skin:"
-) : CacheService(client, prefixKey, expiration), IProfileSkinCacheService {
+) : AbstractCacheService(client, prefixKey, expirationKey), IProfileSkinCacheService {
 
     override suspend fun getSkinById(id: String): ProfileSkin? {
         val key = encodeKey(id)

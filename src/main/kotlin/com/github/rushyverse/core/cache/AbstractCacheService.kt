@@ -10,15 +10,15 @@ import kotlin.time.Duration
  * Service to encode and decode information with cache.
  * @property prefixKey Prefix key to identify the data in cache.
  */
-abstract class CacheService(
+abstract class AbstractCacheService(
     val client: CacheClient,
     val prefixKey: String,
-    val expiration: Duration?
+    val expirationKey: Duration?
 ) {
 
     /**
      * Set the value for the key.
-     * If [expiration] is not null, an expiration time will be applied, otherwise the value will be stored forever.
+     * If [expirationKey] is not null, an expiration time will be applied, otherwise the value will be stored forever.
      * @param connection Redis connection.
      * @param key Encoded key.
      * @param value Encoded value.
@@ -28,8 +28,8 @@ abstract class CacheService(
         key: ByteArray,
         value: ByteArray
     ) {
-        if (expiration != null) {
-            connection.psetex(key, expiration.inWholeMilliseconds, value)
+        if (expirationKey != null) {
+            connection.psetex(key, expirationKey.inWholeMilliseconds, value)
         } else {
             connection.set(key, value)
         }

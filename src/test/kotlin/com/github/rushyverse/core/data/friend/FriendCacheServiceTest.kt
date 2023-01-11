@@ -62,7 +62,7 @@ class FriendCacheServiceTest {
         @Test
         fun `default expiration`() {
             val service = FriendCacheService(cacheClient)
-            assertNull(service.expiration)
+            assertNull(service.expirationKey)
         }
 
     }
@@ -147,7 +147,7 @@ class FriendCacheServiceTest {
             val uuid1 = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
 
-            val service = FriendCacheService(cacheClient, expiration = 1.seconds, duplicateForFriend = false)
+            val service = FriendCacheService(cacheClient, expirationKey = 1.seconds, duplicateForFriend = false)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertEquals(1L, cacheClient.getTTL(service, uuid1))
@@ -168,7 +168,7 @@ class FriendCacheServiceTest {
             val uuid1 = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
 
-            val service = FriendCacheService(cacheClient, expiration = 1.seconds, duplicateForFriend = true)
+            val service = FriendCacheService(cacheClient, expirationKey = 1.seconds, duplicateForFriend = true)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertEquals(1L, cacheClient.getTTL(service, uuid1))
@@ -197,7 +197,7 @@ class FriendCacheServiceTest {
             assertEquals(-1, cacheClient.getTTL(service, uuid2))
 
             val serviceWithExpiration =
-                FriendCacheService(cacheClient, expiration = 40.seconds, duplicateForFriend = true)
+                FriendCacheService(cacheClient, expirationKey = 40.seconds, duplicateForFriend = true)
             assertFalse { serviceWithExpiration.addFriend(uuid1, uuid2) }
             assertEquals(-1, cacheClient.getTTL(service, uuid1))
             assertEquals(-1, cacheClient.getTTL(service, uuid2))
@@ -209,7 +209,7 @@ class FriendCacheServiceTest {
             val uuid2 = UUID.randomUUID()
             val uuid3 = UUID.randomUUID()
 
-            val service = FriendCacheService(cacheClient, expiration = 5.seconds, duplicateForFriend = false)
+            val service = FriendCacheService(cacheClient, expirationKey = 5.seconds, duplicateForFriend = false)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertEquals(5, cacheClient.getTTL(service, uuid1))
@@ -381,7 +381,7 @@ class FriendCacheServiceTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
 
-            val service = FriendCacheService(cacheClient, expiration = null, duplicateForFriend = false)
+            val service = FriendCacheService(cacheClient, expirationKey = null, duplicateForFriend = false)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertTrue { service.addFriend(uuid1, uuid3) }
@@ -398,7 +398,7 @@ class FriendCacheServiceTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
 
-            val service = FriendCacheService(cacheClient, expiration = null, duplicateForFriend = false)
+            val service = FriendCacheService(cacheClient, expirationKey = null, duplicateForFriend = false)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertTrue { service.addFriend(uuid1, uuid3) }
@@ -407,7 +407,7 @@ class FriendCacheServiceTest {
             assertEquals(-1, cacheClient.getTTL(service, uuid1))
 
             val serviceWithExpiration =
-                FriendCacheService(cacheClient, expiration = 10.seconds, duplicateForFriend = false)
+                FriendCacheService(cacheClient, expirationKey = 10.seconds, duplicateForFriend = false)
             assertTrue { serviceWithExpiration.removeFriend(uuid1, uuid2) }
             assertEquals(10, cacheClient.getTTL(serviceWithExpiration, uuid1))
             assertEquals(-2, cacheClient.getTTL(serviceWithExpiration, uuid2))
@@ -422,7 +422,7 @@ class FriendCacheServiceTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
 
-            val service = FriendCacheService(cacheClient, expiration = null, duplicateForFriend = true)
+            val service = FriendCacheService(cacheClient, expirationKey = null, duplicateForFriend = true)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertTrue { service.addFriend(uuid1, uuid3) }
@@ -433,7 +433,7 @@ class FriendCacheServiceTest {
             assertEquals(-1, cacheClient.getTTL(service, uuid1))
 
             val serviceWithExpiration =
-                FriendCacheService(cacheClient, expiration = 10.seconds, duplicateForFriend = true)
+                FriendCacheService(cacheClient, expirationKey = 10.seconds, duplicateForFriend = true)
             assertTrue { serviceWithExpiration.removeFriend(uuid1, uuid2) }
             assertEquals(10, cacheClient.getTTL(serviceWithExpiration, uuid1))
             assertEquals(10, cacheClient.getTTL(serviceWithExpiration, uuid2))
@@ -448,7 +448,7 @@ class FriendCacheServiceTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
 
-            val service = FriendCacheService(cacheClient, expiration = null, duplicateForFriend = false)
+            val service = FriendCacheService(cacheClient, expirationKey = null, duplicateForFriend = false)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertTrue { service.addFriend(uuid1, uuid3) }
@@ -459,7 +459,7 @@ class FriendCacheServiceTest {
             assertEquals(-1, cacheClient.getTTL(service, uuid1))
 
             val serviceWithExpiration =
-                FriendCacheService(cacheClient, expiration = 10.seconds, duplicateForFriend = true)
+                FriendCacheService(cacheClient, expirationKey = 10.seconds, duplicateForFriend = true)
             assertTrue { serviceWithExpiration.removeFriend(uuid1, uuid2) }
             assertEquals(10, cacheClient.getTTL(serviceWithExpiration, uuid1))
             assertEquals(-1, cacheClient.getTTL(serviceWithExpiration, uuid2))
@@ -470,7 +470,7 @@ class FriendCacheServiceTest {
             val uuid1 = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
 
-            val service = FriendCacheService(cacheClient, expiration = null, duplicateForFriend = false)
+            val service = FriendCacheService(cacheClient, expirationKey = null, duplicateForFriend = false)
 
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertTrue { service.addFriend(uuid2, uuid1) }
@@ -579,7 +579,7 @@ class FriendCacheServiceTest {
             val uuid = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
 
-            val service = FriendCacheService(cacheClient, expiration = 20.seconds, duplicateForFriend = true)
+            val service = FriendCacheService(cacheClient, expirationKey = 20.seconds, duplicateForFriend = true)
 
             assertTrue { service.setFriends(uuid, setOf(uuid2)) }
             assertEquals(20, cacheClient.getTTL(service, uuid))
@@ -589,7 +589,7 @@ class FriendCacheServiceTest {
         fun `should not set expiration for the key when friends list is empty`() = runTest {
             val uuid = UUID.randomUUID()
 
-            val service = FriendCacheService(cacheClient, expiration = 20.seconds, duplicateForFriend = true)
+            val service = FriendCacheService(cacheClient, expirationKey = 20.seconds, duplicateForFriend = true)
 
             assertTrue { service.setFriends(uuid, emptySet()) }
             assertEquals(-2, cacheClient.getTTL(service, uuid))

@@ -1,27 +1,27 @@
 package com.github.rushyverse.core.utils
 
 import com.github.rushyverse.core.cache.CacheClient
-import com.github.rushyverse.core.cache.CacheService
+import com.github.rushyverse.core.cache.AbstractCacheService
 import kotlinx.serialization.builtins.serializer
 import java.util.*
 
-suspend fun CacheClient.getTTL(service: CacheService, uuid: UUID): Long? {
+suspend fun CacheClient.getTTL(service: AbstractCacheService, uuid: UUID): Long? {
     return getTTL(service, uuid.toString())
 }
 
-suspend fun CacheClient.getTTL(service: CacheService, id: String): Long? {
+suspend fun CacheClient.getTTL(service: AbstractCacheService, id: String): Long? {
     return connect { it.ttl(createKey(service, id)) }
 }
 
 fun CacheClient.createKey(
-    service: CacheService,
+    service: AbstractCacheService,
     uuid: UUID
 ): ByteArray {
     return createKey(service, uuid.toString())
 }
 
 fun CacheClient.createKey(
-    service: CacheService,
+    service: AbstractCacheService,
     id: String
 ): ByteArray {
     return binaryFormat.encodeToByteArray(String.serializer(), service.prefixKey + id)

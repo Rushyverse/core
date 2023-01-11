@@ -1,13 +1,13 @@
 package com.github.rushyverse.core.supplier.http
 
-import com.github.rushyverse.core.cache.CacheService
+import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.data.IProfileIdCacheService
 import com.github.rushyverse.core.data.IProfileSkinCacheService
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 
 /**
- * [IHttpEntitySupplier] that uses [CacheService] to resolve entities.
+ * [IHttpEntitySupplier] that uses [AbstractCacheService] to resolve entities.
  */
 class HttpCacheEntitySupplier(
     val profileSkinCache: IProfileSkinCacheService,

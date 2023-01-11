@@ -3,7 +3,7 @@
 package com.github.rushyverse.core.data
 
 import com.github.rushyverse.core.cache.CacheClient
-import com.github.rushyverse.core.cache.CacheService
+import com.github.rushyverse.core.cache.AbstractCacheService
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import kotlinx.serialization.builtins.serializer
@@ -37,14 +37,14 @@ interface IProfileIdCacheService : IProfileIdService {
 /**
  * Cache service for [ProfileId].
  * @property client Cache client.
- * @property expiration Expiration time applied when a new relationship is set.
+ * @property expirationKey Expiration time applied when a new relationship is set.
  * @property prefixKey Prefix key to identify the data in cache.
  */
 class ProfileIdCacheService(
     client: CacheClient,
-    expiration: Duration? = null,
+    expirationKey: Duration? = null,
     prefixKey: String = "profileId:",
-) : CacheService(client, prefixKey, expiration), IProfileIdCacheService {
+) : AbstractCacheService(client, prefixKey, expirationKey), IProfileIdCacheService {
 
     override suspend fun getIdByName(name: String): ProfileId? {
         val key = encodeKey(name)

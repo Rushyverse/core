@@ -1,7 +1,7 @@
 package com.github.rushyverse.core.data
 
 import com.github.rushyverse.core.cache.CacheClient
-import com.github.rushyverse.core.cache.CacheService
+import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.data._Friends.Companion.friends
 import com.github.rushyverse.core.extension.toTypedArray
 import com.github.rushyverse.core.serializer.UUIDSerializer
@@ -97,17 +97,17 @@ data class Friends(
 /**
  * Implementation of [IFriendCacheService] that uses [CacheClient] to manage data in cache.
  * @property client Cache client.
- * @property expiration Expiration time applied when a new relationship is set.
+ * @property expirationKey Expiration time applied when a new relationship is set.
  * @property duplicateForFriend `true` if all operations should be applied to the friend.
  * When `true`, if `uuid` is friends with `friend`, `friend` will be friends with `uuid`.
  * This behavior is applied for each available operations
  */
 class FriendCacheService(
     client: CacheClient,
-    expiration: Duration? = null,
+    expirationKey: Duration? = null,
     prefixKey: String = "friend:",
     val duplicateForFriend: Boolean = false
-) : CacheService(client, prefixKey, expiration), IFriendCacheService {
+) : AbstractCacheService(client, prefixKey, expirationKey), IFriendCacheService {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return client.connect {
@@ -137,8 +137,8 @@ class FriendCacheService(
 
         val result = connection.sadd(key, *friends)
         val isAdded = result != null && result > 0
-        if (expiration != null && isAdded) {
-            connection.pexpire(key, expiration.inWholeMilliseconds)
+        if (expirationKey != null && isAdded) {
+            connection.pexpire(key, expirationKey.inWholeMilliseconds)
         }
 
         return isAdded
@@ -169,8 +169,8 @@ class FriendCacheService(
         val result = connection.srem(key, value)
         val isRemoved = result != null && result > 0
 
-        if (expiration != null && isRemoved) {
-            connection.pexpire(key, expiration.inWholeMilliseconds)
+        if (expirationKey != null && isRemoved) {
+            connection.pexpire(key, expirationKey.inWholeMilliseconds)
         }
 
         return isRemoved
