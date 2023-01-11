@@ -50,7 +50,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$ktSerializationVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:$ktSerializationVersion")
 
-    // Exposed to interact with the SQL database
+    // Interact with database
     platform("org.komapper:komapper-platform:$komapperVersion").let {
         implementation(it)
         ksp(it)
@@ -59,8 +59,6 @@ dependencies {
     implementation("org.komapper:komapper-dialect-postgresql-r2dbc")
     implementation("org.postgresql:r2dbc-postgresql:$psqlR2DBCVersion")
     ksp("org.komapper:komapper-processor")
-
-//    implementation("org.postgresql:postgresql:$psqlVersion")
 
     // Redis cache
     implementation("io.lettuce:lettuce-core:$lettuceVersion")
