@@ -229,7 +229,7 @@ public class FriendCacheService(
 /**
  * Implementation of [IFriendDatabaseService] to manage data in database.
  */
-public class FriendDatabaseService(val database: R2dbcDatabase) : IFriendDatabaseService {
+public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriendDatabaseService {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         if (isFriend(uuid, friend)) return false
@@ -262,6 +262,12 @@ public class FriendDatabaseService(val database: R2dbcDatabase) : IFriendDatabas
         return database.runQuery(query).isNotEmpty()
     }
 
+    /**
+     * Create a where clause to check if [Friends.uuid1] is [uuid] and [Friends.uuid2] is [friend] or vice versa.
+     * @param uuid ID of the entity.
+     * @param friend ID of the friend.
+     * @return Where clause.
+     */
     private fun createWhereBidirectional(uuid: UUID, friend: UUID): WhereDeclaration {
         val w1: WhereDeclaration = { friends.uuid1 eq uuid }
         val w2: WhereDeclaration = { friends.uuid2 eq friend }
