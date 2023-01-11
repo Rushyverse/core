@@ -55,13 +55,6 @@ class ProfileSkinCacheService(
     override suspend fun save(profile: ProfileSkin) {
         val key = encodeKey(profile.id)
         val value = encodeToByteArray(ProfileSkin.serializer(), profile)
-
-        client.connect {
-            if (expiration != null) {
-                it.psetex(key, expiration.inWholeMilliseconds, value)
-            } else {
-                it.set(key, value)
-            }
-        }
+        client.connect { setWithExpiration(it, key, value) }
     }
 }

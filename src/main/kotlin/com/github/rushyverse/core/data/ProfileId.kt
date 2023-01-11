@@ -56,13 +56,6 @@ class ProfileIdCacheService(
     override suspend fun save(profile: ProfileId) {
         val key = encodeKey(profile.name)
         val value = encodeToByteArray(String.serializer(), profile.id)
-
-        client.connect {
-            if (expiration != null) {
-                it.psetex(key, expiration.inWholeMilliseconds, value)
-            } else {
-                it.set(key, value)
-            }
-        }
+        client.connect { setWithExpiration(it, key, value) }
     }
 }

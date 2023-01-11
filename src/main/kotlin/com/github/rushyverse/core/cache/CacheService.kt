@@ -1,5 +1,6 @@
 package com.github.rushyverse.core.cache
 
+import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.builtins.serializer
@@ -14,6 +15,25 @@ abstract class CacheService(
     val prefixKey: String,
     val expiration: Duration?
 ) {
+
+    /**
+     * Set the value for the key.
+     * If [expiration] is not null, an expiration time will be applied, otherwise the value will be stored forever.
+     * @param connection Redis connection.
+     * @param key Encoded key.
+     * @param value Encoded value.
+     */
+    protected suspend fun setWithExpiration(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        key: ByteArray,
+        value: ByteArray
+    ) {
+        if (expiration != null) {
+            connection.psetex(key, expiration.inWholeMilliseconds, value)
+        } else {
+            connection.set(key, value)
+        }
+    }
 
     /**
      * Create the key from a [String] value to identify data in cache.
