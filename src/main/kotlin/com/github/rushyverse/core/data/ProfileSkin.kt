@@ -4,11 +4,8 @@ package com.github.rushyverse.core.data
 
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.cache.CacheService
-import com.github.rushyverse.core.supplier.http.IHttpEntitySupplier
-import com.github.rushyverse.core.supplier.http.IHttpStrategizable
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
-import kotlinx.serialization.protobuf.ProtoBuf.Default.encodeToByteArray
 import kotlin.time.Duration
 
 /**
@@ -25,6 +22,9 @@ interface IProfileSkinService {
     suspend fun getSkinByUUID(uuid: String): ProfileSkin?
 }
 
+/**
+ * Service to manage [ProfileSkin] data in cache.
+ */
 interface IProfileSkinCacheService : IProfileSkinService {
 
     /**
@@ -41,23 +41,20 @@ interface IProfileSkinCacheService : IProfileSkinService {
  * @property prefixKey Prefix key to identify the data in cache.
  */
 class ProfileSkinCacheService(
-    private val client: CacheClient,
-    val expiration: Duration? = null,
+    client: CacheClient,
+    expiration: Duration? = null,
     prefixKey: String = "skin:"
-) : CacheService(prefixKey), IProfileSkinCacheService {
+) : CacheService(client, prefixKey, expiration), IProfileSkinCacheService {
 
     override suspend fun getSkinByUUID(uuid: String): ProfileSkin? {
-        val binaryFormat = client.binaryFormat
-        val key = encodeKey(binaryFormat, uuid)
-
+        val key = encodeKey(uuid)
         val dataSerial = client.connect { it.get(key) } ?: return null
-        return decodeFromByteArrayOrNull(binaryFormat, ProfileSkin.serializer(), dataSerial)
+        return decodeFromByteArrayOrNull(ProfileSkin.serializer(), dataSerial)
     }
 
     override suspend fun save(profile: ProfileSkin) {
-        val binaryFormat = client.binaryFormat
-        val key = encodeKey(binaryFormat, profile.id)
-        val value = encodeToByteArray(binaryFormat, ProfileSkin.serializer(), profile)
+        val key = encodeKey(profile.id)
+        val value = encodeToByteArray(ProfileSkin.serializer(), profile)
 
         client.connect {
             if (expiration != null) {
@@ -67,15 +64,4 @@ class ProfileSkinCacheService(
             }
         }
     }
-}
-
-/**
- * Service to retrieve data about client identity.
- * @property supplier Strategy to manage data.
- */
-class ProfileSkinService(override val supplier: IHttpEntitySupplier) : IProfileSkinService, IHttpStrategizable {
-
-    override suspend fun getSkinByUUID(uuid: String): ProfileSkin? = supplier.getSkinByUUID(uuid)
-
-    override fun withStrategy(strategy: IHttpEntitySupplier): ProfileSkinService = ProfileSkinService(strategy)
 }

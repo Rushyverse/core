@@ -10,7 +10,7 @@ import io.ktor.client.*
  */
 class HttpEntitySupplier(private val mojangAPI: MojangAPI) : IHttpEntitySupplier {
 
-    override suspend fun getUUIDByName(name: String): ProfileId? {
+    override suspend fun getIdByName(name: String): ProfileId? {
         return mojangAPI.getUUID(name)
     }
 

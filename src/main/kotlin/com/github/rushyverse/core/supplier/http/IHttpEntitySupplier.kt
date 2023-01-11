@@ -2,8 +2,6 @@ package com.github.rushyverse.core.supplier.http
 
 import com.github.rushyverse.core.data.IProfileIdService
 import com.github.rushyverse.core.data.IProfileSkinService
-import io.github.universeproject.kotlinmojangapi.ProfileId
-import io.github.universeproject.kotlinmojangapi.ProfileSkin
 
 /**
  * An abstraction that allows for requesting entities.

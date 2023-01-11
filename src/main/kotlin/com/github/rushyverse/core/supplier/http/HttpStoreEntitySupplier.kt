@@ -13,8 +13,8 @@ class HttpStoreEntitySupplier(
     private val supplier: IHttpEntitySupplier
 ) : IHttpEntitySupplier {
 
-    override suspend fun getUUIDByName(name: String): ProfileId? {
-        return supplier.getUUIDByName(name)?.also { cache.save(it) }
+    override suspend fun getIdByName(name: String): ProfileId? {
+        return supplier.getIdByName(name)?.also { cache.save(it) }
     }
 
     override suspend fun getSkinByUUID(uuid: String): ProfileSkin? {

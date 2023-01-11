@@ -2,7 +2,6 @@ package com.github.rushyverse.core.data
 
 import com.github.rushyverse.core.supplier.http.IHttpEntitySupplier
 import com.github.rushyverse.core.supplier.http.IHttpStrategizable
-import io.github.universeproject.kotlinmojangapi.MojangAPI
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 
@@ -26,15 +25,15 @@ interface IMojangService : IProfileIdService, IProfileSkinService {
 class MojangService(override val supplier: IHttpEntitySupplier) : IMojangService, IHttpStrategizable {
 
     override suspend fun getSkinByName(name: String): ProfileSkin? {
-        return getUUIDByName(name)?.let { getSkinByUUID(it.id) }
+        return getIdByName(name)?.let { getSkinByUUID(it.id) }
     }
 
     override suspend fun getSkinByUUID(uuid: String): ProfileSkin? {
         return supplier.getSkinByUUID(uuid)
     }
 
-    override suspend fun getUUIDByName(name: String): ProfileId? {
-        return supplier.getUUIDByName(name)
+    override suspend fun getIdByName(name: String): ProfileId? {
+        return supplier.getIdByName(name)
     }
 
     override fun withStrategy(strategy: IHttpEntitySupplier): MojangService {

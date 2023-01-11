@@ -15,8 +15,8 @@ class HttpFallbackEntitySupplier(
         return invoke { it.getSkinByUUID(uuid) }
     }
 
-    override suspend fun getUUIDByName(name: String): ProfileId? {
-        return invoke { it.getUUIDByName(name) }
+    override suspend fun getIdByName(name: String): ProfileId? {
+        return invoke { it.getIdByName(name) }
     }
 
     /**

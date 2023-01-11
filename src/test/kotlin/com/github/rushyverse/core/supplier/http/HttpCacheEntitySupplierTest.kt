@@ -45,10 +45,10 @@ class HttpCacheEntitySupplierTest {
 
             val profile = createProfileId()
             val name = profile.name
-            coEvery { cacheService.getByName(name) } returns profile
+            coEvery { cacheService.getIdByName(name) } returns profile
 
-            assertEquals(profile, supplier.getUUID(name))
-            coVerify(exactly = 1) { cacheService.getByName(name) }
+            assertEquals(profile, supplier.getIdByName(name))
+            coVerify(exactly = 1) { cacheService.getIdByName(name) }
         }
 
         @Test
@@ -86,10 +86,10 @@ class HttpCacheEntitySupplierTest {
 
             val profile = createProfileSkin()
             val uuid = profile.id
-            coEvery { cacheService.getByUUID(uuid) } returns profile
+            coEvery { cacheService.getSkinByUUID(uuid) } returns profile
 
-            assertEquals(profile, supplier.getSkin(uuid))
-            coVerify(exactly = 1) { cacheService.getByUUID(uuid) }
+            assertEquals(profile, supplier.getSkinByUUID(uuid))
+            coVerify(exactly = 1) { cacheService.getSkinByUUID(uuid) }
         }
 
         @Test

@@ -39,7 +39,7 @@ class HttpEntitySupplierTest {
         override fun `data not found from rest`() = runTest {
             coEvery { mojangAPI.getUUID(any<String>()) } returns null
             val id = getRandomString()
-            assertNull(restEntitySupplier.getUUID(id))
+            assertNull(restEntitySupplier.getIdByName(id))
             coVerify(exactly = 1) { mojangAPI.getUUID(id) }
         }
 
@@ -48,7 +48,7 @@ class HttpEntitySupplierTest {
             val profileId = createProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
-            assertEquals(profileId, restEntitySupplier.getUUID(name))
+            assertEquals(profileId, restEntitySupplier.getIdByName(name))
             coVerify(exactly = 1) { mojangAPI.getUUID(name) }
         }
 
@@ -62,7 +62,7 @@ class HttpEntitySupplierTest {
         override fun `data not found from rest`() = runTest {
             coEvery { mojangAPI.getSkin(any()) } returns null
             val name = getRandomString()
-            assertNull(restEntitySupplier.getSkin(name))
+            assertNull(restEntitySupplier.getSkinByUUID(name))
             coVerify(exactly = 1) { mojangAPI.getSkin(name) }
         }
 
@@ -71,7 +71,7 @@ class HttpEntitySupplierTest {
             val skin = createProfileSkin()
             val id = skin.id
             coEvery { mojangAPI.getSkin(id) } returns skin
-            assertEquals(skin, restEntitySupplier.getSkin(id))
+            assertEquals(skin, restEntitySupplier.getSkinByUUID(id))
             coVerify(exactly = 1) { mojangAPI.getSkin(id) }
         }
 

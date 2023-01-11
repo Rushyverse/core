@@ -39,13 +39,13 @@ class FallbackEntitySupplierTest {
             val id = createProfileId()
             val name = id.name
 
-            coEvery { first.getUUID(any()) } returns null
-            coEvery { second.getUUID(any()) } returns null
+            coEvery { first.getIdByName(any()) } returns null
+            coEvery { second.getIdByName(any()) } returns null
 
-            assertNull(fallbackEntitySupplier.getUUID(name))
+            assertNull(fallbackEntitySupplier.getIdByName(name))
 
-            coVerify(exactly = 1) { first.getUUID(name) }
-            coVerify(exactly = 1) { second.getUUID(name) }
+            coVerify(exactly = 1) { first.getIdByName(name) }
+            coVerify(exactly = 1) { second.getIdByName(name) }
         }
 
         @Test
@@ -55,20 +55,20 @@ class FallbackEntitySupplierTest {
             val id = createProfileId()
             val name = id.name
 
-            coEvery { first.getUUID(any()) } returns id
-            coEvery { second.getUUID(any()) } returns null
+            coEvery { first.getIdByName(any()) } returns id
+            coEvery { second.getIdByName(any()) } returns null
 
-            assertEquals(id, fallbackEntitySupplier.getUUID(name))
-            coVerify(exactly = 1) { first.getUUID(name) }
-            coVerify(exactly = 0) { second.getUUID(name) }
+            assertEquals(id, fallbackEntitySupplier.getIdByName(name))
+            coVerify(exactly = 1) { first.getIdByName(name) }
+            coVerify(exactly = 0) { second.getIdByName(name) }
 
-            coEvery { first.getUUID(any()) } returns null
-            coEvery { second.getUUID(any()) } returns id
+            coEvery { first.getIdByName(any()) } returns null
+            coEvery { second.getIdByName(any()) } returns id
 
-            assertEquals(id, fallbackEntitySupplier.getUUID(name))
+            assertEquals(id, fallbackEntitySupplier.getIdByName(name))
 
-            coVerify(exactly = 2) { first.getUUID(name) }
-            coVerify(exactly = 1) { second.getUUID(name) }
+            coVerify(exactly = 2) { first.getIdByName(name) }
+            coVerify(exactly = 1) { second.getIdByName(name) }
         }
 
     }
@@ -84,13 +84,13 @@ class FallbackEntitySupplierTest {
             val skin = createProfileSkin()
             val id = skin.id
 
-            coEvery { first.getSkin(any()) } returns null
-            coEvery { second.getSkin(any()) } returns null
+            coEvery { first.getSkinByUUID(any()) } returns null
+            coEvery { second.getSkinByUUID(any()) } returns null
 
-            assertNull(fallbackEntitySupplier.getSkin(id))
+            assertNull(fallbackEntitySupplier.getSkinByUUID(id))
 
-            coVerify(exactly = 1) { first.getSkin(id) }
-            coVerify(exactly = 1) { second.getSkin(id) }
+            coVerify(exactly = 1) { first.getSkinByUUID(id) }
+            coVerify(exactly = 1) { second.getSkinByUUID(id) }
         }
 
         @Test
@@ -100,20 +100,20 @@ class FallbackEntitySupplierTest {
             val skin = createProfileSkin()
             val id = skin.id
 
-            coEvery { first.getSkin(any()) } returns skin
-            coEvery { second.getSkin(any()) } returns null
+            coEvery { first.getSkinByUUID(any()) } returns skin
+            coEvery { second.getSkinByUUID(any()) } returns null
 
-            assertEquals(skin, fallbackEntitySupplier.getSkin(id))
-            coVerify(exactly = 1) { first.getSkin(id) }
-            coVerify(exactly = 0) { second.getSkin(id) }
+            assertEquals(skin, fallbackEntitySupplier.getSkinByUUID(id))
+            coVerify(exactly = 1) { first.getSkinByUUID(id) }
+            coVerify(exactly = 0) { second.getSkinByUUID(id) }
 
-            coEvery { first.getSkin(any()) } returns null
-            coEvery { second.getSkin(any()) } returns skin
+            coEvery { first.getSkinByUUID(any()) } returns null
+            coEvery { second.getSkinByUUID(any()) } returns skin
 
-            assertEquals(skin, fallbackEntitySupplier.getSkin(id))
+            assertEquals(skin, fallbackEntitySupplier.getSkinByUUID(id))
 
-            coVerify(exactly = 2) { first.getSkin(id) }
-            coVerify(exactly = 1) { second.getSkin(id) }
+            coVerify(exactly = 2) { first.getSkinByUUID(id) }
+            coVerify(exactly = 1) { second.getSkinByUUID(id) }
         }
 
     }

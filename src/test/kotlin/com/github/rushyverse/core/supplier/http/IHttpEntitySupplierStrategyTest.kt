@@ -83,9 +83,9 @@ class IHttpEntitySupplierStrategyTest {
             val profileId = createProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
-            assertEquals(profileId, supplier.getUUID(name))
+            assertEquals(profileId, supplier.getIdByName(name))
             coVerify(exactly = 1) { mojangAPI.getUUID(name) }
-            assertEquals(profileId, cacheEntitySupplier.getUUID(name))
+            assertEquals(profileId, cacheEntitySupplier.getIdByName(name))
         }
 
         @Test
@@ -95,7 +95,7 @@ class IHttpEntitySupplierStrategyTest {
             cacheEntitySupplier.save(profileId)
 
             coEvery { mojangAPI.getUUID(name) } returns profileId
-            assertEquals(profileId, supplier.getUUID(name))
+            assertEquals(profileId, supplier.getIdByName(name))
             coVerify(exactly = 1) { mojangAPI.getUUID(name) }
         }
     }
@@ -116,9 +116,9 @@ class IHttpEntitySupplierStrategyTest {
             val profileId = createProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
-            assertEquals(profileId, supplier.getUUID(name))
+            assertEquals(profileId, supplier.getIdByName(name))
             coVerify(exactly = 1) { mojangAPI.getUUID(name) }
-            assertNull(cacheEntitySupplier.getUUID(name))
+            assertNull(cacheEntitySupplier.getIdByName(name))
         }
 
         @Test
@@ -128,7 +128,7 @@ class IHttpEntitySupplierStrategyTest {
             cacheEntitySupplier.save(profileId)
 
             coEvery { mojangAPI.getUUID(name) } returns profileId
-            assertEquals(profileId, supplier.getUUID(name))
+            assertEquals(profileId, supplier.getIdByName(name))
             coVerify(exactly = 0) { mojangAPI.getUUID(name) }
         }
     }
@@ -149,9 +149,9 @@ class IHttpEntitySupplierStrategyTest {
             val profileId = createProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
-            assertEquals(profileId, supplier.getUUID(name))
+            assertEquals(profileId, supplier.getIdByName(name))
             coVerify(exactly = 1) { mojangAPI.getUUID(name) }
-            assertEquals(profileId, cacheEntitySupplier.getUUID(name))
+            assertEquals(profileId, cacheEntitySupplier.getIdByName(name))
         }
 
         @Test
@@ -161,7 +161,7 @@ class IHttpEntitySupplierStrategyTest {
             cacheEntitySupplier.save(profileId)
 
             coEvery { mojangAPI.getUUID(name) } returns profileId
-            assertEquals(profileId, supplier.getUUID(name))
+            assertEquals(profileId, supplier.getIdByName(name))
             coVerify(exactly = 0) { mojangAPI.getUUID(name) }
         }
     }

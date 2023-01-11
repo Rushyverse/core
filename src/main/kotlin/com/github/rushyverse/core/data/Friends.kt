@@ -1,7 +1,6 @@
 package com.github.rushyverse.core.data
 
 import com.github.rushyverse.core.cache.CacheClient
-import com.github.rushyverse.core.cache.CacheClient.Default.binaryFormat
 import com.github.rushyverse.core.cache.CacheService
 import com.github.rushyverse.core.data._Friends.Companion.friends
 import com.github.rushyverse.core.extension.toTypedArray
@@ -104,11 +103,11 @@ data class Friends(
  * This behavior is applied for each available operations
  */
 class FriendCacheService(
-    val client: CacheClient,
-    val expiration: Duration? = null,
+    client: CacheClient,
+    expiration: Duration? = null,
     prefixKey: String = "friend:",
     val duplicateForFriend: Boolean = false
-) : CacheService(prefixKey), IFriendCacheService {
+) : CacheService(client, prefixKey, expiration), IFriendCacheService {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return client.connect {
@@ -133,8 +132,8 @@ class FriendCacheService(
         if (friend.isEmpty()) return true
 
         val size = friend.size
-        val key = encodeKey(binaryFormat, uuid.toString())
-        val friends = friend.asSequence().map { encodeToByteArray(binaryFormat, UUIDSerializer, it) }.toTypedArray(size)
+        val key = encodeKey(uuid.toString())
+        val friends = friend.asSequence().map { encodeToByteArray(UUIDSerializer, it) }.toTypedArray(size)
 
         val result = connection.sadd(key, *friends)
         val isAdded = result != null && result > 0
@@ -165,8 +164,8 @@ class FriendCacheService(
         uuid: UUID,
         friend: UUID,
     ): Boolean {
-        val key = encodeKey(binaryFormat, uuid.toString())
-        val value = encodeToByteArray(binaryFormat, UUIDSerializer, friend)
+        val key = encodeKey(uuid.toString())
+        val value = encodeToByteArray(UUIDSerializer, friend)
         val result = connection.srem(key, value)
         val isRemoved = result != null && result > 0
 
@@ -178,12 +177,11 @@ class FriendCacheService(
     }
 
     override suspend fun getFriends(uuid: UUID): Flow<UUID> {
-        val binaryFormat = client.binaryFormat
-        val key = encodeKey(binaryFormat, uuid.toString())
+        val key = encodeKey(uuid.toString())
 
         return client.connect {
             it.smembers(key).mapNotNull { member ->
-                decodeFromByteArrayOrNull(binaryFormat, UUIDSerializer, member)
+                decodeFromByteArrayOrNull(UUIDSerializer, member)
             }
         }
     }
@@ -208,9 +206,8 @@ class FriendCacheService(
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
-        val binaryFormat = client.binaryFormat
-        val key = encodeKey(binaryFormat, uuid.toString())
-        val value = encodeToByteArray(binaryFormat, UUIDSerializer, friend)
+        val key = encodeKey(uuid.toString())
+        val value = encodeToByteArray(UUIDSerializer, friend)
 
         return client.connect { it.sismember(key, value) } == true
     }
@@ -222,7 +219,7 @@ class FriendCacheService(
      * @return The number of keys that were removed.
      */
     private suspend fun deleteKey(it: RedisCoroutinesCommands<ByteArray, ByteArray>, uuid: UUID): Long? {
-        return it.del(encodeKey(client.binaryFormat, uuid.toString()))
+        return it.del(encodeKey(uuid.toString()))
     }
 }
 
