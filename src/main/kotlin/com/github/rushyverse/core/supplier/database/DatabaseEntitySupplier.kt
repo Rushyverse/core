@@ -5,10 +5,10 @@ import kotlinx.coroutines.flow.Flow
 import java.util.*
 
 /**
- * [IEntitySupplier] that uses database to manage entities.
+ * [IDatabaseEntitySupplier] that uses database to manage entities.
  * @property service Friend database service.
  */
-class DatabaseEntitySupplier(val service: IFriendDatabaseService) : IEntitySupplier {
+class DatabaseEntitySupplier(val service: IFriendDatabaseService) : IDatabaseEntitySupplier {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return service.addFriend(uuid, friend)

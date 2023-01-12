@@ -5,10 +5,10 @@ import kotlinx.coroutines.flow.Flow
 import java.util.*
 
 /**
- * [IEntitySupplier] that uses cache to manage entities.
+ * [IDatabaseEntitySupplier] that uses cache to manage entities.
  * @property service Friend cache service.
  */
-class CacheEntitySupplier(val service: IFriendCacheService) : IEntitySupplier {
+class DatabaseCacheEntitySupplier(val service: IFriendCacheService) : IDatabaseEntitySupplier {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return service.addFriend(uuid, friend)

@@ -12,17 +12,17 @@ import org.junit.jupiter.api.Nested
 import java.util.*
 import kotlin.test.*
 
-class FallbackEntitySupplierTest {
+class DatabaseFallbackEntitySupplierTest {
 
-    private lateinit var fallbackEntitySupplier: FallbackEntitySupplier
-    private lateinit var getPrioritySupplier: IEntitySupplier
-    private lateinit var setPrioritySupplier: IEntitySupplier
+    private lateinit var fallbackEntitySupplier: DatabaseFallbackEntitySupplier
+    private lateinit var getPrioritySupplier: IDatabaseEntitySupplier
+    private lateinit var setPrioritySupplier: IDatabaseEntitySupplier
 
     @BeforeTest
     fun onBefore() {
         getPrioritySupplier = mockk(getRandomString())
         setPrioritySupplier = mockk(getRandomString())
-        fallbackEntitySupplier = FallbackEntitySupplier(getPrioritySupplier, setPrioritySupplier)
+        fallbackEntitySupplier = DatabaseFallbackEntitySupplier(getPrioritySupplier, setPrioritySupplier)
     }
 
     @Nested

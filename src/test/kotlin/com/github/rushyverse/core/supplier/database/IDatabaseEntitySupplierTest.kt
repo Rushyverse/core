@@ -6,13 +6,13 @@ import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class IEntitySupplierTest {
+class IDatabaseEntitySupplierTest {
 
     @Test
     fun `database supplier corresponding to the class`() {
         val service = mockk<IFriendDatabaseService>()
         val configuration = DatabaseSupplierServices(mockk<IFriendCacheService>() to service)
-        val supplier = IEntitySupplier.database(configuration)
+        val supplier = IDatabaseEntitySupplier.database(configuration)
         assertEquals(DatabaseEntitySupplier::class, supplier::class)
         assertEquals(service, supplier.service)
     }
@@ -21,8 +21,8 @@ class IEntitySupplierTest {
     fun `cache supplier corresponding to the class`() {
         val service = mockk<IFriendCacheService>()
         val configuration = DatabaseSupplierServices(service to mockk())
-        val supplier = IEntitySupplier.cache(configuration)
-        assertEquals(CacheEntitySupplier::class, supplier::class)
+        val supplier = IDatabaseEntitySupplier.cache(configuration)
+        assertEquals(DatabaseCacheEntitySupplier::class, supplier::class)
         assertEquals(service, supplier.service)
     }
 
@@ -31,9 +31,9 @@ class IEntitySupplierTest {
         val cacheService = mockk<IFriendCacheService>()
         val databaseService = mockk<IFriendDatabaseService>()
         val configuration = DatabaseSupplierServices(cacheService to databaseService)
-        val supplier = IEntitySupplier.cachingDatabase(configuration)
-        assertEquals(StoreEntitySupplier::class, supplier::class)
-        assertEquals(CacheEntitySupplier::class, supplier.cache::class)
+        val supplier = IDatabaseEntitySupplier.cachingDatabase(configuration)
+        assertEquals(DatabaseStoreEntitySupplier::class, supplier::class)
+        assertEquals(DatabaseCacheEntitySupplier::class, supplier.cache::class)
         assertEquals(DatabaseEntitySupplier::class, supplier.supplier::class)
     }
 
@@ -42,9 +42,9 @@ class IEntitySupplierTest {
         val cacheService = mockk<IFriendCacheService>()
         val databaseService = mockk<IFriendDatabaseService>()
         val configuration = DatabaseSupplierServices(cacheService to databaseService)
-        val supplier = IEntitySupplier.cacheWithDatabaseFallback(configuration)
-        assertEquals(FallbackEntitySupplier::class, supplier::class)
-        assertEquals(CacheEntitySupplier::class, supplier.getPriority::class)
+        val supplier = IDatabaseEntitySupplier.cacheWithDatabaseFallback(configuration)
+        assertEquals(DatabaseFallbackEntitySupplier::class, supplier::class)
+        assertEquals(DatabaseCacheEntitySupplier::class, supplier.getPriority::class)
         assertEquals(DatabaseEntitySupplier::class, supplier.setPriority::class)
     }
 
@@ -53,10 +53,10 @@ class IEntitySupplierTest {
         val cacheService = mockk<IFriendCacheService>()
         val databaseService = mockk<IFriendDatabaseService>()
         val configuration = DatabaseSupplierServices(cacheService to databaseService)
-        val supplier = IEntitySupplier.cacheWithCachingDatabaseFallback(configuration)
-        assertEquals(FallbackEntitySupplier::class, supplier::class)
-        assertEquals(CacheEntitySupplier::class, supplier.getPriority::class)
-        assertEquals(StoreEntitySupplier::class, supplier.setPriority::class)
+        val supplier = IDatabaseEntitySupplier.cacheWithCachingDatabaseFallback(configuration)
+        assertEquals(DatabaseFallbackEntitySupplier::class, supplier::class)
+        assertEquals(DatabaseCacheEntitySupplier::class, supplier.getPriority::class)
+        assertEquals(DatabaseStoreEntitySupplier::class, supplier.setPriority::class)
     }
 
 }
