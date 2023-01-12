@@ -1,8 +1,8 @@
 package com.github.rushyverse.core.supplier.database
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.toSet
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onEmpty
 import java.util.*
 
 /**
@@ -34,9 +34,11 @@ class StoreEntitySupplier(
     }
 
     override suspend fun getFriends(uuid: UUID): Flow<UUID> {
-        val friends = supplier.getFriends(uuid).toSet()
-        cache.setFriends(uuid, friends)
-        return friends.asFlow()
+        return supplier.getFriends(uuid).onEach {
+            cache.addFriend(uuid, it)
+        }.onEmpty {
+            cache.setFriends(uuid, emptySet())
+        }
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {

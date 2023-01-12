@@ -4,9 +4,7 @@ import com.github.rushyverse.core.utils.getRandomString
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import java.util.*
@@ -132,11 +130,56 @@ class StoreEntitySupplierTest {
             val id = UUID.randomUUID()
             val friends = List(5) { UUID.randomUUID() }
             coEvery { supplier.getFriends(id) } returns friends.asFlow()
-            coEvery { cache.setFriends(id, any()) } returns true
+            coEvery { cache.addFriend(id, any()) } returns true
 
             assertEquals(friends, entitySupplier.getFriends(id).toList())
             coVerify(exactly = 1) { supplier.getFriends(id) }
-            coVerify(exactly = 1) { cache.setFriends(id, friends.toSet()) }
+
+            friends.forEach {
+                coVerify(exactly = 1) { cache.addFriend(id, it) }
+            }
+        }
+
+        @Test
+        fun `should store partial list of friends if flow is half used`() = runTest {
+            val id = UUID.randomUUID()
+            val friends = List(5) { UUID.randomUUID() }
+            val used = friends.take(3)
+            coEvery { supplier.getFriends(id) } returns friends.asFlow()
+            coEvery { cache.addFriend(id, any()) } returns true
+
+            assertEquals(used, entitySupplier.getFriends(id).take(used.size).toList())
+            coVerify(exactly = 1) { supplier.getFriends(id) }
+
+            used.forEach {
+                coVerify(exactly = 1) { cache.addFriend(id, it) }
+            }
+
+            friends.takeLast(2).forEach {
+                coVerify(exactly = 0) { cache.addFriend(id, it) }
+            }
+        }
+
+        @Test
+        fun `should store partial list of friends if flow is half used filtred`() = runTest {
+            val id = UUID.randomUUID()
+            val friends = listOf(
+                UUID.fromString("148b4856-504d-44aa-895d-19988dee62d0"),
+                UUID.fromString("03300357-b02d-477c-b3cf-630010de83e1"),
+                UUID.fromString("e169af81-3b6d-4321-985f-649d48233a12"),
+                UUID.fromString("ff4d74b3-6675-4131-83a0-275e53273533"),
+                UUID.fromString("5f18c0ec-3b51-41f7-b9e0-c6e59b8368f4"),
+            )
+            val used = friends.filter { uuid -> uuid.toString().last().let { it == '0' || it == '2' || it == '3' } }
+            coEvery { supplier.getFriends(id) } returns friends.asFlow()
+            coEvery { cache.addFriend(id, any()) } returns true
+
+            assertEquals(used, entitySupplier.getFriends(id).filter { uuid -> uuid.toString().last().let { it == '0' || it == '2' || it == '3' } }.toList())
+            coVerify(exactly = 1) { supplier.getFriends(id) }
+
+            friends.forEach {
+                coVerify(exactly = 1) { cache.addFriend(id, it) }
+            }
         }
     }
 
