@@ -27,7 +27,7 @@ dependencies {
     val psqlR2DBCVersion = "1.0.0.RELEASE"
     val lettuceVersion = "6.2.2.RELEASE"
     val kotlinMojangApi = "2.1.0"
-    val nettyCodecVersion = "4.1.86.Final"
+    val nettyCodecVersion = "4.1.87.Final"
     val assertJcoreVersion = "3.24.1"
     val komapperVersion = "1.6.0"
 
