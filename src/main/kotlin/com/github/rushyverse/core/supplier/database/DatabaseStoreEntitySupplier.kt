@@ -6,14 +6,14 @@ import kotlinx.coroutines.flow.toSet
 import java.util.*
 
 /**
- * [IEntitySupplier] that delegates to another [IEntitySupplier] to resolve entities.
+ * [IDatabaseEntitySupplier] that delegates to another [IDatabaseEntitySupplier] to resolve entities.
  *
  * Resolved entities will always be stored in [cache] if it wasn't null or empty for flows.
  */
-class StoreEntitySupplier(
-    val cache: CacheEntitySupplier,
-    val supplier: IEntitySupplier
-) : IEntitySupplier {
+class DatabaseStoreEntitySupplier(
+    val cache: DatabaseCacheEntitySupplier,
+    val supplier: IDatabaseEntitySupplier
+) : IDatabaseEntitySupplier {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return if (supplier.addFriend(uuid, friend)) {

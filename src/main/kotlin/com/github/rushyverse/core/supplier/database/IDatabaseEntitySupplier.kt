@@ -8,29 +8,29 @@ import com.github.rushyverse.core.data.IFriendService
  *
  * Unless stated otherwise, all members that fetch entities will delegate to the [supplier].
  */
-interface Strategizable {
+interface IDatabaseStrategizable {
 
     /**
      * The supplier used to request entities.
      */
-    val supplier: IEntitySupplier
+    val supplier: IDatabaseEntitySupplier
 
 
     /**
      * Returns a copy of this class with a new [supplier] provided by the [strategy].
      */
-    fun withStrategy(strategy: IEntitySupplier): Strategizable
+    fun withStrategy(strategy: IDatabaseEntitySupplier): IDatabaseStrategizable
 }
 
 /**
  * An abstraction that allows for requesting entities.
  *
  * @see DatabaseEntitySupplier
- * @see CacheEntitySupplier
- * @see StoreEntitySupplier
- * @see FallbackEntitySupplier
+ * @see DatabaseCacheEntitySupplier
+ * @see DatabaseStoreEntitySupplier
+ * @see DatabaseFallbackEntitySupplier
  */
-interface IEntitySupplier : IFriendService {
+interface IDatabaseEntitySupplier : IFriendService {
 
     companion object {
 
@@ -43,34 +43,34 @@ interface IEntitySupplier : IFriendService {
 
         /**
          * A supplier providing a strategy which exclusively uses cache to fetch entities.
-         * See [CacheEntitySupplier] for more details.
+         * See [DatabaseCacheEntitySupplier] for more details.
          */
-        fun cache(configuration: DatabaseSupplierServices): CacheEntitySupplier =
-            CacheEntitySupplier(configuration.friendServices.first)
+        fun cache(configuration: DatabaseSupplierServices): DatabaseCacheEntitySupplier =
+            DatabaseCacheEntitySupplier(configuration.friendServices.first)
 
         /**
          * A supplier providing a strategy which exclusively uses database calls to fetch entities.
          * fetched entities are stored in [cache].
-         * See [StoreEntitySupplier] for more details.
+         * See [DatabaseStoreEntitySupplier] for more details.
          */
-        fun cachingDatabase(configuration: DatabaseSupplierServices): StoreEntitySupplier =
-            StoreEntitySupplier(cache(configuration), database(configuration))
+        fun cachingDatabase(configuration: DatabaseSupplierServices): DatabaseStoreEntitySupplier =
+            DatabaseStoreEntitySupplier(cache(configuration), database(configuration))
 
         /**
          * A supplier providing a strategy which will first operate on the [cache] supplier. When an entity
          * is not present from cache it will be fetched from [database] instead. Operations that return flows
          * will only fall back to rest when the returned flow contained no elements.
          */
-        fun cacheWithDatabaseFallback(configuration: DatabaseSupplierServices): FallbackEntitySupplier =
-            FallbackEntitySupplier(getPriority = cache(configuration), setPriority = database(configuration))
+        fun cacheWithDatabaseFallback(configuration: DatabaseSupplierServices): DatabaseFallbackEntitySupplier =
+            DatabaseFallbackEntitySupplier(getPriority = cache(configuration), setPriority = database(configuration))
 
         /**
          * A supplier providing a strategy which will first operate on the [cache] supplier. When an entity
          * is not present from cache it will be fetched from [cachingDatabase] instead which will update [cache] with fetched elements.
          * Operations that return flows will only fall back to rest when the returned flow contained no elements.
          */
-        fun cacheWithCachingDatabaseFallback(configuration: DatabaseSupplierServices): FallbackEntitySupplier =
-            FallbackEntitySupplier(getPriority = cache(configuration), setPriority = cachingDatabase(configuration))
+        fun cacheWithCachingDatabaseFallback(configuration: DatabaseSupplierServices): DatabaseFallbackEntitySupplier =
+            DatabaseFallbackEntitySupplier(getPriority = cache(configuration), setPriority = cachingDatabase(configuration))
 
     }
 }

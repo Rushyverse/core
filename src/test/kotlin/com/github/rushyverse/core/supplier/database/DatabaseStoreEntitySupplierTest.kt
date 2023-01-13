@@ -12,17 +12,17 @@ import org.junit.jupiter.api.Nested
 import java.util.*
 import kotlin.test.*
 
-class StoreEntitySupplierTest {
+class DatabaseStoreEntitySupplierTest {
 
-    private lateinit var entitySupplier: StoreEntitySupplier
-    private lateinit var cache: CacheEntitySupplier
-    private lateinit var supplier: IEntitySupplier
+    private lateinit var entitySupplier: DatabaseStoreEntitySupplier
+    private lateinit var cache: DatabaseCacheEntitySupplier
+    private lateinit var supplier: IDatabaseEntitySupplier
 
     @BeforeTest
     fun onBefore() {
         cache = mockk(getRandomString())
         supplier = mockk(getRandomString())
-        entitySupplier = StoreEntitySupplier(cache, supplier)
+        entitySupplier = DatabaseStoreEntitySupplier(cache, supplier)
     }
 
     @Nested

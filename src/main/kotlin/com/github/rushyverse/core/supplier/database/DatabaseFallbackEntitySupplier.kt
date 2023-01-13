@@ -6,17 +6,17 @@ import kotlinx.coroutines.flow.onEmpty
 import java.util.*
 
 /**
- * [IEntitySupplier] that uses two suppliers.
+ * [IDatabaseEntitySupplier] that uses two suppliers.
  * Each supplier is used according to a priority.
  * [getPriority] is used first when a data is retrieved. If the data is not found, [setPriority] is used.
  * [setPriority] is used first when a data is set. If the data is set, the same information is set using [getPriority].
  * @property getPriority Priority of the supplier used when a data is retrieved.
  * @property setPriority Priority of the supplier used when a data is set.
  */
-class FallbackEntitySupplier(
-    val getPriority: IEntitySupplier,
-    val setPriority: IEntitySupplier
-) : IEntitySupplier {
+class DatabaseFallbackEntitySupplier(
+    val getPriority: IDatabaseEntitySupplier,
+    val setPriority: IDatabaseEntitySupplier
+) : IDatabaseEntitySupplier {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return setPriority.addFriend(uuid, friend)

@@ -14,16 +14,16 @@ import org.junit.jupiter.api.Nested
 import java.util.*
 import kotlin.test.*
 
-class CacheEntitySupplierTest {
+class DatabaseCacheEntitySupplierTest {
 
-    private lateinit var cacheEntitySupplier: CacheEntitySupplier
+    private lateinit var cacheEntitySupplier: DatabaseCacheEntitySupplier
 
     private lateinit var cacheService: IFriendCacheService
 
     @BeforeTest
     fun onBefore() = runBlocking {
         cacheService = mockk()
-        cacheEntitySupplier = CacheEntitySupplier(cacheService)
+        cacheEntitySupplier = DatabaseCacheEntitySupplier(cacheService)
     }
 
     @Nested

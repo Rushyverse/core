@@ -5,8 +5,8 @@ import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.data._Friends.Companion.friends
 import com.github.rushyverse.core.extension.toTypedArray
 import com.github.rushyverse.core.serializer.UUIDSerializer
-import com.github.rushyverse.core.supplier.database.IEntitySupplier
-import com.github.rushyverse.core.supplier.database.Strategizable
+import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
+import com.github.rushyverse.core.supplier.database.IDatabaseStrategizable
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -277,9 +277,9 @@ class FriendDatabaseService(val database: R2dbcDatabase) : IFriendDatabaseServic
 }
 
 /**
- * Implementation of [IFriendService] to manage friends according to a [IEntitySupplier].
+ * Implementation of [IFriendService] to manage friends according to a [IDatabaseEntitySupplier].
  */
-class FriendService(override val supplier: IEntitySupplier) : IFriendService, Strategizable {
+class FriendService(override val supplier: IDatabaseEntitySupplier) : IFriendService, IDatabaseStrategizable {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return supplier.addFriend(uuid, friend)
@@ -297,5 +297,5 @@ class FriendService(override val supplier: IEntitySupplier) : IFriendService, St
         return supplier.isFriend(uuid, friend)
     }
 
-    override fun withStrategy(strategy: IEntitySupplier): FriendService = FriendService(strategy)
+    override fun withStrategy(strategy: IDatabaseEntitySupplier): FriendService = FriendService(strategy)
 }
