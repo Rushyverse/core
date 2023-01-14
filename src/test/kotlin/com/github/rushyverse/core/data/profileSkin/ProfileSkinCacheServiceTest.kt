@@ -11,6 +11,7 @@ import com.github.rushyverse.core.utils.getTTL
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisURI
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
@@ -43,8 +44,8 @@ class ProfileSkinCacheServiceTest {
     }
 
     @AfterTest
-    fun onAfter() {
-        cacheClient.close()
+    fun onAfter(): Unit = runBlocking {
+        cacheClient.closeAsync().await()
     }
 
     @Nested
