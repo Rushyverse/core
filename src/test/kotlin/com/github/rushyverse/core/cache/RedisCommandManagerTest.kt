@@ -269,4 +269,34 @@ class RedisCommandManagerTest {
         }
 
     }
+
+    @Nested
+    inner class Close {
+
+        @Test
+        fun `should close pools`() = runTest {
+            val connectionManager = RedisConnectionManager(
+                RedisClient.create(),
+                ByteArrayCodec.INSTANCE,
+                RedisURI.create(redisContainer.url),
+                BoundedPoolConfig.builder().maxTotal(1).build()
+            )
+
+            val poolStateful = connectionManager.poolStateful
+            val poolPubSub = connectionManager.poolPubSub
+
+            connectionManager.closeAsync().await()
+
+            var ex = assertThrows<IllegalStateException> {
+                poolStateful.acquire().await()
+            }
+            assertEquals("AsyncPool is closed", ex.message)
+
+            ex = assertThrows {
+                poolPubSub.acquire().await()
+            }
+            assertEquals("AsyncPool is closed", ex.message)
+
+        }
+    }
 }
