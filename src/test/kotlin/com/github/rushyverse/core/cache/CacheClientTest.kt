@@ -5,6 +5,7 @@ package com.github.rushyverse.core.cache
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.utils.assertCoroutineContextFromScope
+import com.github.rushyverse.core.utils.assertCoroutineContextUseDispatcher
 import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisClient
@@ -53,7 +54,6 @@ class CacheClientTest {
             val cm = client.connectionManager
             assertEquals(-1, cm.poolPubSub.maxTotal)
             assertEquals(-1, cm.poolStateful.maxTotal)
-
         }
 
         @Test
@@ -81,6 +81,34 @@ class CacheClientTest {
             assertEquals(poolConfig.maxTotal, poolPubSub.maxTotal)
 
             client.closeAsync().await()
+        }
+
+        @Test
+        fun `default coroutine scope should use dispatcher IO`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            assertCoroutineContextUseDispatcher(client.coroutineContext, Dispatchers.IO)
+        }
+
+        @Test
+        fun `coroutine scope should use dispatcher defined`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+                coroutineScope = CoroutineScope(Dispatchers.Default)
+            }
+
+            assertCoroutineContextUseDispatcher(client.coroutineContext, Dispatchers.Default)
+        }
+
+        @Test
+        fun `release scope should use dispatcher IO`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            assertCoroutineContextUseDispatcher(client.releasePubSubScope.coroutineContext, Dispatchers.IO)
         }
 
     }
@@ -313,7 +341,10 @@ class CacheClientTest {
 
                 client.connect {
                     it.publish(channelByteArray, client.binaryFormat.encodeToByteArray(String.serializer(), "test"))
-                    it.publish(channelByteArray, client.binaryFormat.encodeToByteArray(UUIDSerializer, UUID.randomUUID()))
+                    it.publish(
+                        channelByteArray,
+                        client.binaryFormat.encodeToByteArray(UUIDSerializer, UUID.randomUUID())
+                    )
                 }
 
                 latch.await()
@@ -506,7 +537,10 @@ class CacheClientTest {
 
                 client.connect {
                     it.publish(channelByteArray, client.binaryFormat.encodeToByteArray(String.serializer(), "test"))
-                    it.publish(channelByteArray, client.binaryFormat.encodeToByteArray(UUIDSerializer, UUID.randomUUID()))
+                    it.publish(
+                        channelByteArray,
+                        client.binaryFormat.encodeToByteArray(UUIDSerializer, UUID.randomUUID())
+                    )
                 }
 
                 latch.await()
