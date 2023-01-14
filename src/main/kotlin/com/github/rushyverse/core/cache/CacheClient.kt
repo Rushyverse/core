@@ -148,7 +148,7 @@ class CacheClient(
      * @return A [Job] to cancel the subscription.
      */
     suspend fun subscribe(
-        vararg channels: String,
+        channels: Array<String>,
         scope: CoroutineScope = this,
         body: suspend (String, String) -> Unit
     ): Job = subscribe(channels = channels, messageSerializer = String.serializer(), scope = scope, body = body)
@@ -162,11 +162,13 @@ class CacheClient(
      * @return A [Job] to cancel the subscription.
      */
     suspend fun <T> subscribe(
-        vararg channels: String,
+        channels: Array<String>,
         messageSerializer: KSerializer<T>,
         scope: CoroutineScope = this,
         body: suspend (String, T) -> Unit
     ): Job {
+        require(channels.isNotEmpty()) { "At least one channel is required" }
+
         val stringSerializer = String.serializer()
         val channelsByteArray = channels.map { binaryFormat.encodeToByteArray(stringSerializer, it) }.toTypedArray()
 
@@ -198,7 +200,7 @@ class CacheClient(
      * @param messageSerializer Serializer to encode the message.
      * @param message Message to publish.
      */
-    suspend fun <T> publish(channel: String, messageSerializer: KSerializer<T>, message: T) {
+    suspend fun <T> publish(channel: String, message: T, messageSerializer: KSerializer<T>) {
         val channelByteArray = binaryFormat.encodeToByteArray(String.serializer(), channel)
         val messageByteArray = binaryFormat.encodeToByteArray(messageSerializer, message)
         connectionManager.poolPubSub.acquire {
