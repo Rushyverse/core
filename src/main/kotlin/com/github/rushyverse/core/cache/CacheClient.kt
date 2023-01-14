@@ -3,6 +3,7 @@
 package com.github.rushyverse.core.cache
 
 import com.github.rushyverse.core.extension.acquire
+import com.github.rushyverse.core.extension.toTypedArray
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisURI
@@ -170,7 +171,9 @@ class CacheClient(
         require(channels.isNotEmpty()) { "At least one channel is required" }
 
         val stringSerializer = String.serializer()
-        val channelsByteArray = channels.map { binaryFormat.encodeToByteArray(stringSerializer, it) }.toTypedArray()
+        val channelsByteArray = channels.asSequence()
+            .map { binaryFormat.encodeToByteArray(stringSerializer, it) }
+            .toTypedArray(channels.size)
 
         val connection = connectionManager.getPubSubConnection()
         val reactiveConnection = connection.reactive()
@@ -178,11 +181,13 @@ class CacheClient(
 
         return reactiveConnection.observeChannels().asFlow()
             .onEach {
-                val channel = binaryFormat.decodeFromByteArray(stringSerializer, it.channel)
-                val message = binaryFormat.decodeFromByteArray(messageSerializer, it.message)
-                runCatching { body(channel, message) }.onFailure { throwable -> logger.catching(throwable) }
+                runCatching {
+                    val channel = binaryFormat.decodeFromByteArray(stringSerializer, it.channel)
+                    val message = binaryFormat.decodeFromByteArray(messageSerializer, it.message)
+                    body(channel, message)
+                }.onFailure { throwable -> logger.catching(throwable) }
             }
-            .catch { logger.error(it) { "Error while receiving message from cache" } }
+            .catch { logger.error(it) { "Error while receiving message from cache channels [${channels.joinToString(", ")}]" } }
             .launchIn(scope)
             .apply {
                 invokeOnCompletion {
