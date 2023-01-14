@@ -34,7 +34,7 @@ private val logger = KotlinLogging.logger { }
  * @property client Redis client.
  * @property binaryFormat Object to encode and decode information.
  * @property connectionManager Connection manager to interact with the cache.
- * @property releaseConnectionScope Scope to release the connections.
+ * @property releasePubSubScope Scope to release the connections.
  */
 class CacheClient(
     val uri: RedisURI,
@@ -98,7 +98,7 @@ class CacheClient(
         }
     }
 
-    private val releaseConnectionScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    val releasePubSubScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     /**
      * Use a connection from the [IRedisConnectionManager.poolStateful] to interact with the cache.
@@ -120,21 +120,8 @@ class CacheClient(
     suspend fun subscribe(
         channel: String,
         scope: CoroutineScope = this,
-        body: suspend (String, String) -> Unit
+        body: suspend (String) -> Unit
     ): Job = subscribe(channel = channel, messageSerializer = String.serializer(), scope = scope, body = body)
-
-    /**
-     * Subscribe to multiple channels.
-     * @param channels Channels to subscribe.
-     * @param scope Scope to launch the flow.
-     * @param body Function to execute when a message is received.
-     * @return A [Job] to cancel the subscription.
-     */
-    suspend fun subscribe(
-        vararg channels: String,
-        scope: CoroutineScope = this,
-        body: suspend (String, String) -> Unit
-    ): Job = subscribe(channels = channels, messageSerializer = String.serializer(), scope = scope, body = body)
 
     /**
      * Subscribe to a channel.
@@ -148,8 +135,23 @@ class CacheClient(
         channel: String,
         messageSerializer: KSerializer<T>,
         scope: CoroutineScope = this,
-        body: suspend (String, T) -> Unit
-    ): Job = subscribe(channels = arrayOf(channel), messageSerializer, scope = scope, body = body)
+        body: suspend (T) -> Unit
+    ): Job = subscribe(channels = arrayOf(channel), messageSerializer, scope = scope) { _, message ->
+        body(message)
+    }
+
+    /**
+     * Subscribe to multiple channels.
+     * @param channels Channels to subscribe.
+     * @param scope Scope to launch the flow.
+     * @param body Function to execute when a message is received.
+     * @return A [Job] to cancel the subscription.
+     */
+    suspend fun subscribe(
+        vararg channels: String,
+        scope: CoroutineScope = this,
+        body: suspend (String, String) -> Unit
+    ): Job = subscribe(channels = channels, messageSerializer = String.serializer(), scope = scope, body = body)
 
     /**
      * Subscribe to multiple channels.
@@ -176,13 +178,13 @@ class CacheClient(
             .onEach {
                 val channel = binaryFormat.decodeFromByteArray(stringSerializer, it.channel)
                 val message = binaryFormat.decodeFromByteArray(messageSerializer, it.message)
-                body(channel, message)
+                runCatching { body(channel, message) }.onFailure { throwable -> logger.catching(throwable) }
             }
             .catch { logger.error(it) { "Error while receiving message from cache" } }
             .launchIn(scope)
             .apply {
                 invokeOnCompletion {
-                    releaseConnectionScope.launch {
+                    releasePubSubScope.launch {
                         reactiveConnection.unsubscribe(*channelsByteArray).awaitFirstOrNull()
                         connectionManager.releaseConnection(connection)
                     }
@@ -209,7 +211,7 @@ class CacheClient(
             connectionManager.closeAsync(),
             client.shutdownAsync(),
             CompletableFuture.completedFuture(cancel()),
-            CompletableFuture.completedFuture(releaseConnectionScope.cancel())
+            CompletableFuture.completedFuture(releasePubSubScope.cancel())
         )
     }
 }
