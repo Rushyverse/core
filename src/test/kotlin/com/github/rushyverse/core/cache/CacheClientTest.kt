@@ -352,12 +352,19 @@ class CacheClientTest {
         inner class SeveralChannel {
 
             @Test
+            fun `should throws exception if channel is empty`() = runTest {
+                assertFailsWith<IllegalArgumentException> {
+                    client.subscribe(emptyArray()) { _, _ -> }
+                }
+            }
+
+            @Test
             fun `should use pool pubSub`() = runTest {
                 val pool = client.connectionManager.poolPubSub
                 val channel = "test"
 
                 val latch = CountDownLatch(1)
-                val job = client.subscribe(*arrayOf(channel, getRandomString())) { _, _ ->
+                val job = client.subscribe(arrayOf(channel, getRandomString())) { _, _ ->
                     assertEquals(0, pool.idle)
                     assertEquals(1, pool.objectCount)
                     latch.countDown()
@@ -394,7 +401,7 @@ class CacheClientTest {
 
                 val latch = CountDownLatch(1)
                 var receivedMessage: String? = null
-                client.subscribe(*arrayOf(channel, getRandomString())) { _, message ->
+                client.subscribe(arrayOf(channel, getRandomString())) { _, message ->
                     receivedMessage = message
                     latch.countDown()
                 }
@@ -419,7 +426,7 @@ class CacheClientTest {
                 val latch = CountDownLatch(1)
                 var receivedMessage: UUID? = null
                 client.subscribe(
-                    *arrayOf(channel, getRandomString()),
+                    arrayOf(channel, getRandomString()),
                     messageSerializer = UUIDSerializer
                 ) { _, message ->
                     receivedMessage = message
@@ -444,7 +451,7 @@ class CacheClientTest {
                 val expectedMessage = getRandomString()
 
                 val latch = CountDownLatch(2)
-                client.subscribe(*arrayOf(channel, getRandomString())) { _, _ ->
+                client.subscribe(arrayOf(channel, getRandomString())) { _, _ ->
                     latch.countDown()
                     if (latch.count == 1L) {
                         error("Error")
@@ -469,7 +476,7 @@ class CacheClientTest {
 
                 val latch = CountDownLatch(1)
 
-                client.subscribe(*arrayOf(expectedChannel, getRandomString())) { channel, message ->
+                client.subscribe(arrayOf(expectedChannel, getRandomString())) { channel, message ->
                     assertEquals(expectedChannel, channel)
                     assertEquals(expectedMessage, message)
                     latch.countDown()
@@ -495,7 +502,7 @@ class CacheClientTest {
 
                 val latch = CountDownLatch(expectedInfo.size)
                 val receivedMessages = mutableListOf<Pair<String, String>>()
-                client.subscribe(*expectedInfo.map { it.first }.toTypedArray()) { channel, message ->
+                client.subscribe(expectedInfo.map { it.first }.toTypedArray()) { channel, message ->
                     receivedMessages += Pair(channel, message)
                     latch.countDown()
                 }
@@ -521,7 +528,7 @@ class CacheClientTest {
                 val latch = CountDownLatch(1)
 
                 val scope = CoroutineScope(Dispatchers.Default)
-                client.subscribe(*arrayOf(expectedChannel, getRandomString()), scope = scope) { _, _ ->
+                client.subscribe(arrayOf(expectedChannel, getRandomString()), scope = scope) { _, _ ->
                     assertCoroutineContextFromScope(
                         scope,
                         currentCoroutineContext()
@@ -539,6 +546,71 @@ class CacheClientTest {
                 latch.await()
             }
 
+        }
+
+    }
+
+    @Nested
+    inner class Publish {
+
+        private lateinit var client: CacheClient
+
+        @BeforeTest
+        fun onBefore(): Unit = runBlocking {
+            client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+        }
+
+        @AfterTest
+        fun onAfter(): Unit = runBlocking {
+            client.closeAsync().await()
+        }
+
+        @Test
+        fun `should use pool pubSub`() = runBlocking {
+            val pool = client.connectionManager.poolPubSub
+
+            assertEquals(0, pool.idle)
+            assertEquals(0, pool.objectCount)
+
+            client.publish(getRandomString(), getRandomString(), String.serializer())
+
+            assertEquals(1, pool.idle)
+            assertEquals(1, pool.objectCount)
+        }
+
+        @Test
+        fun `should publish string message`() = runTest {
+            val channel = "test"
+            val message = getRandomString()
+
+            val latch = CountDownLatch(1)
+            client.subscribe(channel) {
+                assertEquals(message, it)
+                latch.countDown()
+            }
+
+            client.publish(channel, message, String.serializer())
+
+            latch.await()
+        }
+
+        @Test
+        fun `should publish custom type message`() = runTest {
+            val channel = "test"
+            val message = UUID.randomUUID()
+
+            val latch = CountDownLatch(1)
+
+            client.subscribe(channel, UUIDSerializer) {
+                assertEquals(message, it)
+                latch.countDown()
+            }
+
+            client.publish(channel, message, UUIDSerializer)
+
+            latch.await()
         }
 
     }
