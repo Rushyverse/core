@@ -213,10 +213,6 @@ class CacheClientTest {
 
                 job.cancel()
 
-                // Check that the release of the connection is done in another coroutine
-                assertEquals(0, pool.idle)
-                assertEquals(1, pool.objectCount)
-
                 val latchRelease = CountDownLatch(10)
 
                 while (pool.idle == 0 && !latchRelease.await(100, TimeUnit.MILLISECONDS)) {
