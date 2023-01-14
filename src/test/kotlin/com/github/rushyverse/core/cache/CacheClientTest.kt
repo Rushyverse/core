@@ -4,7 +4,6 @@ package com.github.rushyverse.core.cache
 
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.serializer.UUIDSerializer
-import com.github.rushyverse.core.utils.assertCoroutineContextFromScope
 import com.github.rushyverse.core.utils.assertCoroutineContextUseDispatcher
 import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
@@ -30,6 +29,7 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -340,7 +340,10 @@ class CacheClientTest {
                 val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
 
                 client.connect {
-                    it.publish(channelByteArray, client.binaryFormat.encodeToByteArray(String.serializer(), "test"))
+                    it.publish(
+                        channelByteArray,
+                        client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString())
+                    )
                     it.publish(
                         channelByteArray,
                         client.binaryFormat.encodeToByteArray(UUIDSerializer, UUID.randomUUID())
@@ -352,7 +355,7 @@ class CacheClientTest {
 
             @Test
             fun `doesn't receive message for other channel`() = runTest {
-                val expectedChannel = "test"
+                val expectedChannel = getRandomString()
                 val expectedMessage = getRandomString()
 
                 val latch = CountDownLatch(1)
@@ -378,16 +381,13 @@ class CacheClientTest {
 
             @Test
             fun `should receive in a coroutine from scope`() = runTest {
-                val expectedChannel = "test"
+                val expectedChannel = getRandomString()
 
                 val latch = CountDownLatch(1)
 
                 val scope = CoroutineScope(Dispatchers.Default)
                 client.subscribe(expectedChannel, scope = scope) { _ ->
-                    assertCoroutineContextFromScope(
-                        scope,
-                        currentCoroutineContext()
-                    )
+                    assertCoroutineContextUseDispatcher(currentCoroutineContext(), Dispatchers.Default)
                     latch.countDown()
                 }
 
@@ -536,7 +536,10 @@ class CacheClientTest {
                 val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
 
                 client.connect {
-                    it.publish(channelByteArray, client.binaryFormat.encodeToByteArray(String.serializer(), "test"))
+                    it.publish(
+                        channelByteArray,
+                        client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString())
+                    )
                     it.publish(
                         channelByteArray,
                         client.binaryFormat.encodeToByteArray(UUIDSerializer, UUID.randomUUID())
@@ -548,7 +551,7 @@ class CacheClientTest {
 
             @Test
             fun `doesn't receive message for other channel`() = runTest {
-                val expectedChannel = "test"
+                val expectedChannel = getRandomString()
                 val expectedMessage = getRandomString()
 
                 val latch = CountDownLatch(1)
@@ -600,16 +603,25 @@ class CacheClientTest {
 
             @Test
             fun `should receive in a coroutine from scope`() = runTest {
-                val expectedChannel = "test"
+                val dispatcher = Dispatchers.Default
+                assertScopeForSubscription(CoroutineScope(dispatcher), dispatcher)
+            }
+
+            @Test
+            fun `should receive in a coroutine from default scope`() = runTest {
+                assertScopeForSubscription(client, Dispatchers.IO)
+            }
+
+            private suspend fun assertScopeForSubscription(
+                scope: CoroutineScope,
+                dispatcher: CoroutineDispatcher
+            ) {
+                val expectedChannel = getRandomString()
 
                 val latch = CountDownLatch(1)
 
-                val scope = CoroutineScope(Dispatchers.Default)
                 client.subscribe(arrayOf(expectedChannel, getRandomString()), scope = scope) { _, _ ->
-                    assertCoroutineContextFromScope(
-                        scope,
-                        currentCoroutineContext()
-                    )
+                    assertCoroutineContextUseDispatcher(coroutineContext, dispatcher)
                     latch.countDown()
                 }
 
