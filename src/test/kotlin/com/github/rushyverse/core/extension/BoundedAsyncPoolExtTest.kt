@@ -9,7 +9,7 @@ import java.util.concurrent.CompletableFuture
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class BoundedAsyncPoolTest {
+class BoundedAsyncPoolExtTest {
 
     @Test
     fun `acquire should get instance and release it`() = runTest {
