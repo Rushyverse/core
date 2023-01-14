@@ -14,8 +14,13 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.reactive.asFlow
+import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
 import org.junit.jupiter.api.Nested
 import org.testcontainers.junit.jupiter.Container
@@ -190,7 +195,7 @@ class CacheClientTest {
             @Test
             fun `should use pool pubSub`() = runBlocking {
                 val pool = client.connectionManager.poolPubSub
-                val channel = "test"
+                val channel = getRandomString()
 
                 val latch = CountDownLatch(1)
                 val job = client.subscribe(channel) { _ ->
@@ -225,7 +230,7 @@ class CacheClientTest {
 
             @Test
             fun `receive string message`() = runTest {
-                val channel = "test"
+                val channel = getRandomString()
                 val expectedMessage = getRandomString()
 
                 val latch = CountDownLatch(1)
@@ -249,7 +254,7 @@ class CacheClientTest {
 
             @Test
             fun `receive custom type message`() = runTest {
-                val channel = "test"
+                val channel = getRandomString()
                 val expectedMessage = UUID.randomUUID()
 
                 val latch = CountDownLatch(1)
@@ -272,8 +277,8 @@ class CacheClientTest {
             }
 
             @Test
-            fun `throw exception for the first message but continue to receive`() = runTest {
-                val channel = "test"
+            fun `throw exception in handler for the first message but continue to receive`() = runTest {
+                val channel = getRandomString()
                 val expectedMessage = getRandomString()
 
                 val latch = CountDownLatch(2)
@@ -290,6 +295,25 @@ class CacheClientTest {
                 client.connect {
                     it.publish(channelByteArray, messageByteArray)
                     it.publish(channelByteArray, messageByteArray)
+                }
+
+                latch.await()
+            }
+
+            @Test
+            fun `throw exception in parse message for the first message but continue to receive`() = runTest {
+                val channel = getRandomString()
+
+                val latch = CountDownLatch(1)
+                client.subscribe(channel, UUIDSerializer) { _ ->
+                    latch.countDown()
+                }
+
+                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
+
+                client.connect {
+                    it.publish(channelByteArray, client.binaryFormat.encodeToByteArray(String.serializer(), "test"))
+                    it.publish(channelByteArray, client.binaryFormat.encodeToByteArray(UUIDSerializer, UUID.randomUUID()))
                 }
 
                 latch.await()
@@ -361,7 +385,7 @@ class CacheClientTest {
             @Test
             fun `should use pool pubSub`() = runTest {
                 val pool = client.connectionManager.poolPubSub
-                val channel = "test"
+                val channel = getRandomString()
 
                 val latch = CountDownLatch(1)
                 val job = client.subscribe(arrayOf(channel, getRandomString())) { _, _ ->
@@ -396,7 +420,7 @@ class CacheClientTest {
 
             @Test
             fun `receive string message`() = runTest {
-                val channel = "test"
+                val channel = getRandomString()
                 val expectedMessage = getRandomString()
 
                 val latch = CountDownLatch(1)
@@ -420,7 +444,7 @@ class CacheClientTest {
 
             @Test
             fun `receive custom type message`() = runTest {
-                val channel = "test"
+                val channel = getRandomString()
                 val expectedMessage = UUID.randomUUID()
 
                 val latch = CountDownLatch(1)
@@ -447,7 +471,7 @@ class CacheClientTest {
 
             @Test
             fun `throw exception for the first message but continue to receive`() = runTest {
-                val channel = "test"
+                val channel = getRandomString()
                 val expectedMessage = getRandomString()
 
                 val latch = CountDownLatch(2)
@@ -464,6 +488,25 @@ class CacheClientTest {
                 client.connect {
                     it.publish(channelByteArray, messageByteArray)
                     it.publish(channelByteArray, messageByteArray)
+                }
+
+                latch.await()
+            }
+
+            @Test
+            fun `throw exception in parse message for the first message but continue to receive`() = runTest {
+                val channel = getRandomString()
+
+                val latch = CountDownLatch(1)
+                client.subscribe(arrayOf(channel, getRandomString()), UUIDSerializer) { _, _ ->
+                    latch.countDown()
+                }
+
+                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
+
+                client.connect {
+                    it.publish(channelByteArray, client.binaryFormat.encodeToByteArray(String.serializer(), "test"))
+                    it.publish(channelByteArray, client.binaryFormat.encodeToByteArray(UUIDSerializer, UUID.randomUUID()))
                 }
 
                 latch.await()
@@ -582,11 +625,11 @@ class CacheClientTest {
 
         @Test
         fun `should publish string message`() = runTest {
-            val channel = "test"
+            val channel = getRandomString()
             val message = getRandomString()
 
             val latch = CountDownLatch(1)
-            client.subscribe(channel) {
+            subscribeToChannel(channel, String.serializer()) {
                 assertEquals(message, it)
                 latch.countDown()
             }
@@ -598,12 +641,12 @@ class CacheClientTest {
 
         @Test
         fun `should publish custom type message`() = runTest {
-            val channel = "test"
+            val channel = getRandomString()
             val message = UUID.randomUUID()
 
             val latch = CountDownLatch(1)
 
-            client.subscribe(channel, UUIDSerializer) {
+            subscribeToChannel(channel, UUIDSerializer) {
                 assertEquals(message, it)
                 latch.countDown()
             }
@@ -611,6 +654,25 @@ class CacheClientTest {
             client.publish(channel, message, UUIDSerializer)
 
             latch.await()
+        }
+
+        private suspend fun <T> subscribeToChannel(
+            channel: String,
+            messageSerializer: KSerializer<T>,
+            body: suspend (T) -> Unit
+        ): Job {
+            val binaryFormat = client.binaryFormat
+            val connection = client.connectionManager.getPubSubConnection()
+            val reactiveConnection = connection.reactive()
+            reactiveConnection.subscribe(
+                binaryFormat.encodeToByteArray(String.serializer(), channel)
+            ).awaitFirstOrNull()
+
+            return reactiveConnection.observeChannels().asFlow()
+                .onEach {
+                    val message = binaryFormat.decodeFromByteArray(messageSerializer, it.message)
+                    body(message)
+                }.launchIn(CoroutineScope(Dispatchers.IO))
         }
 
     }
