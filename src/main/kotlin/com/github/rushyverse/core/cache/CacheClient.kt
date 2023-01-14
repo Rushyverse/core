@@ -187,7 +187,7 @@ class CacheClient(
                     body(channel, message)
                 }.onFailure { throwable -> logger.catching(throwable) }
             }
-            .catch { logger.error(it) { "Error while receiving message from cache channels [${channels.joinToString(", ")}]" } }
+            .catch { logger.error(it) { "Error while receiving message from channels [${channels.joinToString(", ")}]" } }
             .launchIn(scope)
             .apply {
                 invokeOnCompletion {
