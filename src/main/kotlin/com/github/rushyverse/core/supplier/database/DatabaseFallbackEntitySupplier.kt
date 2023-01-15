@@ -13,9 +13,9 @@ import java.util.*
  * @property getPriority Priority of the supplier used when a data is retrieved.
  * @property setPriority Priority of the supplier used when a data is set.
  */
-class DatabaseFallbackEntitySupplier(
-    val getPriority: IDatabaseEntitySupplier,
-    val setPriority: IDatabaseEntitySupplier
+public class DatabaseFallbackEntitySupplier(
+    public val getPriority: IDatabaseEntitySupplier,
+    public val setPriority: IDatabaseEntitySupplier
 ) : IDatabaseEntitySupplier {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {

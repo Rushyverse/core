@@ -8,21 +8,21 @@ import io.github.universeproject.kotlinmojangapi.ProfileSkin
 /**
  * Service to retrieve data about players.
  */
-interface IMojangService : IProfileIdService, IProfileSkinService {
+public interface IMojangService : IProfileIdService, IProfileSkinService {
 
     /**
      * Get the skin data using the name of a player.
      * @param name Player's name.
      * @return Information about player's skin.
      */
-    suspend fun getSkinByName(name: String): ProfileSkin?
+    public suspend fun getSkinByName(name: String): ProfileSkin?
 }
 
 /**
  * Service to retrieve data using Mojang api.
  * @property supplier Strategy to retrieve data.
  */
-class MojangService(override val supplier: IHttpEntitySupplier) : IMojangService, IHttpStrategizable {
+public class MojangService(override val supplier: IHttpEntitySupplier) : IMojangService, IHttpStrategizable {
 
     override suspend fun getSkinByName(name: String): ProfileSkin? {
         return getIdByName(name)?.let { getSkinById(it.id) }

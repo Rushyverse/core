@@ -78,8 +78,7 @@ dependencies {
 }
 
 kotlin {
-    // Komapper doesn't support explicit API
-    // explicitApi = org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode.Strict
+     explicitApi = org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode.Strict
 
     sourceSets {
         main {

@@ -12,26 +12,26 @@ import kotlin.time.Duration
 /**
  * Service to retrieve data about profile.
  */
-interface IProfileIdService {
+public interface IProfileIdService {
 
     /**
      * Get the profile of a client from his [ProfileId.name].
      * @param name Profile's name.
      */
-    suspend fun getIdByName(name: String): ProfileId?
+    public suspend fun getIdByName(name: String): ProfileId?
 }
 
 
 /**
  * Service to manage [ProfileId] data in cache.
  */
-interface IProfileIdCacheService : IProfileIdService {
+public interface IProfileIdCacheService : IProfileIdService {
 
     /**
      * Save the instance into cache using the key defined by the configuration.
      * @param profile Data that will be stored.
      */
-    suspend fun save(profile: ProfileId)
+    public suspend fun save(profile: ProfileId)
 }
 
 /**
@@ -40,7 +40,7 @@ interface IProfileIdCacheService : IProfileIdService {
  * @property expirationKey Expiration time applied when a new relationship is set.
  * @property prefixKey Prefix key to identify the data in cache.
  */
-class ProfileIdCacheService(
+public class ProfileIdCacheService(
     client: CacheClient,
     expirationKey: Duration? = null,
     prefixKey: String = "profileId:",

@@ -8,7 +8,7 @@ import io.ktor.client.*
 /**
  * [IHttpEntitySupplier] that uses a [HttpClient] to resolve entities.
  */
-class HttpEntitySupplier(private val mojangAPI: MojangAPI) : IHttpEntitySupplier {
+public class HttpEntitySupplier(public val mojangAPI: MojangAPI) : IHttpEntitySupplier {
 
     override suspend fun getIdByName(name: String): ProfileId? {
         return mojangAPI.getUUID(name)

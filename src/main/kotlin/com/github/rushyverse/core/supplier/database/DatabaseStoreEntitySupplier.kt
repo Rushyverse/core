@@ -10,9 +10,9 @@ import java.util.*
  *
  * Resolved entities will always be stored in [cache] if it wasn't null or empty for flows.
  */
-class DatabaseStoreEntitySupplier(
-    val cache: DatabaseCacheEntitySupplier,
-    val supplier: IDatabaseEntitySupplier
+public class DatabaseStoreEntitySupplier(
+    public val cache: DatabaseCacheEntitySupplier,
+    public val supplier: IDatabaseEntitySupplier
 ) : IDatabaseEntitySupplier {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {

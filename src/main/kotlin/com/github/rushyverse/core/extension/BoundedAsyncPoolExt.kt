@@ -9,7 +9,7 @@ import kotlinx.coroutines.future.await
  * @param body Function using the connection.
  * @return An instance from [body].
  */
-suspend inline fun <T, R> BoundedAsyncPool<T>.acquire(body: (T) -> R): R {
+public suspend inline fun <T, R> BoundedAsyncPool<T>.acquire(body: (T) -> R): R {
     val connection = acquire().await()
     return try {
         body(connection)

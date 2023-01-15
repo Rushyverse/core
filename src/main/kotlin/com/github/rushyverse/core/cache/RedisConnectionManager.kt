@@ -16,39 +16,39 @@ import java.util.concurrent.CompletableFuture
 /**
  * Interface to manage the connections to interact with redis.
  */
-interface IRedisConnectionManager : AsyncCloseable {
+public interface IRedisConnectionManager : AsyncCloseable {
 
     /**
      * Pool of connections to interact with the cache.
      */
-    val poolStateful: BoundedAsyncPool<StatefulRedisConnection<ByteArray, ByteArray>>
+    public val poolStateful: BoundedAsyncPool<StatefulRedisConnection<ByteArray, ByteArray>>
 
     /**
      * Pool of connections to interact in pub/sub with the cache.
      */
-    val poolPubSub: BoundedAsyncPool<StatefulRedisPubSubConnection<ByteArray, ByteArray>>
+    public val poolPubSub: BoundedAsyncPool<StatefulRedisPubSubConnection<ByteArray, ByteArray>>
 
     /**
      * Get a connection from the [poolStateful] to interact with the cache.
      * @return A new connection.
      */
-    suspend fun getStatefulConnection(): StatefulRedisConnection<ByteArray, ByteArray>
+    public suspend fun getStatefulConnection(): StatefulRedisConnection<ByteArray, ByteArray>
 
     /**
      * Get a connection from the [poolPubSub] to interact in pub/sub with the cache.
      * @return A new connection.
      */
-    suspend fun getPubSubConnection(): StatefulRedisPubSubConnection<ByteArray, ByteArray>
+    public suspend fun getPubSubConnection(): StatefulRedisPubSubConnection<ByteArray, ByteArray>
 
     /**
      * Close the connection obtained by the [poolStateful].
      */
-    suspend fun releaseConnection(connection: StatefulRedisConnection<ByteArray, ByteArray>)
+    public suspend fun releaseConnection(connection: StatefulRedisConnection<ByteArray, ByteArray>)
 
     /**
      * Close the connection obtained by the [poolPubSub].
      */
-    suspend fun releaseConnection(connection: StatefulRedisPubSubConnection<ByteArray, ByteArray>)
+    public suspend fun releaseConnection(connection: StatefulRedisPubSubConnection<ByteArray, ByteArray>)
 }
 
 /**
@@ -56,13 +56,13 @@ interface IRedisConnectionManager : AsyncCloseable {
  * @property poolStateful Pool of connections to interact with the cache.
  * @property poolPubSub Pool of connections to interact in pub/sub with the cache.
  */
-class RedisConnectionManager(
+public class RedisConnectionManager(
     override val poolStateful: BoundedAsyncPool<StatefulRedisConnection<ByteArray, ByteArray>>,
     override val poolPubSub: BoundedAsyncPool<StatefulRedisPubSubConnection<ByteArray, ByteArray>>
 ) : IRedisConnectionManager {
 
-    companion object {
-        suspend inline operator fun invoke(
+    public companion object {
+        public suspend inline operator fun invoke(
             redisClient: RedisClient,
             codec: RedisCodec<ByteArray, ByteArray>,
             uri: RedisURI,
