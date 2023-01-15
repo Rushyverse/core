@@ -223,19 +223,16 @@ class CacheClientTest {
         inner class OneChannel {
 
             @Test
-            fun `should use pool pubSub`() = runTest {
+            fun `should use pool pubSub`() = runBlocking {
                 val pool = client.connectionManager.poolPubSub
                 val channel = getRandomString()
 
                 val latch = CountDownLatch(1)
                 val job = client.subscribe(channel) { _ ->
-                    println("Received message")
                     assertEquals(0, pool.idle)
                     assertEquals(1, pool.objectCount)
                     latch.countDown()
                 }
-
-                println("Job is active: ${job.isActive}")
 
                 assertEquals(0, pool.idle)
                 assertEquals(1, pool.objectCount)
@@ -244,19 +241,16 @@ class CacheClientTest {
                 val messageByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString())
 
                 client.connect {
-                    println("Sending message")
                     it.publish(channelByteArray, messageByteArray)
                 }
 
                 latch.await()
 
-                println("Cancel job")
                 job.cancel()
 
                 val latchRelease = CountDownLatch(10)
 
                 while (pool.idle == 0 && !latchRelease.await(100, TimeUnit.MILLISECONDS)) {
-                    println("Waiting for release connection")
                     latchRelease.countDown()
                 }
 
