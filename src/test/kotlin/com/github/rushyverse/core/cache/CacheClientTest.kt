@@ -240,6 +240,7 @@ class CacheClientTest {
                 val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
                 val messageByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString())
 
+                delay(100)
                 client.connect {
                     it.publish(channelByteArray, messageByteArray)
                 }
@@ -433,6 +434,7 @@ class CacheClientTest {
                 val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
                 val messageByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString())
 
+                delay(100)
                 client.connect {
                     it.publish(channelByteArray, messageByteArray)
                 }
