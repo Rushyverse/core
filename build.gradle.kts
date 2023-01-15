@@ -23,12 +23,11 @@ dependencies {
     val mockkVersion = "1.13.3"
     val junitVersion = "5.9.2"
     val testContainersVersion = "1.17.6"
-    val psqlR2DBCVersion = "1.0.0.RELEASE"
     val lettuceVersion = "6.2.2.RELEASE"
     val kotlinMojangApi = "2.1.0"
     val nettyCodecVersion = "4.1.87.Final"
     val assertJcoreVersion = "3.24.1"
-    val komapperVersion = "1.6.0"
+    val komapperVersion = "1.6.1"
 
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
@@ -54,7 +53,6 @@ dependencies {
     }
     implementation("org.komapper:komapper-starter-r2dbc")
     implementation("org.komapper:komapper-dialect-postgresql-r2dbc")
-    implementation("org.postgresql:r2dbc-postgresql:$psqlR2DBCVersion")
     ksp("org.komapper:komapper-processor")
 
     // Redis cache
