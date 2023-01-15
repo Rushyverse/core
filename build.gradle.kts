@@ -3,7 +3,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     kotlin("jvm") version "1.8.0"
     kotlin("plugin.serialization") version "1.8.0"
-    id("com.github.johnrengelman.shadow") version "7.1.2"
     id("org.jetbrains.dokka") version "1.7.20"
     id("com.google.devtools.ksp") version "1.8.0-1.0.8"
     `java-library`
@@ -29,41 +28,41 @@ dependencies {
     val assertJcoreVersion = "3.24.1"
     val komapperVersion = "1.6.1"
 
-    implementation(kotlin("stdlib"))
-    implementation(kotlin("reflect"))
-    testImplementation(kotlin("test-junit5"))
+    api(kotlin("stdlib"))
+    api(kotlin("reflect"))
 
-    implementation("io.github.universeproject:kotlin-mojang-api-jvm:$kotlinMojangApi")
+    api("io.github.universeproject:kotlin-mojang-api-jvm:$kotlinMojangApi")
 
     // Ktor to interact with external API through HTTP
-    implementation("io.ktor:ktor-client-core:$ktorVersion")
-    implementation("io.ktor:ktor-client-cio:$ktorVersion")
-    implementation("io.ktor:ktor-client-serialization:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
-    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
+    api("io.ktor:ktor-client-core:$ktorVersion")
+    api("io.ktor:ktor-client-cio:$ktorVersion")
+    api("io.ktor:ktor-client-serialization:$ktorVersion")
+    api("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+    api("io.ktor:ktor-client-content-negotiation:$ktorVersion")
 
     // Kotlin Serialization to serialize data for database and cache
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$ktSerializationVersion")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:$ktSerializationVersion")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json:$ktSerializationVersion")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:$ktSerializationVersion")
 
     // Interact with database
     platform("org.komapper:komapper-platform:$komapperVersion").let {
-        implementation(it)
+        api(it)
         ksp(it)
     }
-    implementation("org.komapper:komapper-starter-r2dbc")
-    implementation("org.komapper:komapper-dialect-postgresql-r2dbc")
+    api("org.komapper:komapper-starter-r2dbc")
+    api("org.komapper:komapper-dialect-postgresql-r2dbc")
     ksp("org.komapper:komapper-processor")
 
     // Redis cache
-    implementation("io.lettuce:lettuce-core:$lettuceVersion")
-    implementation("io.netty:netty-codec:$nettyCodecVersion")
+    api("io.lettuce:lettuce-core:$lettuceVersion")
+    api("io.netty:netty-codec:$nettyCodecVersion")
 
     // Logging information
-    implementation("io.github.microutils:kotlin-logging:$loggingVersion")
-    implementation("org.slf4j:slf4j-api:$slf4jVersion")
-    implementation("org.slf4j:slf4j-simple:$slf4jVersion")
+    api("io.github.microutils:kotlin-logging:$loggingVersion")
+    api("org.slf4j:slf4j-api:$slf4jVersion")
+    api("org.slf4j:slf4j-simple:$slf4jVersion")
 
+    testImplementation(kotlin("test-junit5"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesCoreVersion")
 
     // Create fake instance (mock) of components for tests
@@ -109,10 +108,6 @@ tasks {
         useJUnitPlatform()
     }
 
-    build {
-        dependsOn(shadowJar)
-    }
-
     clean {
         delete(dokkaOutputDir)
     }
@@ -125,10 +120,6 @@ tasks {
     dokkaHtml.configure {
         dependsOn(deleteDokkaOutputDir)
         outputDirectory.set(file(dokkaOutputDir))
-    }
-
-    shadowJar {
-        archiveClassifier.set("")
     }
 }
 
@@ -153,7 +144,7 @@ publishing {
         val projectGitUrl = "https://github.com/$projectOrganizationPath"
 
         create<MavenPublication>(projectName) {
-            shadow.component(this)
+            from(components["kotlin"])
             artifact(sourcesJar.get())
             artifact(javadocJar.get())
 
