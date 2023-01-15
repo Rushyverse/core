@@ -23,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Timeout
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.*
@@ -33,6 +34,7 @@ import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 import kotlin.test.*
 
+@Timeout(5, unit = TimeUnit.SECONDS)
 @Testcontainers
 class CacheClientTest {
 
