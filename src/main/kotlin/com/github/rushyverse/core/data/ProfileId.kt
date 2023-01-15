@@ -2,8 +2,8 @@
 
 package com.github.rushyverse.core.data
 
-import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.cache.AbstractCacheService
+import com.github.rushyverse.core.cache.CacheClient
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import kotlinx.serialization.builtins.serializer

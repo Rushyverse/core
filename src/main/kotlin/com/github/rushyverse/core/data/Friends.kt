@@ -1,7 +1,7 @@
 package com.github.rushyverse.core.data
 
-import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.cache.AbstractCacheService
+import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.data._Friends.Companion.friends
 import com.github.rushyverse.core.extension.toTypedArray
 import com.github.rushyverse.core.serializer.UUIDSerializer

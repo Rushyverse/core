@@ -2,35 +2,48 @@
 
 package com.github.rushyverse.core.cache
 
+import com.github.rushyverse.core.extension.acquire
+import com.github.rushyverse.core.extension.toTypedArray
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisURI
-import io.lettuce.core.api.StatefulRedisConnection
+import io.lettuce.core.api.AsyncCloseable
 import io.lettuce.core.api.coroutines
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.lettuce.core.codec.ByteArrayCodec
 import io.lettuce.core.codec.RedisCodec
-import io.lettuce.core.support.AsyncConnectionPoolSupport
-import io.lettuce.core.support.BoundedAsyncPool
 import io.lettuce.core.support.BoundedPoolConfig
-import kotlinx.coroutines.future.await
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.reactive.asFlow
+import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.serialization.BinaryFormat
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.protobuf.ProtoBuf
+import mu.KotlinLogging
+import java.util.concurrent.CompletableFuture
+
+private val logger = KotlinLogging.logger { }
 
 /**
  * Wrapper of [RedisClient] using pool to manage connection.
  * @property uri URI to connect the client.
  * @property client Redis client.
  * @property binaryFormat Object to encode and decode information.
- * @property pool Pool of connection from [client].
+ * @property connectionManager Connection manager to interact with the cache.
+ * @property releasePubSubScope Scope to release the connections.
  */
 class CacheClient(
     val uri: RedisURI,
     val client: RedisClient,
     val binaryFormat: BinaryFormat,
-    val pool: BoundedAsyncPool<StatefulRedisConnection<ByteArray, ByteArray>>
-) : AutoCloseable {
+    val connectionManager: IRedisConnectionManager,
+    coroutineScope: CoroutineScope
+) : AsyncCloseable, CoroutineScope by coroutineScope {
 
     companion object {
         suspend inline operator fun invoke(builder: Builder.() -> Unit): CacheClient =
@@ -66,6 +79,7 @@ class CacheClient(
         var binaryFormat: BinaryFormat = Default.binaryFormat
         var codec: RedisCodec<ByteArray, ByteArray> = Default.codec
         var poolConfiguration: BoundedPoolConfig? = null
+        var coroutineScope: CoroutineScope? = null
 
         /**
          * Build the instance of [CacheClient] with the values defined in builder.
@@ -73,53 +87,138 @@ class CacheClient(
          */
         suspend fun build(): CacheClient {
             val redisClient: RedisClient = client ?: RedisClient.create()
-            val codec: RedisCodec<ByteArray, ByteArray> = this.codec
+            val poolConfig = poolConfiguration ?: BoundedPoolConfig.builder().maxTotal(-1).build()
 
             return CacheClient(
                 uri = uri,
                 client = redisClient,
                 binaryFormat = binaryFormat,
-                pool = AsyncConnectionPoolSupport.createBoundedObjectPoolAsync(
-                    { redisClient.connectAsync(codec, uri) },
-                    poolConfiguration ?: BoundedPoolConfig.builder().maxTotal(-1).build()
-                ).await()
+                connectionManager = RedisConnectionManager(redisClient, codec, uri, poolConfig),
+                coroutineScope = coroutineScope ?: CoroutineScope(Dispatchers.IO + SupervisorJob())
             )
         }
     }
 
+    val releasePubSubScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     /**
-     * Use a connection from the [pool] to interact with the cache.
+     * Use a connection from the [IRedisConnectionManager.poolStateful] to interact with the cache.
      * At the end of the method, the connection is returned to the pool.
      * @param body Function using the connection.
      * @return An instance from [body].
      */
     suspend inline fun <T> connect(body: (RedisCoroutinesCommands<ByteArray, ByteArray>) -> T): T {
-        val connection = pool.acquire().await()
-        return try {
-            body(connection.coroutines())
-        } finally {
-            pool.release(connection).await()
-        }
-    }
-
-    override fun close() {
-        try {
-            pool.close()
-        } finally {
-            client.shutdown()
-        }
+        return connectionManager.poolStateful.acquire { body(it.coroutines()) }
     }
 
     /**
-     * Requests to close this object and releases any system resources associated with it. If the object is already closed then invoking this method has no effect.
-     * All connections from the [pool] will be closed.
+     * Subscribe to a channel.
+     * @param channel Channel to subscribe.
+     * @param scope Scope to launch the flow.
+     * @param body Function to execute when a message is received.
+     * @return A [Job] to cancel the subscription.
      */
-    suspend fun closeAsync() {
-        try {
-            pool.closeAsync().await()
-        } finally {
-            client.shutdownAsync().await()
+    suspend fun subscribe(
+        channel: String,
+        scope: CoroutineScope = this,
+        body: suspend (String) -> Unit
+    ): Job = subscribe(channel = channel, messageSerializer = String.serializer(), scope = scope, body = body)
+
+    /**
+     * Subscribe to a channel.
+     * @param channel Channel to subscribe.
+     * @param messageSerializer Serializer to decode the message.
+     * @param scope Scope to launch the flow.
+     * @param body Function to execute when a message is received.
+     * @return A [Job] to cancel the subscription.
+     */
+    suspend fun <T> subscribe(
+        channel: String,
+        messageSerializer: KSerializer<T>,
+        scope: CoroutineScope = this,
+        body: suspend (T) -> Unit
+    ): Job = subscribe(channels = arrayOf(channel), messageSerializer, scope = scope) { _, message ->
+        body(message)
+    }
+
+    /**
+     * Subscribe to multiple channels.
+     * @param channels Channels to subscribe.
+     * @param scope Scope to launch the flow.
+     * @param body Function to execute when a message is received.
+     * @return A [Job] to cancel the subscription.
+     */
+    suspend fun subscribe(
+        channels: Array<String>,
+        scope: CoroutineScope = this,
+        body: suspend (String, String) -> Unit
+    ): Job = subscribe(channels = channels, messageSerializer = String.serializer(), scope = scope, body = body)
+
+    /**
+     * Subscribe to multiple channels.
+     * @param channels Channels to subscribe.
+     * @param messageSerializer Serializer to decode the message.
+     * @param scope Scope to launch the flow.
+     * @param body Function to execute when a message is received.
+     * @return A [Job] to cancel the subscription.
+     */
+    suspend fun <T> subscribe(
+        channels: Array<String>,
+        messageSerializer: KSerializer<T>,
+        scope: CoroutineScope = this,
+        body: suspend (String, T) -> Unit
+    ): Job {
+        require(channels.isNotEmpty()) { "At least one channel is required" }
+
+        val stringSerializer = String.serializer()
+        val channelsByteArray = channels.asSequence()
+            .map { binaryFormat.encodeToByteArray(stringSerializer, it) }
+            .toTypedArray(channels.size)
+
+        val connection = connectionManager.getPubSubConnection()
+        val reactiveConnection = connection.reactive()
+        reactiveConnection.subscribe(*channelsByteArray).awaitFirstOrNull()
+
+        return reactiveConnection.observeChannels().asFlow()
+            .onEach {
+                runCatching {
+                    val channel = binaryFormat.decodeFromByteArray(stringSerializer, it.channel)
+                    val message = binaryFormat.decodeFromByteArray(messageSerializer, it.message)
+                    body(channel, message)
+                }.onFailure { throwable -> logger.catching(throwable) }
+            }
+            .catch { logger.error(it) { "Error while receiving message from channels [${channels.joinToString(", ")}]" } }
+            .launchIn(scope)
+            .apply {
+                invokeOnCompletion {
+                    releasePubSubScope.launch {
+                        reactiveConnection.unsubscribe(*channelsByteArray).awaitFirstOrNull()
+                        connectionManager.releaseConnection(connection)
+                    }
+                }
+            }
+    }
+
+    /**
+     * Publish a message to a channel.
+     * @param channel Channel to publish.
+     * @param messageSerializer Serializer to encode the message.
+     * @param message Message to publish.
+     */
+    suspend fun <T> publish(channel: String, message: T, messageSerializer: KSerializer<T>) {
+        val channelByteArray = binaryFormat.encodeToByteArray(String.serializer(), channel)
+        val messageByteArray = binaryFormat.encodeToByteArray(messageSerializer, message)
+        connectionManager.poolPubSub.acquire {
+            it.coroutines().publish(channelByteArray, messageByteArray)
         }
     }
 
+    override fun closeAsync(): CompletableFuture<Void> {
+        return CompletableFuture.allOf(
+            connectionManager.closeAsync(),
+            client.shutdownAsync(),
+            CompletableFuture.completedFuture(cancel()),
+            CompletableFuture.completedFuture(releasePubSubScope.cancel())
+        )
+    }
 }

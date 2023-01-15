@@ -10,6 +10,7 @@ import com.github.rushyverse.core.utils.getRandomString
 import com.github.rushyverse.core.utils.getTTL
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisURI
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
@@ -43,8 +44,8 @@ class ProfileIdCacheServiceTest {
     }
 
     @AfterTest
-    fun onAfter() {
-        cacheClient.close()
+    fun onAfter(): Unit = runBlocking {
+        cacheClient.closeAsync().await()
     }
 
     @Nested

@@ -15,7 +15,6 @@ repositories {
 }
 
 dependencies {
-    val kotlinCoroutineReactiveVersion = "1.6.4"
     val ktorVersion = "2.2.2"
     val ktSerializationVersion = "1.4.1"
     val coroutinesCoreVersion = "1.6.4"
@@ -34,7 +33,6 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
     testImplementation(kotlin("test-junit5"))
-    runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-reactive:$kotlinCoroutineReactiveVersion")
 
     implementation("io.github.universeproject:kotlin-mojang-api-jvm:$kotlinMojangApi")
 
