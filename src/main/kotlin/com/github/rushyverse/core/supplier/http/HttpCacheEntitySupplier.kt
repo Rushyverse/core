@@ -9,9 +9,9 @@ import io.github.universeproject.kotlinmojangapi.ProfileSkin
 /**
  * [IHttpEntitySupplier] that uses [AbstractCacheService] to resolve entities.
  */
-class HttpCacheEntitySupplier(
-    val profileSkinCache: IProfileSkinCacheService,
-    val profileIdCache: IProfileIdCacheService
+public class HttpCacheEntitySupplier(
+    public val profileSkinCache: IProfileSkinCacheService,
+    public val profileIdCache: IProfileIdCacheService
 ) : IHttpEntitySupplier {
 
     override suspend fun getSkinById(id: String): ProfileSkin? {
@@ -22,11 +22,11 @@ class HttpCacheEntitySupplier(
         return profileIdCache.getIdByName(name)
     }
 
-    suspend fun save(profile: ProfileId) {
+    public suspend fun save(profile: ProfileId) {
         profileIdCache.save(profile)
     }
 
-    suspend fun save(profile: ProfileSkin) {
+    public suspend fun save(profile: ProfileSkin) {
         profileSkinCache.save(profile)
     }
 }

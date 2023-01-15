@@ -7,12 +7,12 @@ import com.github.rushyverse.core.data.ProfileIdCacheService
 import com.github.rushyverse.core.data.ProfileSkinCacheService
 import io.github.universeproject.kotlinmojangapi.MojangAPI
 
-class HttpSupplierServices(
-    val mojangAPI: MojangAPI,
-    val profileSkinCache: IProfileSkinCacheService,
-    val profileIdCache: IProfileIdCacheService,
+public class HttpSupplierServices(
+    public val mojangAPI: MojangAPI,
+    public val profileSkinCache: IProfileSkinCacheService,
+    public val profileIdCache: IProfileIdCacheService,
 ) {
-    constructor(mojangAPI: MojangAPI, cacheClient: CacheClient) : this(
+    public constructor(mojangAPI: MojangAPI, cacheClient: CacheClient) : this(
         mojangAPI,
         ProfileSkinCacheService(cacheClient),
         ProfileIdCacheService(cacheClient),

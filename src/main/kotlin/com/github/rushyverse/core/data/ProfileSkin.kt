@@ -11,7 +11,7 @@ import kotlin.time.Duration
 /**
  * Service to retrieve data about profile.
  */
-interface IProfileSkinService {
+public interface IProfileSkinService {
 
     /**
      * Retrieve the skin data for a player.
@@ -19,19 +19,19 @@ interface IProfileSkinService {
      * @param id Player's ID.
      * @return Information about player's skin.
      */
-    suspend fun getSkinById(id: String): ProfileSkin?
+    public suspend fun getSkinById(id: String): ProfileSkin?
 }
 
 /**
  * Service to manage [ProfileSkin] data in cache.
  */
-interface IProfileSkinCacheService : IProfileSkinService {
+public interface IProfileSkinCacheService : IProfileSkinService {
 
     /**
      * Save the instance into cache using the key defined by the configuration.
      * @param profile Data that will be stored.
      */
-    suspend fun save(profile: ProfileSkin)
+    public suspend fun save(profile: ProfileSkin)
 }
 
 /**
@@ -40,7 +40,7 @@ interface IProfileSkinCacheService : IProfileSkinService {
  * @property expirationKey Expiration time applied when a new relationship is set.
  * @property prefixKey Prefix key to identify the data in cache.
  */
-class ProfileSkinCacheService(
+public class ProfileSkinCacheService(
     client: CacheClient,
     expirationKey: Duration? = null,
     prefixKey: String = "skin:"

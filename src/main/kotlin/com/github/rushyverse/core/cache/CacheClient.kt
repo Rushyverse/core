@@ -37,31 +37,31 @@ private val logger = KotlinLogging.logger { }
  * @property connectionManager Connection manager to interact with the cache.
  * @property releasePubSubScope Scope to release the connections.
  */
-class CacheClient(
-    val uri: RedisURI,
-    val client: RedisClient,
-    val binaryFormat: BinaryFormat,
-    val connectionManager: IRedisConnectionManager,
+public class CacheClient(
+    public val uri: RedisURI,
+    public val client: RedisClient,
+    public val binaryFormat: BinaryFormat,
+    public val connectionManager: IRedisConnectionManager,
     coroutineScope: CoroutineScope
 ) : AsyncCloseable, CoroutineScope by coroutineScope {
 
-    companion object {
-        suspend inline operator fun invoke(builder: Builder.() -> Unit): CacheClient =
+    public companion object {
+        public suspend inline operator fun invoke(builder: Builder.() -> Unit): CacheClient =
             Builder().apply(builder).build()
     }
 
-    object Default {
+    public object Default {
         /**
          * @see [CacheClient.binaryFormat].
          */
-        val binaryFormat: ProtoBuf = ProtoBuf {
+        public val binaryFormat: ProtoBuf = ProtoBuf {
             encodeDefaults = false
         }
 
         /**
          * Codec to encode/decode keys and values.
          */
-        val codec: ByteArrayCodec get() = ByteArrayCodec.INSTANCE
+        public val codec: ByteArrayCodec get() = ByteArrayCodec.INSTANCE
     }
 
     /**
@@ -73,19 +73,19 @@ class CacheClient(
      * @property poolConfiguration Configuration to create the pool of connections to interact with cache.
      */
     @Suppress("MemberVisibilityCanBePrivate")
-    class Builder {
-        lateinit var uri: RedisURI
-        var client: RedisClient? = null
-        var binaryFormat: BinaryFormat = Default.binaryFormat
-        var codec: RedisCodec<ByteArray, ByteArray> = Default.codec
-        var poolConfiguration: BoundedPoolConfig? = null
-        var coroutineScope: CoroutineScope? = null
+    public class Builder {
+        public lateinit var uri: RedisURI
+        public var client: RedisClient? = null
+        public var binaryFormat: BinaryFormat = Default.binaryFormat
+        public var codec: RedisCodec<ByteArray, ByteArray> = Default.codec
+        public var poolConfiguration: BoundedPoolConfig? = null
+        public var coroutineScope: CoroutineScope? = null
 
         /**
          * Build the instance of [CacheClient] with the values defined in builder.
          * @return A new instance.
          */
-        suspend fun build(): CacheClient {
+        public suspend fun build(): CacheClient {
             val redisClient: RedisClient = client ?: RedisClient.create()
             val poolConfig = poolConfiguration ?: BoundedPoolConfig.builder().maxTotal(-1).build()
 
@@ -99,7 +99,7 @@ class CacheClient(
         }
     }
 
-    val releasePubSubScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    public val releasePubSubScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     /**
      * Use a connection from the [IRedisConnectionManager.poolStateful] to interact with the cache.
@@ -107,7 +107,7 @@ class CacheClient(
      * @param body Function using the connection.
      * @return An instance from [body].
      */
-    suspend inline fun <T> connect(body: (RedisCoroutinesCommands<ByteArray, ByteArray>) -> T): T {
+    public suspend inline fun <T> connect(body: (RedisCoroutinesCommands<ByteArray, ByteArray>) -> T): T {
         return connectionManager.poolStateful.acquire { body(it.coroutines()) }
     }
 
@@ -118,7 +118,7 @@ class CacheClient(
      * @param body Function to execute when a message is received.
      * @return A [Job] to cancel the subscription.
      */
-    suspend fun subscribe(
+    public suspend fun subscribe(
         channel: String,
         scope: CoroutineScope = this,
         body: suspend (String) -> Unit
@@ -132,7 +132,7 @@ class CacheClient(
      * @param body Function to execute when a message is received.
      * @return A [Job] to cancel the subscription.
      */
-    suspend fun <T> subscribe(
+    public suspend fun <T> subscribe(
         channel: String,
         messageSerializer: KSerializer<T>,
         scope: CoroutineScope = this,
@@ -148,7 +148,7 @@ class CacheClient(
      * @param body Function to execute when a message is received.
      * @return A [Job] to cancel the subscription.
      */
-    suspend fun subscribe(
+    public suspend fun subscribe(
         channels: Array<String>,
         scope: CoroutineScope = this,
         body: suspend (String, String) -> Unit
@@ -162,7 +162,7 @@ class CacheClient(
      * @param body Function to execute when a message is received.
      * @return A [Job] to cancel the subscription.
      */
-    suspend fun <T> subscribe(
+    public suspend fun <T> subscribe(
         channels: Array<String>,
         messageSerializer: KSerializer<T>,
         scope: CoroutineScope = this,
@@ -205,7 +205,7 @@ class CacheClient(
      * @param messageSerializer Serializer to encode the message.
      * @param message Message to publish.
      */
-    suspend fun <T> publish(channel: String, message: T, messageSerializer: KSerializer<T>) {
+    public suspend fun <T> publish(channel: String, message: T, messageSerializer: KSerializer<T>) {
         val channelByteArray = binaryFormat.encodeToByteArray(String.serializer(), channel)
         val messageByteArray = binaryFormat.encodeToByteArray(messageSerializer, message)
         connectionManager.poolPubSub.acquire {

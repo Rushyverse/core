@@ -8,7 +8,7 @@ import java.util.*
  * [IDatabaseEntitySupplier] that uses database to manage entities.
  * @property service Friend database service.
  */
-class DatabaseEntitySupplier(val service: IFriendDatabaseService) : IDatabaseEntitySupplier {
+public class DatabaseEntitySupplier(public val service: IFriendDatabaseService) : IDatabaseEntitySupplier {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return service.addFriend(uuid, friend)

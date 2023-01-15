@@ -8,18 +8,18 @@ import com.github.rushyverse.core.data.IFriendService
  *
  * Unless stated otherwise, all members that fetch entities will delegate to the [supplier].
  */
-interface IDatabaseStrategizable {
+public interface IDatabaseStrategizable {
 
     /**
      * The supplier used to request entities.
      */
-    val supplier: IDatabaseEntitySupplier
+    public val supplier: IDatabaseEntitySupplier
 
 
     /**
      * Returns a copy of this class with a new [supplier] provided by the [strategy].
      */
-    fun withStrategy(strategy: IDatabaseEntitySupplier): IDatabaseStrategizable
+    public fun withStrategy(strategy: IDatabaseEntitySupplier): IDatabaseStrategizable
 }
 
 /**
@@ -30,22 +30,22 @@ interface IDatabaseStrategizable {
  * @see DatabaseStoreEntitySupplier
  * @see DatabaseFallbackEntitySupplier
  */
-interface IDatabaseEntitySupplier : IFriendService {
+public interface IDatabaseEntitySupplier : IFriendService {
 
-    companion object {
+    public companion object {
 
         /**
          * A supplier providing a strategy which exclusively uses database calls to fetch entities.
          * See [DatabaseEntitySupplier] for more details.
          */
-        fun database(configuration: DatabaseSupplierServices): DatabaseEntitySupplier =
+        public fun database(configuration: DatabaseSupplierServices): DatabaseEntitySupplier =
             DatabaseEntitySupplier(configuration.friendServices.second)
 
         /**
          * A supplier providing a strategy which exclusively uses cache to fetch entities.
          * See [DatabaseCacheEntitySupplier] for more details.
          */
-        fun cache(configuration: DatabaseSupplierServices): DatabaseCacheEntitySupplier =
+        public fun cache(configuration: DatabaseSupplierServices): DatabaseCacheEntitySupplier =
             DatabaseCacheEntitySupplier(configuration.friendServices.first)
 
         /**
@@ -53,7 +53,7 @@ interface IDatabaseEntitySupplier : IFriendService {
          * fetched entities are stored in [cache].
          * See [DatabaseStoreEntitySupplier] for more details.
          */
-        fun cachingDatabase(configuration: DatabaseSupplierServices): DatabaseStoreEntitySupplier =
+        public fun cachingDatabase(configuration: DatabaseSupplierServices): DatabaseStoreEntitySupplier =
             DatabaseStoreEntitySupplier(cache(configuration), database(configuration))
 
         /**
@@ -61,7 +61,7 @@ interface IDatabaseEntitySupplier : IFriendService {
          * is not present from cache it will be fetched from [database] instead. Operations that return flows
          * will only fall back to rest when the returned flow contained no elements.
          */
-        fun cacheWithDatabaseFallback(configuration: DatabaseSupplierServices): DatabaseFallbackEntitySupplier =
+        public fun cacheWithDatabaseFallback(configuration: DatabaseSupplierServices): DatabaseFallbackEntitySupplier =
             DatabaseFallbackEntitySupplier(getPriority = cache(configuration), setPriority = database(configuration))
 
         /**
@@ -69,8 +69,11 @@ interface IDatabaseEntitySupplier : IFriendService {
          * is not present from cache it will be fetched from [cachingDatabase] instead which will update [cache] with fetched elements.
          * Operations that return flows will only fall back to rest when the returned flow contained no elements.
          */
-        fun cacheWithCachingDatabaseFallback(configuration: DatabaseSupplierServices): DatabaseFallbackEntitySupplier =
-            DatabaseFallbackEntitySupplier(getPriority = cache(configuration), setPriority = cachingDatabase(configuration))
+        public fun cacheWithCachingDatabaseFallback(configuration: DatabaseSupplierServices): DatabaseFallbackEntitySupplier =
+            DatabaseFallbackEntitySupplier(
+                getPriority = cache(configuration),
+                setPriority = cachingDatabase(configuration)
+            )
 
     }
 }
