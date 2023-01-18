@@ -81,12 +81,15 @@ class FriendDatabaseServiceTest {
         }
 
         @Test
-        fun `should not add friend if relation already exists`() = runTest {
+        fun `should add friend if relation already exists`() = runTest {
             val uuid1 = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
 
             assertTrue { service.addFriend(uuid1, uuid2) }
-            assertFalse { service.addFriend(uuid1, uuid2) }
+            assertTrue { service.addFriend(uuid1, uuid2) }
+
+            val result = getAllFriends()
+            assertThat(result).containsExactlyInAnyOrder(Friends(uuid1, uuid2, 1), Friends(uuid1, uuid2, 2))
         }
 
         @Test
@@ -95,7 +98,10 @@ class FriendDatabaseServiceTest {
             val uuid2 = UUID.randomUUID()
 
             assertTrue { service.addFriend(uuid1, uuid2) }
-            assertFalse { service.addFriend(uuid2, uuid1) }
+            assertTrue { service.addFriend(uuid2, uuid1) }
+
+            val result = getAllFriends()
+            assertThat(result).containsExactlyInAnyOrder(Friends(uuid1, uuid2, 1), Friends(uuid2, uuid1, 2))
         }
 
     }

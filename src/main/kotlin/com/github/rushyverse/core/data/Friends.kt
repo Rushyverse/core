@@ -229,7 +229,6 @@ public class FriendCacheService(
 public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriendDatabaseService {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
-        if (isFriend(uuid, friend)) return false
         val query = QueryDsl.insert(friends).single(Friends(uuid, friend))
         database.runQuery(query)
         return true
