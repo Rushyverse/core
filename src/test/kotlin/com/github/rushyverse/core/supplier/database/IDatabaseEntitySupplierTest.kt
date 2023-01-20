@@ -23,7 +23,7 @@ class IDatabaseEntitySupplierTest {
         val configuration = DatabaseSupplierServices(service to mockk())
         val supplier = IDatabaseEntitySupplier.cache(configuration)
         assertEquals(DatabaseCacheEntitySupplier::class, supplier::class)
-        assertEquals(service, supplier.service)
+        assertEquals(service, supplier.friendCacheService)
     }
 
     @Test

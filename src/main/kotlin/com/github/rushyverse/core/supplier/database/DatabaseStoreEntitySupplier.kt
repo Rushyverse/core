@@ -24,9 +24,27 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
+    override suspend fun addFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
+        return if (supplier.addFriendPendingRequest(uuid, friend)) {
+            cache.addFriendPendingRequest(uuid, friend)
+            true
+        } else {
+            false
+        }
+    }
+
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
         return if (supplier.removeFriend(uuid, friend)) {
             cache.removeFriend(uuid, friend)
+            true
+        } else {
+            false
+        }
+    }
+
+    override suspend fun removeFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
+        return if (supplier.removeFriendPendingRequest(uuid, friend)) {
+            cache.removeFriendPendingRequest(uuid, friend)
             true
         } else {
             false
@@ -39,7 +57,17 @@ public class DatabaseStoreEntitySupplier(
         return friends.asFlow()
     }
 
+    override suspend fun getFriendPendingRequests(uuid: UUID): Flow<UUID> {
+        val requests = supplier.getFriendPendingRequests(uuid).toSet()
+        cache.setFriendPendingRequests(uuid, requests)
+        return requests.asFlow()
+    }
+
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
         return supplier.isFriend(uuid, friend)
+    }
+
+    override suspend fun isFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
+        return supplier.isFriendPendingRequest(uuid, friend)
     }
 }
