@@ -24,5 +24,6 @@ fun CacheClient.createKey(
     service: AbstractCacheService,
     id: String
 ): ByteArray {
-    return binaryFormat.encodeToByteArray(String.serializer(), service.prefixKey + id)
+    // TODO
+    return binaryFormat.encodeToByteArray(String.serializer(), id)
 }

@@ -77,7 +77,7 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addFriend(uuid1, uuid2) }
 
             val result = getAllFriends()
-            assertEquals(listOf(Friends(uuid1, uuid2, 1)), result)
+            assertEquals(listOf(Friends(uuid1, uuid2, false, 1)), result)
         }
 
         @Test
@@ -89,7 +89,7 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addFriend(uuid1, uuid2) }
 
             val result = getAllFriends()
-            assertThat(result).containsExactlyInAnyOrder(Friends(uuid1, uuid2, 1), Friends(uuid1, uuid2, 2))
+            assertThat(result).containsExactlyInAnyOrder(Friends(uuid1, uuid2, false, 1), Friends(uuid1, uuid2, false, 2))
         }
 
         @Test
@@ -101,7 +101,7 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addFriend(uuid2, uuid1) }
 
             val result = getAllFriends()
-            assertThat(result).containsExactlyInAnyOrder(Friends(uuid1, uuid2, 1), Friends(uuid2, uuid1, 2))
+            assertThat(result).containsExactlyInAnyOrder(Friends(uuid1, uuid2, false, 1), Friends(uuid2, uuid1,  false, 2))
         }
 
     }
@@ -204,7 +204,7 @@ class FriendDatabaseServiceTest {
 
             database.runQuery(
                 QueryDsl.insert(friends)
-                    .multiple(Friends(uuid1, uuid2), Friends(uuid2, uuid1))
+                    .multiple(Friends(uuid1, uuid2, false), Friends(uuid2, uuid1, false))
             )
 
             assertTrue { service.isFriend(uuid2, uuid1) }
