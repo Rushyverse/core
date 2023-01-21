@@ -6,6 +6,7 @@ import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
+import io.lettuce.core.api.coroutines.multi
 import kotlinx.serialization.builtins.serializer
 import kotlin.time.Duration
 
@@ -42,20 +43,26 @@ public interface IProfileIdCacheService : IProfileIdService {
  */
 public class ProfileIdCacheService(
     client: CacheClient,
-    expirationKey: Duration? = null,
-    prefixKey: String = "profileId:",
-) : AbstractCacheService(client, prefixKey, expirationKey), IProfileIdCacheService {
+    public val expirationKey: Duration? = null,
+    public val prefixKey: String = "profile:",
+) : AbstractCacheService(client), IProfileIdCacheService {
 
     override suspend fun getIdByName(name: String): ProfileId? {
-        val key = encodeKey(name)
+        val key = encodeKey(prefixKey + name)
         val dataSerial = cacheClient.connect { it.get(key) } ?: return null
         val uuid = decodeFromByteArrayOrNull(String.serializer(), dataSerial) ?: return null
         return ProfileId(id = uuid, name = name)
     }
 
     override suspend fun save(profile: ProfileId) {
-        val key = encodeKey(profile.name)
+        val key = encodeKey(prefixKey + profile.name)
         val value = encodeToByteArray(String.serializer(), profile.id)
-        cacheClient.connect { setWithExpiration(it, key, value) }
+        cacheClient.connect {
+            it.multi {
+                if (set(key, value) == "OK" && expirationKey != null){
+                    pexpire(key, expirationKey.inWholeMilliseconds)
+                }
+            }
+        }
     }
 }
