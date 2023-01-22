@@ -165,87 +165,60 @@ public class FriendCacheService(
     }
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
-        return cacheClient.connect {
-            if (add(it, uuid, listOf(friend), Type.ADD_FRIEND)) {
-                remove(it, uuid, friend, Type.REMOVE_FRIEND)
-                true
-            } else {
-                false
-            }
-        }
+        return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.ADD_FRIEND, Type.REMOVE_FRIEND)
     }
 
     override suspend fun addFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return cacheClient.connect {
-            if (add(it, uuid, listOf(friend), Type.ADD_PENDING_REQUEST)) {
-                remove(it, uuid, friend, Type.REMOVE_PENDING_REQUEST)
-                true
-            } else {
-                false
-            }
-        }
+        return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.ADD_PENDING_REQUEST, Type.REMOVE_PENDING_REQUEST)
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
-        return cacheClient.connect {
-            if (!add(it, uuid, listOf(friend), Type.REMOVE_FRIEND)) {
-                remove(it, uuid, friend, Type.ADD_FRIEND)
-                true
-            } else {
-                false
-            }
-        }
+        return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.REMOVE_FRIEND, Type.ADD_FRIEND)
     }
 
     override suspend fun removeFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return cacheClient.connect {
-            if (!add(it, uuid, listOf(friend), Type.REMOVE_PENDING_REQUEST)) {
-                remove(it, uuid, friend, Type.ADD_PENDING_REQUEST)
-                true
-            } else {
-                false
-            }
-        }
+        return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.REMOVE_PENDING_REQUEST, Type.ADD_PENDING_REQUEST)
     }
 
     override suspend fun getFriends(uuid: UUID): Flow<UUID> {
-        return cacheClient.connect {
-            mergeAndFilter(it, uuid, Type.FRIENDS, Type.ADD_FRIEND, Type.REMOVE_FRIEND)
-        }
+        return mergeFirstAndSecondThenRemoveThirdRelation(uuid, Type.FRIENDS, Type.ADD_FRIEND, Type.REMOVE_FRIEND)
     }
 
     override suspend fun getFriendPendingRequests(uuid: UUID): Flow<UUID> {
-        return cacheClient.connect {
-            mergeAndFilter(it, uuid, Type.PENDING_REQUESTS, Type.ADD_PENDING_REQUEST, Type.REMOVE_PENDING_REQUEST)
-        }
+        return mergeFirstAndSecondThenRemoveThirdRelation(
+            uuid,
+            Type.PENDING_REQUESTS,
+            Type.ADD_PENDING_REQUEST,
+            Type.REMOVE_PENDING_REQUEST
+        )
     }
 
     override suspend fun setFriends(uuid: UUID, friends: Set<UUID>): Boolean {
-        val result = cacheClient.connect {
-            setAll(it, uuid, friends, Type.FRIENDS)
-        }
-        return result != null && result.get<Long>(1) == friends.size.toLong()
+        return setAll(uuid, friends, Type.FRIENDS)
     }
 
     override suspend fun setFriendPendingRequests(uuid: UUID, friends: Set<UUID>): Boolean {
-        val result = cacheClient.connect {
-            setAll(it, uuid, friends, Type.PENDING_REQUESTS)
-        }
-        return result != null && result.get<Long>(1) == friends.size.toLong()
+        return setAll(uuid, friends, Type.PENDING_REQUESTS)
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
-        return cacheClient.connect {
-            (isMember(it, friend, uuid, Type.FRIENDS) || isMember(it, uuid, friend, Type.ADD_FRIEND))
-                    && !isMember(it, uuid, friend, Type.REMOVE_FRIEND)
-        }
+        return relationExistsInFirstOrSecondButNotInThird(
+            uuid,
+            friend,
+            Type.FRIENDS,
+            Type.ADD_FRIEND,
+            Type.REMOVE_FRIEND
+        )
     }
 
     override suspend fun isFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return cacheClient.connect {
-            (isMember(it, friend, uuid, Type.PENDING_REQUESTS) || isMember(it, uuid, friend, Type.ADD_PENDING_REQUEST))
-                    && !isMember(it, uuid, friend, Type.REMOVE_PENDING_REQUEST)
-        }
+        return relationExistsInFirstOrSecondButNotInThird(
+            uuid,
+            friend,
+            Type.PENDING_REQUESTS,
+            Type.ADD_PENDING_REQUEST,
+            Type.REMOVE_PENDING_REQUEST
+        )
     }
 
     override suspend fun setExpiration(uuid: UUID, expiration: Duration): Boolean {
@@ -258,6 +231,33 @@ public class FriendCacheService(
             }
         }
         return result != null && result.any { it == true }
+    }
+
+    private suspend fun relationExistsInFirstOrSecondButNotInThird(
+        uuid: UUID,
+        friend: UUID,
+        list: Type,
+        add: Type,
+        remove: Type,
+    ): Boolean {
+        return cacheClient.connect {
+            (isMember(it, uuid, friend, list) || isMember(it, uuid, friend, add)) && !isMember(it, uuid, friend, remove)
+        }
+    }
+
+    private suspend fun addInFirstAndDeleteInSecondRelation(
+        uuid: UUID,
+        friend: UUID,
+        addList: Type,
+        removeList: Type,
+    ): Boolean {
+        val result = cacheClient.connect {
+            it.multi {
+                add(it, uuid, listOf(friend), addList)
+                remove(it, uuid, friend, removeList)
+            }
+        }
+        return result != null && result.get(0)
     }
 
     /**
@@ -332,24 +332,25 @@ public class FriendCacheService(
      * @param removed Type where the members are removed.
      * @return Flow of the members of [uuid] for the given [list] and [added] merged without the elements in [removed].
      */
-    private suspend fun mergeAndFilter(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+    private suspend fun mergeFirstAndSecondThenRemoveThirdRelation(
         uuid: UUID,
         list: Type,
         added: Type,
         removed: Type
     ): Flow<UUID> {
-        return coroutineScope {
-            val friendsDeferred = listOf(
-                async { getAll(connection, uuid, list) },
-                async { getAll(connection, uuid, added) }
-            )
+        return cacheClient.connect {
+            coroutineScope {
+                val friendsDeferred = listOf(
+                    async { getAll(it, uuid, list) },
+                    async { getAll(it, uuid, added) }
+                )
 
-            val remove = getAll(connection, uuid, removed).toSet()
-            friendsDeferred.awaitAll()
-                .merge()
-                .distinctUntilChanged()
-                .filter { it !in remove }
+                val remove = getAll(it, uuid, removed).toSet()
+                friendsDeferred.awaitAll()
+                    .merge()
+                    .distinctUntilChanged()
+                    .filter { it !in remove }
+            }
         }
     }
 
@@ -373,20 +374,23 @@ public class FriendCacheService(
 
     /**
      * Remove the key linked to the [uuid] and the type [type] and set the new [friends] to the key.
-     * @param it Redis connection.
      * @param uuid ID of the entity.
      * @param friends All id that will be set to the key.
      * @param type Type of the relationship.
      * @return The result of the transaction.
      */
     private suspend fun setAll(
-        it: RedisCoroutinesCommands<ByteArray, ByteArray>,
         uuid: UUID,
         friends: Set<UUID>,
         type: Type
-    ) = it.multi {
-        del(encodeUserKey(uuid.toString(), type.key))
-        add(this, uuid, friends, type)
+    ): Boolean {
+        val result = cacheClient.connect {
+            it.multi {
+                del(encodeUserKey(uuid.toString(), type.key))
+                add(this, uuid, friends, type)
+            }
+        }
+        return result != null && result.get<Long>(1) == friends.size.toLong()
     }
 }
 
