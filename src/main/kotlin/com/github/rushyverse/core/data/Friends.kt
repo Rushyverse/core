@@ -5,7 +5,6 @@ import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.data._Friends.Companion.friends
 import com.github.rushyverse.core.extension.toTypedArray
 import com.github.rushyverse.core.serializer.UUIDSerializer
-import com.github.rushyverse.core.supplier.database.DatabaseSupplierServices
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.supplier.database.IDatabaseStrategizable
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
@@ -167,25 +166,45 @@ public class FriendCacheService(
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return cacheClient.connect {
-            addAndRemove(it, uuid, friend, Type.ADD_FRIEND, Type.REMOVE_FRIEND)
+            if (add(it, uuid, listOf(friend), Type.ADD_FRIEND)) {
+                remove(it, uuid, friend, Type.REMOVE_FRIEND)
+                true
+            } else {
+                false
+            }
         }
     }
 
     override suspend fun addFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
         return cacheClient.connect {
-            addAndRemove(it, uuid, friend, Type.ADD_PENDING_REQUEST, Type.REMOVE_PENDING_REQUEST)
+            if (add(it, uuid, listOf(friend), Type.ADD_PENDING_REQUEST)) {
+                remove(it, uuid, friend, Type.REMOVE_PENDING_REQUEST)
+                true
+            } else {
+                false
+            }
         }
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
         return cacheClient.connect {
-            addAndRemove(it, uuid, friend, Type.REMOVE_FRIEND, Type.ADD_FRIEND)
+            if (!add(it, uuid, listOf(friend), Type.REMOVE_FRIEND)) {
+                remove(it, uuid, friend, Type.ADD_FRIEND)
+                true
+            } else {
+                false
+            }
         }
     }
 
     override suspend fun removeFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
         return cacheClient.connect {
-            addAndRemove(it, uuid, friend, Type.REMOVE_PENDING_REQUEST, Type.ADD_PENDING_REQUEST)
+            if (!add(it, uuid, listOf(friend), Type.REMOVE_PENDING_REQUEST)) {
+                remove(it, uuid, friend, Type.ADD_PENDING_REQUEST)
+                true
+            } else {
+                false
+            }
         }
     }
 
@@ -217,13 +236,15 @@ public class FriendCacheService(
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
         return cacheClient.connect {
-            (isMember(it, friend, uuid, Type.FRIENDS) || isMember(it, uuid, friend, Type.ADD_FRIEND)) && !isMember(it, uuid, friend, Type.REMOVE_FRIEND)
+            (isMember(it, friend, uuid, Type.FRIENDS) || isMember(it, uuid, friend, Type.ADD_FRIEND))
+                    && !isMember(it, uuid, friend, Type.REMOVE_FRIEND)
         }
     }
 
     override suspend fun isFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
         return cacheClient.connect {
-            (isMember(it, friend, uuid, Type.PENDING_REQUESTS) || isMember(it, uuid, friend, Type.ADD_PENDING_REQUEST)) && !isMember(it, uuid, friend, Type.REMOVE_PENDING_REQUEST)
+            (isMember(it, friend, uuid, Type.PENDING_REQUESTS) || isMember(it, uuid, friend, Type.ADD_PENDING_REQUEST))
+                    && !isMember(it, uuid, friend, Type.REMOVE_PENDING_REQUEST)
         }
     }
 
@@ -237,19 +258,6 @@ public class FriendCacheService(
             }
         }
         return result != null && result.any { it == true }
-    }
-
-    private suspend fun addAndRemove(
-        it: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        uuid: UUID,
-        friend: UUID,
-        addType: Type,
-        removeType: Type,
-    ) = if (add(it, uuid, listOf(friend), addType)) {
-        remove(it, uuid, friend, removeType)
-        true
-    } else {
-        false
     }
 
     /**
