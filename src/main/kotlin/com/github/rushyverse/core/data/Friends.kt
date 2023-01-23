@@ -8,7 +8,6 @@ import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.supplier.database.IDatabaseStrategizable
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
-import io.lettuce.core.api.coroutines.multi
 import kotlinx.coroutines.flow.*
 import org.komapper.annotation.KomapperAutoIncrement
 import org.komapper.annotation.KomapperEntity
@@ -299,7 +298,6 @@ public class FriendCacheService(
 
     /**
      * Get all the members of [uuid] for the given [list] and [added] merged without the elements in [removed].
-     * @param connection Redis connection.
      * @param uuid UUID of the user.
      * @param list Type where the members are stored.
      * @param added Type where the members are added.
@@ -352,13 +350,10 @@ public class FriendCacheService(
         friends: Set<UUID>,
         type: Type
     ): Boolean {
-        val result = cacheClient.connect {
-            it.multi {
-                del(encodeUserKey(uuid.toString(), type.key))
-                add(this, uuid, friends, type)
-            }
+        return cacheClient.connect {
+            it.del(encodeUserKey(uuid.toString(), type.key))
+            add(it, uuid, friends, type)
         }
-        return result != null && result.get<Long>(1) == friends.size.toLong()
     }
 }
 
