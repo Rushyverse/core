@@ -24,10 +24,11 @@ public abstract class AbstractCacheService(
     }
 
     /**
-     *
-     * @param key String
-     * @param args Array<out String>
-     * @return ByteArray
+     * Use [args] to format [prefixKey] before concatenating it with [key].
+     * The result will be the final key used to identify data in cache.
+     * @param key The key to use.
+     * @param args The arguments to use to format [prefixKey].
+     * @return [ByteArray] corresponding to the key using the [prefixKey] and [key].
      */
     protected open fun encodeFormatKey(key: String, vararg args: String): ByteArray {
         return encodeToByteArray(
