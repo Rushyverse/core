@@ -61,6 +61,37 @@ class FriendCacheServiceTest {
         }
 
         @Test
+        fun `should add several relations`() = runTest {
+            val cacheService = FriendCacheService(cacheClient, userCacheService)
+
+            suspend fun assertHasRelations(vararg friends: UUID) {
+                cacheClient.connect {
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.ADD_FRIEND)).containsExactlyInAnyOrder(*friends)
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.REMOVE_FRIEND)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_REQUESTS)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.ADD_PENDING_REQUEST)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.REMOVE_PENDING_REQUEST)).isEmpty()
+
+                    FriendCacheService.Type.values().forEach { type ->
+                        assertThat(getAll(it, uuid2, type)).isEmpty()
+                    }
+                }
+            }
+
+            assertTrue { cacheService.addFriend(uuid1, uuid2) }
+            assertHasRelations(uuid2)
+
+            val uuid3 = UUID.randomUUID()
+            assertTrue { cacheService.addFriend(uuid1, uuid3) }
+            assertHasRelations(uuid2, uuid3)
+
+            val uuid4 = UUID.randomUUID()
+            assertTrue { cacheService.addFriend(uuid1, uuid4) }
+            assertHasRelations(uuid2, uuid3, uuid4)
+        }
+
+        @Test
         fun `should returns true if relation exists in friends`() = runTest {
             val cacheService = FriendCacheService(cacheClient, userCacheService)
 
@@ -247,6 +278,37 @@ class FriendCacheServiceTest {
         }
 
         @Test
+        fun `should add several relations`() = runTest {
+            val cacheService = FriendCacheService(cacheClient, userCacheService)
+
+            suspend fun assertHasRelations(vararg friends: UUID) {
+                cacheClient.connect {
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.ADD_FRIEND)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.REMOVE_FRIEND)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_REQUESTS)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.ADD_PENDING_REQUEST)).containsExactlyInAnyOrder(*friends)
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.REMOVE_PENDING_REQUEST)).isEmpty()
+
+                    FriendCacheService.Type.values().forEach { type ->
+                        assertThat(getAll(it, uuid2, type)).isEmpty()
+                    }
+                }
+            }
+
+            assertTrue { cacheService.addFriendPendingRequest(uuid1, uuid2) }
+            assertHasRelations(uuid2)
+
+            val uuid3 = UUID.randomUUID()
+            assertTrue { cacheService.addFriendPendingRequest(uuid1, uuid3) }
+            assertHasRelations(uuid2, uuid3)
+
+            val uuid4 = UUID.randomUUID()
+            assertTrue { cacheService.addFriendPendingRequest(uuid1, uuid4) }
+            assertHasRelations(uuid2, uuid3, uuid4)
+        }
+
+        @Test
         fun `should returns true if relation exists in pending requests`() = runTest {
             val cacheService = FriendCacheService(cacheClient, userCacheService)
 
@@ -426,6 +488,37 @@ class FriendCacheServiceTest {
         fun onBefore() {
             uuid1 = UUID.randomUUID()
             uuid2 = UUID.randomUUID()
+        }
+
+        @Test
+        fun `should add several relations`() = runTest {
+            val cacheService = FriendCacheService(cacheClient, userCacheService)
+
+            suspend fun assertHasRelations(vararg friends: UUID) {
+                cacheClient.connect {
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.ADD_FRIEND)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.REMOVE_FRIEND)).containsExactlyInAnyOrder(*friends)
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_REQUESTS)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.ADD_PENDING_REQUEST)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.REMOVE_PENDING_REQUEST)).isEmpty()
+
+                    FriendCacheService.Type.values().forEach { type ->
+                        assertThat(getAll(it, uuid2, type)).isEmpty()
+                    }
+                }
+            }
+
+            assertTrue { cacheService.removeFriend(uuid1, uuid2) }
+            assertHasRelations(uuid2)
+
+            val uuid3 = UUID.randomUUID()
+            assertTrue { cacheService.removeFriend(uuid1, uuid3) }
+            assertHasRelations(uuid2, uuid3)
+
+            val uuid4 = UUID.randomUUID()
+            assertTrue { cacheService.removeFriend(uuid1, uuid4) }
+            assertHasRelations(uuid2, uuid3, uuid4)
         }
 
         @Test
@@ -612,6 +705,37 @@ class FriendCacheServiceTest {
         fun onBefore() {
             uuid1 = UUID.randomUUID()
             uuid2 = UUID.randomUUID()
+        }
+
+        @Test
+        fun `should add several relations`() = runTest {
+            val cacheService = FriendCacheService(cacheClient, userCacheService)
+
+            suspend fun assertHasRelations(vararg friends: UUID) {
+                cacheClient.connect {
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.ADD_FRIEND)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.REMOVE_FRIEND)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_REQUESTS)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.ADD_PENDING_REQUEST)).isEmpty()
+                    assertThat(getAll(it, uuid1, FriendCacheService.Type.REMOVE_PENDING_REQUEST)).containsExactlyInAnyOrder(*friends)
+
+                    FriendCacheService.Type.values().forEach { type ->
+                        assertThat(getAll(it, uuid2, type)).isEmpty()
+                    }
+                }
+            }
+
+            assertTrue { cacheService.removeFriendPendingRequest(uuid1, uuid2) }
+            assertHasRelations(uuid2)
+
+            val uuid3 = UUID.randomUUID()
+            assertTrue { cacheService.removeFriendPendingRequest(uuid1, uuid3) }
+            assertHasRelations(uuid2, uuid3)
+
+            val uuid4 = UUID.randomUUID()
+            assertTrue { cacheService.removeFriendPendingRequest(uuid1, uuid4) }
+            assertHasRelations(uuid2, uuid3, uuid4)
         }
 
         @Test
