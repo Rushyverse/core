@@ -49,7 +49,5 @@ public class DatabaseCacheEntitySupplier(public val friendCacheService: IFriendC
     override suspend fun isFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
         return friendCacheService.isFriendPendingRequest(uuid, friend)
     }
-
-
 }
 
