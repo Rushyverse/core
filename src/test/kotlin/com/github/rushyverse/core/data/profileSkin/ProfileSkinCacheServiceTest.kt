@@ -5,7 +5,6 @@ package com.github.rushyverse.core.data.profileSkin
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.ProfileSkinCacheService
-import com.github.rushyverse.core.utils.createProfileId
 import com.github.rushyverse.core.utils.createProfileSkin
 import com.github.rushyverse.core.utils.getRandomString
 import com.github.rushyverse.core.utils.getTTL
@@ -118,7 +117,8 @@ class ProfileSkinCacheServiceTest {
             service.save(profile)
 
             cacheClient.connect {
-                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "${service.prefixKey}$key")
+                val expectedKey =
+                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "${service.prefixKey}$key")
                 Assertions.assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }

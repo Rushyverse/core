@@ -77,7 +77,8 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.addFriend(uuid1, uuid2) }
 
             cacheClient.connect {
-                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:add")
+                val expectedKey =
+                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:add")
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -294,7 +295,8 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.addPendingFriend(uuid1, uuid2) }
 
             cacheClient.connect {
-                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:pending:add")
+                val expectedKey =
+                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:pending:add")
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -521,7 +523,8 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.removeFriend(uuid1, uuid2) }
 
             cacheClient.connect {
-                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:remove")
+                val expectedKey =
+                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:remove")
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -738,7 +741,10 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.removePendingFriend(uuid1, uuid2) }
 
             cacheClient.connect {
-                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:pending:remove")
+                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(
+                    String.serializer(),
+                    "user:${uuid1}:friends:pending:remove"
+                )
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -1213,7 +1219,8 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.setFriends(uuid1, setOf(uuid2)) }
 
             cacheClient.connect {
-                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends")
+                val expectedKey =
+                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends")
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -1310,7 +1317,8 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.setPendingFriends(uuid1, setOf(uuid2)) }
 
             cacheClient.connect {
-                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:pending")
+                val expectedKey =
+                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:pending")
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }

@@ -116,7 +116,8 @@ class ProfileIdCacheServiceTest {
             service.save(profile)
 
             cacheClient.connect {
-                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "${service.prefixKey}$key")
+                val expectedKey =
+                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "${service.prefixKey}$key")
                 Assertions.assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
