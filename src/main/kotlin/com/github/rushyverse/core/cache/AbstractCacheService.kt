@@ -1,9 +1,11 @@
 package com.github.rushyverse.core.cache
 
 import com.github.rushyverse.core.data.UserCacheManager
+import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.builtins.serializer
+import kotlin.time.Duration
 
 public abstract class AbstractUserCacheService(
     client: CacheClient,
@@ -13,15 +15,48 @@ public abstract class AbstractUserCacheService(
     protected open fun encodeUserKey(userId: String, key: String): ByteArray {
         return encodeToByteArray(
             String.serializer(),
-            userCacheManager.getFormattedKey(userId) + ":" + key
+            userCacheManager.getFormattedKey(userId) + key
         )
+    }
+
+}
+
+public abstract class AbstractDataCacheService(
+    client: CacheClient,
+    public val prefixKey: String,
+    public val expirationKey: Duration?,
+) : AbstractCacheService(client) {
+
+    override fun encodeKey(key: String): ByteArray {
+        return encodeToByteArray(
+            String.serializer(),
+            prefixKey + key
+        )
+    }
+
+    /**
+     * Set the value for the key.
+     * If [expirationKey] is not null, an expiration time will be applied, otherwise the value will be stored forever.
+     * @param connection Redis connection.
+     * @param key Encoded key.
+     * @param value Encoded value.
+     */
+    protected suspend fun setWithExpiration(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        key: ByteArray,
+        value: ByteArray
+    ) {
+        if (expirationKey != null) {
+            connection.psetex(key, expirationKey.inWholeMilliseconds, value)
+        } else {
+            connection.set(key, value)
+        }
     }
 
 }
 
 /**
  * Service to encode and decode information with cache.
- * @property prefixKey Prefix key to identify the data in cache.
  */
 public abstract class AbstractCacheService(
     public val cacheClient: CacheClient,

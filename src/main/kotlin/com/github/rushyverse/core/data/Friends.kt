@@ -94,8 +94,6 @@ public interface IFriendService {
  */
 public interface IFriendCacheService : IFriendService {
 
-    public val cacheClient: CacheClient
-
     /**
      * Set the friends of an entity.
      * @param uuid ID of  the entity.

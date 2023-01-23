@@ -2,11 +2,10 @@
 
 package com.github.rushyverse.core.data
 
-import com.github.rushyverse.core.cache.AbstractCacheService
+import com.github.rushyverse.core.cache.AbstractDataCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
-import io.lettuce.core.api.coroutines.multi
 import kotlin.time.Duration
 
 /**
@@ -43,25 +42,21 @@ public interface IProfileSkinCacheService : IProfileSkinService {
  */
 public class ProfileSkinCacheService(
     client: CacheClient,
-    public val expirationKey: Duration? = null,
-    public val prefixKey: String = "skin:"
-) : AbstractCacheService(client), IProfileSkinCacheService {
+    expirationKey: Duration? = null,
+    prefixKey: String = "skin:"
+) : AbstractDataCacheService(client, prefixKey, expirationKey), IProfileSkinCacheService {
 
     override suspend fun getSkinById(id: String): ProfileSkin? {
-        val key = encodeKey(prefixKey + id)
+        val key = encodeKey(id)
         val dataSerial = cacheClient.connect { it.get(key) } ?: return null
         return decodeFromByteArrayOrNull(ProfileSkin.serializer(), dataSerial)
     }
 
     override suspend fun save(profile: ProfileSkin) {
-        val key = encodeKey(prefixKey + profile.id)
+        val key = encodeKey(profile.id)
         val value = encodeToByteArray(ProfileSkin.serializer(), profile)
         cacheClient.connect {
-            it.multi {
-                if (set(key, value) == "OK" && expirationKey != null) {
-                    pexpire(key, expirationKey.inWholeMilliseconds)
-                }
-            }
+            setWithExpiration(it, key, value)
         }
     }
 }

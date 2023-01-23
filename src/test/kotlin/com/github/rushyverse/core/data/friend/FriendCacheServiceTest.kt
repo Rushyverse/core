@@ -1252,7 +1252,11 @@ class FriendCacheServiceTest {
             cacheService.setFriends(uuid1, setOf(uuid2, uuid3, uuid4))
 
             cacheClient.connect {
-                assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).containsExactlyInAnyOrder(uuid2, uuid3, uuid4)
+                assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).containsExactlyInAnyOrder(
+                    uuid2,
+                    uuid3,
+                    uuid4
+                )
             }
         }
 
@@ -1339,7 +1343,11 @@ class FriendCacheServiceTest {
             cacheService.setPendingFriends(uuid1, setOf(uuid2, uuid3, uuid4))
 
             cacheClient.connect {
-                assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(uuid2, uuid3, uuid4)
+                assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(
+                    uuid2,
+                    uuid3,
+                    uuid4
+                )
             }
         }
 
@@ -1356,7 +1364,10 @@ class FriendCacheServiceTest {
             cacheService.setPendingFriends(uuid1, setOf(uuid3, uuid4))
 
             cacheClient.connect {
-                assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(uuid3, uuid4)
+                assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(
+                    uuid3,
+                    uuid4
+                )
             }
         }
 
@@ -1378,7 +1389,10 @@ class FriendCacheServiceTest {
             cacheService.setPendingFriends(uuid1, setOf(uuid3, uuid4))
 
             cacheClient.connect {
-                assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(uuid3, uuid4)
+                assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(
+                    uuid3,
+                    uuid4
+                )
             }
         }
 
@@ -1400,7 +1414,10 @@ class FriendCacheServiceTest {
             cacheService.setPendingFriends(uuid1, setOf(uuid3, uuid4))
 
             cacheClient.connect {
-                assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(uuid3, uuid4)
+                assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(
+                    uuid3,
+                    uuid4
+                )
             }
         }
     }
@@ -1664,6 +1681,6 @@ class FriendCacheServiceTest {
         type: FriendCacheService.Type
     ) = cacheClient.binaryFormat.encodeToByteArray(
         String.serializer(),
-        userCacheService.getFormattedKey(uuid) + ":" + type.key
+        userCacheService.getFormattedKey(uuid) + type.key
     )
 }
