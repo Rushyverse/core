@@ -1,7 +1,8 @@
 package com.github.rushyverse.core.data
 
-import com.github.rushyverse.core.cache.AbstractUserCacheService
+import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
+import com.github.rushyverse.core.cache.DEFAULT_PREFIX_KEY_USER_CACHE
 import com.github.rushyverse.core.data._Friends.Companion.friends
 import com.github.rushyverse.core.extension.toTypedArray
 import com.github.rushyverse.core.serializer.UUIDSerializer
@@ -137,8 +138,8 @@ public data class Friends(
  */
 public class FriendCacheService(
     client: CacheClient,
-    userCacheManager: UserCacheManager,
-) : AbstractUserCacheService(client, userCacheManager), IFriendCacheService {
+    prefixKey: String = DEFAULT_PREFIX_KEY_USER_CACHE
+) : AbstractCacheService(client, prefixKey), IFriendCacheService {
 
     public enum class Type(public val key: String) {
         FRIENDS("friends"),
@@ -265,7 +266,7 @@ public class FriendCacheService(
         friend: UUID,
         type: Type
     ): Boolean {
-        val key = encodeUserKey(uuid.toString(), type.key)
+        val key = encodeFormatKey(type.key, uuid.toString())
         val value = encodeToByteArray(UUIDSerializer, friend)
         return connection.sismember(key, value) == true
     }
@@ -287,7 +288,7 @@ public class FriendCacheService(
         if (friends.isEmpty()) return true
 
         val size = friends.size
-        val key = encodeUserKey(uuid.toString(), type.key)
+        val key = encodeFormatKey(type.key, uuid.toString())
         val friends = friends.asSequence().map { encodeToByteArray(UUIDSerializer, it) }.toTypedArray(size)
 
         val result = connection.sadd(key, *friends)
@@ -308,7 +309,7 @@ public class FriendCacheService(
         friend: UUID,
         type: Type
     ): Boolean {
-        val key = encodeUserKey(uuid.toString(), type.key)
+        val key = encodeFormatKey(type.key, uuid.toString())
         val value = encodeToByteArray(UUIDSerializer, friend)
         val result = connection.srem(key, value)
         return result != null && result > 0
@@ -350,7 +351,7 @@ public class FriendCacheService(
         uuid: UUID,
         type: Type
     ): Flow<UUID> {
-        val key = encodeUserKey(uuid.toString(), type.key)
+        val key = encodeFormatKey(type.key, uuid.toString())
         return connection.smembers(key).mapNotNull { member ->
             decodeFromByteArrayOrNull(UUIDSerializer, member)
         }
@@ -369,7 +370,7 @@ public class FriendCacheService(
         type: Type
     ): Boolean {
         return cacheClient.connect {
-            it.del(encodeUserKey(uuid.toString(), type.key))
+            it.del(encodeFormatKey(type.key, uuid.toString()))
             add(it, uuid, friends, type)
         }
     }

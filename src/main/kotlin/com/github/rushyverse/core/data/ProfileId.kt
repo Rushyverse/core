@@ -2,7 +2,7 @@
 
 package com.github.rushyverse.core.data
 
-import com.github.rushyverse.core.cache.AbstractDataCacheService
+import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
@@ -44,7 +44,7 @@ public class ProfileIdCacheService(
     client: CacheClient,
     expirationKey: Duration? = null,
     prefixKey: String = "profileId:",
-) : AbstractDataCacheService(client, prefixKey, expirationKey), IProfileIdCacheService {
+) : AbstractCacheService(client, prefixKey, expirationKey), IProfileIdCacheService {
 
     override suspend fun getIdByName(name: String): ProfileId? {
         val key = encodeKey(name)

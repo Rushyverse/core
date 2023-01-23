@@ -1,66 +1,38 @@
 package com.github.rushyverse.core.cache
 
-import com.github.rushyverse.core.data.UserCacheManager
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.builtins.serializer
 import kotlin.time.Duration
 
-public abstract class AbstractUserCacheService(
-    client: CacheClient,
-    public val userCacheManager: UserCacheManager
-) : AbstractCacheService(client) {
-
-    protected open fun encodeUserKey(userId: String, key: String): ByteArray {
-        return encodeToByteArray(
-            String.serializer(),
-            userCacheManager.getFormattedKey(userId) + key
-        )
-    }
-
-}
-
-public abstract class AbstractDataCacheService(
-    client: CacheClient,
-    public val prefixKey: String,
-    public val expirationKey: Duration?,
-) : AbstractCacheService(client) {
-
-    override fun encodeKey(key: String): ByteArray {
-        return encodeToByteArray(
-            String.serializer(),
-            prefixKey + key
-        )
-    }
-
-    /**
-     * Set the value for the key.
-     * If [expirationKey] is not null, an expiration time will be applied, otherwise the value will be stored forever.
-     * @param connection Redis connection.
-     * @param key Encoded key.
-     * @param value Encoded value.
-     */
-    protected suspend fun setWithExpiration(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        key: ByteArray,
-        value: ByteArray
-    ) {
-        if (expirationKey != null) {
-            connection.psetex(key, expirationKey.inWholeMilliseconds, value)
-        } else {
-            connection.set(key, value)
-        }
-    }
-
-}
+/**
+ * Default prefix key for user cache.
+ * When used, the key must be formatted using another string to put the user id.
+ */
+public const val DEFAULT_PREFIX_KEY_USER_CACHE: String = "user:%s:"
 
 /**
  * Service to encode and decode information with cache.
  */
 public abstract class AbstractCacheService(
     public val cacheClient: CacheClient,
+    public val prefixKey: String,
+    public val expirationKey: Duration? = null
 ) {
+
+    /**
+     *
+     * @param key String
+     * @param args Array<out String>
+     * @return ByteArray
+     */
+    protected open fun encodeFormatKey(key: String, vararg args: String): ByteArray {
+        return encodeToByteArray(
+            String.serializer(),
+            prefixKey.format(*args) + key
+        )
+    }
 
     /**
      * Create the key from a [String] value to identify data in cache.
@@ -69,7 +41,7 @@ public abstract class AbstractCacheService(
      */
     protected open fun encodeKey(key: String): ByteArray = encodeToByteArray(
         String.serializer(),
-        key
+        prefixKey + key
     )
 
     /**
@@ -96,4 +68,23 @@ public abstract class AbstractCacheService(
         } catch (_: Exception) {
             null
         }
+
+    /**
+     * Set the value for the key.
+     * If [expirationKey] is not null, an expiration time will be applied, otherwise the value will be stored forever.
+     * @param connection Redis connection.
+     * @param key Encoded key.
+     * @param value Encoded value.
+     */
+    protected suspend fun setWithExpiration(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        key: ByteArray,
+        value: ByteArray
+    ) {
+        if (expirationKey != null) {
+            connection.psetex(key, expirationKey.inWholeMilliseconds, value)
+        } else {
+            connection.set(key, value)
+        }
+    }
 }

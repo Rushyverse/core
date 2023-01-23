@@ -2,7 +2,7 @@
 
 package com.github.rushyverse.core.data
 
-import com.github.rushyverse.core.cache.AbstractDataCacheService
+import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
@@ -44,7 +44,7 @@ public class ProfileSkinCacheService(
     client: CacheClient,
     expirationKey: Duration? = null,
     prefixKey: String = "skin:"
-) : AbstractDataCacheService(client, prefixKey, expirationKey), IProfileSkinCacheService {
+) : AbstractCacheService(client, prefixKey, expirationKey), IProfileSkinCacheService {
 
     override suspend fun getSkinById(id: String): ProfileSkin? {
         val key = encodeKey(id)

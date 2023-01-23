@@ -1,9 +1,10 @@
 package com.github.rushyverse.core.data.friend
 
 import com.github.rushyverse.core.cache.CacheClient
+import com.github.rushyverse.core.cache.DEFAULT_PREFIX_KEY_USER_CACHE
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.FriendCacheService
-import com.github.rushyverse.core.data.UserCacheManager
+import com.github.rushyverse.core.data.ProfileIdCacheService
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import io.lettuce.core.RedisURI
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
@@ -34,19 +35,30 @@ class FriendCacheServiceTest {
     }
 
     private lateinit var cacheClient: CacheClient
-    private lateinit var userCacheService: UserCacheManager
+    private lateinit var cacheService: FriendCacheService
 
     @BeforeTest
     fun onBefore() = runBlocking {
         cacheClient = CacheClient {
             uri = RedisURI.create(redisContainer.url)
         }
-        userCacheService = UserCacheManager()
+        cacheService = FriendCacheService(cacheClient)
     }
 
     @AfterTest
     fun onAfter(): Unit = runBlocking {
         cacheClient.closeAsync().await()
+    }
+
+    @Nested
+    inner class DefaultParameter {
+
+        @Test
+        fun `default values`() {
+            assertEquals(DEFAULT_PREFIX_KEY_USER_CACHE, cacheService.prefixKey)
+            assertNull(cacheService.expirationKey)
+        }
+
     }
 
     @Nested
@@ -62,9 +74,17 @@ class FriendCacheServiceTest {
         }
 
         @Test
-        fun `should add several relations`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
+        fun `should define the key`() = runTest {
+            assertTrue { cacheService.addFriend(uuid1, uuid2) }
 
+            cacheClient.connect {
+                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:add")
+                assertThat(it.keys(expectedKey).toList()).hasSize(1)
+            }
+        }
+
+        @Test
+        fun `should add several relations`() = runTest {
             suspend fun assertHasRelations(vararg friends: UUID) {
                 cacheClient.connect {
                     assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).isEmpty()
@@ -100,8 +120,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if relation exists in friends`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
             }
@@ -124,8 +142,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if relation doesn't exist in friends`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             assertTrue { cacheService.addFriend(uuid1, uuid2) }
 
             cacheClient.connect {
@@ -144,8 +160,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will delete relation in remove relationship`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_FRIEND)
             }
@@ -168,8 +182,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not change relation in pending requests`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
@@ -198,8 +210,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not change relation for other`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 FriendCacheService.Type.values().forEach { type ->
                     add(it, uuid2, uuid1, type)
@@ -224,8 +234,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not add if already present but will remove in delete relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_FRIEND)
@@ -249,8 +257,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if relation is not added or removed`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
             }
@@ -285,9 +291,17 @@ class FriendCacheServiceTest {
         }
 
         @Test
-        fun `should add several relations`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
+        fun `should define the key`() = runTest {
+            assertTrue { cacheService.addPendingFriend(uuid1, uuid2) }
 
+            cacheClient.connect {
+                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:pending:add")
+                assertThat(it.keys(expectedKey).toList()).hasSize(1)
+            }
+        }
+
+        @Test
+        fun `should add several relations`() = runTest {
             suspend fun assertHasRelations(vararg friends: UUID) {
                 cacheClient.connect {
                     assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).isEmpty()
@@ -323,8 +337,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if relation exists in pending requests`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
             }
@@ -349,8 +361,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if relation doesn't exist in pending requests`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             assertTrue { cacheService.addPendingFriend(uuid1, uuid2) }
 
             cacheClient.connect {
@@ -371,8 +381,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will delete relation in remove relationship`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_PENDING_FRIEND)
             }
@@ -397,8 +405,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not change relation in friend`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
@@ -425,8 +431,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not change relation for other`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 FriendCacheService.Type.values().forEach { type ->
                     add(it, uuid2, uuid1, type)
@@ -453,8 +457,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not add if already present but will remove in delete relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_PENDING_FRIEND)
@@ -480,8 +482,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if relation is not added or removed`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
             }
@@ -518,9 +518,17 @@ class FriendCacheServiceTest {
         }
 
         @Test
-        fun `should add several relations`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
+        fun `should define the key`() = runTest {
+            assertTrue { cacheService.removeFriend(uuid1, uuid2) }
 
+            cacheClient.connect {
+                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:remove")
+                assertThat(it.keys(expectedKey).toList()).hasSize(1)
+            }
+        }
+
+        @Test
+        fun `should add several relations`() = runTest {
             suspend fun assertHasRelations(vararg friends: UUID) {
                 cacheClient.connect {
                     assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).isEmpty()
@@ -556,8 +564,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if relation exists in friends`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
             }
@@ -580,8 +586,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if relation doesn't exist in friends`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             assertTrue { cacheService.removeFriend(uuid1, uuid2) }
 
             cacheClient.connect {
@@ -600,8 +604,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will delete relation in add relationship`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
             }
@@ -624,8 +626,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not change relation in pending requests`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
@@ -654,8 +654,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not change relation for other`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 FriendCacheService.Type.values().forEach { type ->
                     add(it, uuid2, uuid1, type)
@@ -680,8 +678,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not add if already present but will remove in delete relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_FRIEND)
@@ -705,8 +701,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if relation is not added or removed`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_FRIEND)
             }
@@ -741,9 +735,17 @@ class FriendCacheServiceTest {
         }
 
         @Test
-        fun `should add several relations`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
+        fun `should define the key`() = runTest {
+            assertTrue { cacheService.removePendingFriend(uuid1, uuid2) }
 
+            cacheClient.connect {
+                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:pending:remove")
+                assertThat(it.keys(expectedKey).toList()).hasSize(1)
+            }
+        }
+
+        @Test
+        fun `should add several relations`() = runTest {
             suspend fun assertHasRelations(vararg friends: UUID) {
                 cacheClient.connect {
                     assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).isEmpty()
@@ -779,8 +781,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if relation exists in pending requests`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
             }
@@ -805,8 +805,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if relation doesn't exist in pending requests`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             assertTrue { cacheService.removePendingFriend(uuid1, uuid2) }
 
             cacheClient.connect {
@@ -827,8 +825,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will delete relation in remove relationship`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
             }
@@ -853,8 +849,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not change relation in friend`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
@@ -881,8 +875,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not change relation for other`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 FriendCacheService.Type.values().forEach { type ->
                     add(it, uuid2, uuid1, type)
@@ -909,8 +901,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `will not add if already present but will remove in delete relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_PENDING_FRIEND)
@@ -936,8 +926,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if relation is not added or removed`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_PENDING_FRIEND)
             }
@@ -975,14 +963,12 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns empty flow when no relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
             assertThat(cacheService.getFriends(uuid1).toList()).isEmpty()
         }
 
         @Test
         fun `should returns elements from relation`() = runTest {
             val uuid3 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
@@ -1002,7 +988,6 @@ class FriendCacheServiceTest {
         @Test
         fun `should returns elements from relation and added relation`() = runTest {
             val uuid3 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
@@ -1015,7 +1000,6 @@ class FriendCacheServiceTest {
         @Test
         fun `should returns elements from empty relation and not empty added relation`() = runTest {
             val uuid3 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
@@ -1027,8 +1011,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns elements from relation and empty added relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
             }
@@ -1038,8 +1020,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should not returns duplicate from relations`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
@@ -1052,7 +1032,6 @@ class FriendCacheServiceTest {
         fun `should remove elements present in remove relation`() = runTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
@@ -1078,8 +1057,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should not use pending relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
@@ -1108,14 +1085,12 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns empty flow when no relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
             assertThat(cacheService.getPendingFriends(uuid1).toList()).isEmpty()
         }
 
         @Test
         fun `should returns elements from relation`() = runTest {
             val uuid3 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
@@ -1139,7 +1114,6 @@ class FriendCacheServiceTest {
         @Test
         fun `should returns elements from relation and added relation`() = runTest {
             val uuid3 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
@@ -1152,7 +1126,6 @@ class FriendCacheServiceTest {
         @Test
         fun `should returns elements from empty relation and not empty added relation`() = runTest {
             val uuid3 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
@@ -1164,8 +1137,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns elements from relation and empty added relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
             }
@@ -1175,8 +1146,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should not returns duplicate from relations`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
@@ -1189,7 +1158,6 @@ class FriendCacheServiceTest {
         fun `should remove elements present in remove relation`() = runTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
@@ -1215,8 +1183,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should not use friend relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
@@ -1244,10 +1210,19 @@ class FriendCacheServiceTest {
         }
 
         @Test
+        fun `should define the key`() = runTest {
+            assertTrue { cacheService.setFriends(uuid1, setOf(uuid2)) }
+
+            cacheClient.connect {
+                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends")
+                assertThat(it.keys(expectedKey).toList()).hasSize(1)
+            }
+        }
+
+        @Test
         fun `should define elements to relation`() = runTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheService.setFriends(uuid1, setOf(uuid2, uuid3, uuid4))
 
@@ -1264,7 +1239,6 @@ class FriendCacheServiceTest {
         fun `should overwrite elements to relation`() = runTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
@@ -1281,7 +1255,6 @@ class FriendCacheServiceTest {
         fun `should not use pending request relation`() = runTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
@@ -1303,7 +1276,6 @@ class FriendCacheServiceTest {
         fun `should not use friend relation`() = runTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
@@ -1335,10 +1307,19 @@ class FriendCacheServiceTest {
         }
 
         @Test
+        fun `should define the key`() = runTest {
+            assertTrue { cacheService.setPendingFriends(uuid1, setOf(uuid2)) }
+
+            cacheClient.connect {
+                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:pending")
+                assertThat(it.keys(expectedKey).toList()).hasSize(1)
+            }
+        }
+
+        @Test
         fun `should define elements to relation`() = runTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheService.setPendingFriends(uuid1, setOf(uuid2, uuid3, uuid4))
 
@@ -1355,7 +1336,6 @@ class FriendCacheServiceTest {
         fun `should overwrite elements to relation`() = runTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
@@ -1375,7 +1355,6 @@ class FriendCacheServiceTest {
         fun `should not use friend relation`() = runTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
@@ -1400,7 +1379,6 @@ class FriendCacheServiceTest {
         fun `should not use pending request relation`() = runTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
 
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
@@ -1436,14 +1414,11 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if no relation exists`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
             assertFalse { cacheService.isFriend(uuid1, uuid2) }
         }
 
         @Test
         fun `should returns true if the relation exists`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
             }
@@ -1453,8 +1428,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if the relation exists in added`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
             }
@@ -1464,8 +1437,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if the relation exists in remove or pending relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_FRIEND)
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
@@ -1478,8 +1449,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if the relation exists in list and add`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
@@ -1490,8 +1459,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if the relation exists in list and remove`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_FRIEND)
@@ -1502,8 +1469,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if the relation exists in add and remove`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_FRIEND)
@@ -1514,8 +1479,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if the relation exists between other relationship in list`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
                 add(it, uuid1, UUID.randomUUID(), FriendCacheService.Type.FRIENDS)
@@ -1527,8 +1490,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if the relation exists between other relationship in add`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
                 add(it, uuid1, UUID.randomUUID(), FriendCacheService.Type.ADD_FRIEND)
@@ -1553,14 +1514,11 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if no relation exists`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
             assertFalse { cacheService.isPendingFriend(uuid1, uuid2) }
         }
 
         @Test
         fun `should returns true if the relation exists`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
             }
@@ -1570,8 +1528,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if the relation exists in added`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
             }
@@ -1581,8 +1537,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if the relation exists in remove or pending relation`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_PENDING_FRIEND)
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
@@ -1595,8 +1549,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if the relation exists in list and add`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
@@ -1607,8 +1559,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if the relation exists in list and remove`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_PENDING_FRIEND)
@@ -1619,8 +1569,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns false if the relation exists in add and remove`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
                 add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_PENDING_FRIEND)
@@ -1631,8 +1579,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if the relation exists between other relationship in list`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
                 add(it, uuid1, UUID.randomUUID(), FriendCacheService.Type.PENDING_FRIENDS)
@@ -1644,8 +1590,6 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should returns true if the relation exists between other relationship in add`() = runTest {
-            val cacheService = FriendCacheService(cacheClient, userCacheService)
-
             cacheClient.connect {
                 add(it, uuid1, uuid2, FriendCacheService.Type.ADD_PENDING_FRIEND)
                 add(it, uuid1, UUID.randomUUID(), FriendCacheService.Type.ADD_PENDING_FRIEND)
@@ -1681,6 +1625,6 @@ class FriendCacheServiceTest {
         type: FriendCacheService.Type
     ) = cacheClient.binaryFormat.encodeToByteArray(
         String.serializer(),
-        userCacheService.getFormattedKey(uuid) + type.key
+        cacheService.prefixKey.format(uuid) + type.key
     )
 }
