@@ -146,9 +146,9 @@ public class FriendCacheService(
         ADD_FRIEND("friends:add"),
         REMOVE_FRIEND("friends:remove"),
 
-        PENDING_REQUESTS("friends:pending"),
-        ADD_PENDING_REQUEST("friends:pending:add"),
-        REMOVE_PENDING_REQUEST("friends:pending:remove"),
+        PENDING_FRIENDS("friends:pending"),
+        ADD_PENDING_FRIEND("friends:pending:add"),
+        REMOVE_PENDING_FRIEND("friends:pending:remove"),
     }
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
@@ -156,7 +156,7 @@ public class FriendCacheService(
     }
 
     override suspend fun addPendingFriend(uuid: UUID, friend: UUID): Boolean {
-        return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.ADD_PENDING_REQUEST, Type.REMOVE_PENDING_REQUEST)
+        return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.ADD_PENDING_FRIEND, Type.REMOVE_PENDING_FRIEND)
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
@@ -164,7 +164,7 @@ public class FriendCacheService(
     }
 
     override suspend fun removePendingFriend(uuid: UUID, friend: UUID): Boolean {
-        return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.REMOVE_PENDING_REQUEST, Type.ADD_PENDING_REQUEST)
+        return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.REMOVE_PENDING_FRIEND, Type.ADD_PENDING_FRIEND)
     }
 
     override suspend fun getFriends(uuid: UUID): Flow<UUID> {
@@ -174,9 +174,9 @@ public class FriendCacheService(
     override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
         return mergeFirstAndSecondThenRemoveThirdRelation(
             uuid,
-            Type.PENDING_REQUESTS,
-            Type.ADD_PENDING_REQUEST,
-            Type.REMOVE_PENDING_REQUEST
+            Type.PENDING_FRIENDS,
+            Type.ADD_PENDING_FRIEND,
+            Type.REMOVE_PENDING_FRIEND
         )
     }
 
@@ -185,7 +185,7 @@ public class FriendCacheService(
     }
 
     override suspend fun setPendingFriends(uuid: UUID, friends: Set<UUID>): Boolean {
-        return setAll(uuid, friends, Type.PENDING_REQUESTS)
+        return setAll(uuid, friends, Type.PENDING_FRIENDS)
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
@@ -202,9 +202,9 @@ public class FriendCacheService(
         return relationExistsInFirstOrSecondButNotInThird(
             uuid,
             friend,
-            Type.PENDING_REQUESTS,
-            Type.ADD_PENDING_REQUEST,
-            Type.REMOVE_PENDING_REQUEST
+            Type.PENDING_FRIENDS,
+            Type.ADD_PENDING_FRIEND,
+            Type.REMOVE_PENDING_FRIEND
         )
     }
 
