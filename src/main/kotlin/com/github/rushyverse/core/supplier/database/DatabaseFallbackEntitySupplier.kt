@@ -22,16 +22,16 @@ public class DatabaseFallbackEntitySupplier(
         return setPriority.addFriend(uuid, friend)
     }
 
-    override suspend fun addFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return setPriority.addFriendPendingRequest(uuid, friend)
+    override suspend fun addPendingFriend(uuid: UUID, friend: UUID): Boolean {
+        return setPriority.addPendingFriend(uuid, friend)
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
         return setPriority.removeFriend(uuid, friend)
     }
 
-    override suspend fun removeFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return setPriority.removeFriendPendingRequest(uuid, friend)
+    override suspend fun removePendingFriend(uuid: UUID, friend: UUID): Boolean {
+        return setPriority.removePendingFriend(uuid, friend)
     }
 
     override suspend fun getFriends(uuid: UUID): Flow<UUID> {
@@ -40,9 +40,9 @@ public class DatabaseFallbackEntitySupplier(
         }
     }
 
-    override suspend fun getFriendPendingRequests(uuid: UUID): Flow<UUID> {
-        return getPriority.getFriendPendingRequests(uuid).onEmpty {
-            emitAll(setPriority.getFriendPendingRequests(uuid))
+    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
+        return getPriority.getPendingFriends(uuid).onEmpty {
+            emitAll(setPriority.getPendingFriends(uuid))
         }
     }
 
@@ -50,7 +50,7 @@ public class DatabaseFallbackEntitySupplier(
         return getPriority.isFriend(uuid, friend) || setPriority.isFriend(uuid, friend)
     }
 
-    override suspend fun isFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return getPriority.isFriendPendingRequest(uuid, friend) || setPriority.isFriendPendingRequest(uuid, friend)
+    override suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean {
+        return getPriority.isPendingFriend(uuid, friend) || setPriority.isPendingFriend(uuid, friend)
     }
 }

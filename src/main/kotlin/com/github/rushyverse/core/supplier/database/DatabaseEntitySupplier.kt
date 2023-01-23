@@ -14,31 +14,31 @@ public class DatabaseEntitySupplier(public val service: IFriendDatabaseService) 
         return service.addFriend(uuid, friend)
     }
 
-    override suspend fun addFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return service.addFriendPendingRequest(uuid, friend)
+    override suspend fun addPendingFriend(uuid: UUID, friend: UUID): Boolean {
+        return service.addPendingFriend(uuid, friend)
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
         return service.removeFriend(uuid, friend)
     }
 
-    override suspend fun removeFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return service.removeFriendPendingRequest(uuid, friend)
+    override suspend fun removePendingFriend(uuid: UUID, friend: UUID): Boolean {
+        return service.removePendingFriend(uuid, friend)
     }
 
     override suspend fun getFriends(uuid: UUID): Flow<UUID> {
         return service.getFriends(uuid)
     }
 
-    override suspend fun getFriendPendingRequests(uuid: UUID): Flow<UUID> {
-        return service.getFriendPendingRequests(uuid)
+    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
+        return service.getPendingFriends(uuid)
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
         return service.isFriend(uuid, friend)
     }
 
-    override suspend fun isFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return service.isFriendPendingRequest(uuid, friend)
+    override suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean {
+        return service.isPendingFriend(uuid, friend)
     }
 }

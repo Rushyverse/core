@@ -39,7 +39,7 @@ public interface IFriendService {
      * @param friend ID of the second entity.
      * @return `true` if the relationship was added successfully, `false` otherwise.
      */
-    public suspend fun addFriendPendingRequest(uuid: UUID, friend: UUID): Boolean
+    public suspend fun addPendingFriend(uuid: UUID, friend: UUID): Boolean
 
     /**
      * Remove a relationship of friendship between two entities.
@@ -55,7 +55,7 @@ public interface IFriendService {
      * @param friend ID of the second entity.
      * @return `true` if the relationship was removed successfully, `false` otherwise.
      */
-    public suspend fun removeFriendPendingRequest(uuid: UUID, friend: UUID): Boolean
+    public suspend fun removePendingFriend(uuid: UUID, friend: UUID): Boolean
 
     /**
      * Get all the friends of an entity.
@@ -69,7 +69,7 @@ public interface IFriendService {
      * @param uuid ID of the entity.
      * @return Set of IDs of the pending requests.
      */
-    public suspend fun getFriendPendingRequests(uuid: UUID): Flow<UUID>
+    public suspend fun getPendingFriends(uuid: UUID): Flow<UUID>
 
     /**
      * Check if two entities are friends.
@@ -85,7 +85,7 @@ public interface IFriendService {
      * @param friend ID of the second entity.
      * @return `true` if the two entities have a pending request, `false` otherwise.
      */
-    public suspend fun isFriendPendingRequest(uuid: UUID, friend: UUID): Boolean
+    public suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean
 }
 
 /**
@@ -109,7 +109,7 @@ public interface IFriendCacheService : IFriendService {
      * @param friends Set of new pending requests.
      * @return `true` if the pending requests were set successfully, `false` otherwise.
      */
-    public suspend fun setFriendPendingRequests(uuid: UUID, friends: Set<UUID>): Boolean
+    public suspend fun setPendingFriends(uuid: UUID, friends: Set<UUID>): Boolean
 
 }
 
@@ -155,7 +155,7 @@ public class FriendCacheService(
         return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.ADD_FRIEND, Type.REMOVE_FRIEND)
     }
 
-    override suspend fun addFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
+    override suspend fun addPendingFriend(uuid: UUID, friend: UUID): Boolean {
         return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.ADD_PENDING_REQUEST, Type.REMOVE_PENDING_REQUEST)
     }
 
@@ -163,7 +163,7 @@ public class FriendCacheService(
         return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.REMOVE_FRIEND, Type.ADD_FRIEND)
     }
 
-    override suspend fun removeFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
+    override suspend fun removePendingFriend(uuid: UUID, friend: UUID): Boolean {
         return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.REMOVE_PENDING_REQUEST, Type.ADD_PENDING_REQUEST)
     }
 
@@ -171,7 +171,7 @@ public class FriendCacheService(
         return mergeFirstAndSecondThenRemoveThirdRelation(uuid, Type.FRIENDS, Type.ADD_FRIEND, Type.REMOVE_FRIEND)
     }
 
-    override suspend fun getFriendPendingRequests(uuid: UUID): Flow<UUID> {
+    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
         return mergeFirstAndSecondThenRemoveThirdRelation(
             uuid,
             Type.PENDING_REQUESTS,
@@ -184,7 +184,7 @@ public class FriendCacheService(
         return setAll(uuid, friends, Type.FRIENDS)
     }
 
-    override suspend fun setFriendPendingRequests(uuid: UUID, friends: Set<UUID>): Boolean {
+    override suspend fun setPendingFriends(uuid: UUID, friends: Set<UUID>): Boolean {
         return setAll(uuid, friends, Type.PENDING_REQUESTS)
     }
 
@@ -198,7 +198,7 @@ public class FriendCacheService(
         )
     }
 
-    override suspend fun isFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
+    override suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean {
         return relationExistsInFirstOrSecondButNotInThird(
             uuid,
             friend,
@@ -208,6 +208,16 @@ public class FriendCacheService(
         )
     }
 
+    /**
+     * Check if a relation exists in [list] or [add] but not in [remove].
+     * The relationship must be unidirectional from [uuid] to [friend].
+     * @param uuid ID of the first entity.
+     * @param friend ID of the second entity.
+     * @param list List of relations.
+     * @param add List of relations to add.
+     * @param remove List of relations to remove.
+     * @return `true` if the relation exists, `false` otherwise.
+     */
     private suspend fun relationExistsInFirstOrSecondButNotInThird(
         uuid: UUID,
         friend: UUID,
@@ -220,6 +230,15 @@ public class FriendCacheService(
         }
     }
 
+    /**
+     * Add a relation in [add] and delete it in [remove].
+     * The relationship is unidirectional from [uuid] to [friend].
+     * @param uuid ID of the first entity.
+     * @param friend ID of the second entity.
+     * @param addList List of relations to add.
+     * @param removeList List of relations to remove.
+     * @return `true` if the relation was added successfully, `false` otherwise.
+     */
     private suspend fun addInFirstAndDeleteInSecondRelation(
         uuid: UUID,
         friend: UUID,
@@ -310,10 +329,10 @@ public class FriendCacheService(
         added: Type,
         removed: Type
     ): Flow<UUID> {
-        return cacheClient.connect {
-            val removed = getAll(it, uuid, removed).toSet()
+        return cacheClient.connect { connection ->
+            val removed = getAll(connection, uuid, removed).toSet()
 
-            listOf(getAll(it, uuid, list), getAll(it, uuid, added))
+            listOf(getAll(connection, uuid, list), getAll(connection, uuid, added))
                 .merge()
                 .distinctUntilChanged()
                 .filter { it !in removed }
@@ -368,7 +387,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         return true
     }
 
-    override suspend fun addFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
+    override suspend fun addPendingFriend(uuid: UUID, friend: UUID): Boolean {
         val query = QueryDsl.insert(friends).single(Friends(uuid, friend, true))
         database.runQuery(query)
         return true
@@ -380,7 +399,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         return database.runQuery(query) > 0
     }
 
-    override suspend fun removeFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
+    override suspend fun removePendingFriend(uuid: UUID, friend: UUID): Boolean {
         TODO("Not yet implemented")
     }
 
@@ -396,7 +415,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         }
     }
 
-    override suspend fun getFriendPendingRequests(uuid: UUID): Flow<UUID> {
+    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
         TODO("Not yet implemented")
     }
 
@@ -406,7 +425,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         return database.runQuery(query).isNotEmpty()
     }
 
-    override suspend fun isFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
+    override suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean {
         TODO("Not yet implemented")
     }
 
@@ -436,32 +455,32 @@ public class FriendService(override val supplier: IDatabaseEntitySupplier) : IFr
         return supplier.addFriend(uuid, friend)
     }
 
-    override suspend fun addFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return supplier.addFriendPendingRequest(uuid, friend)
+    override suspend fun addPendingFriend(uuid: UUID, friend: UUID): Boolean {
+        return supplier.addPendingFriend(uuid, friend)
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
         return supplier.removeFriend(uuid, friend)
     }
 
-    override suspend fun removeFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return supplier.removeFriendPendingRequest(uuid, friend)
+    override suspend fun removePendingFriend(uuid: UUID, friend: UUID): Boolean {
+        return supplier.removePendingFriend(uuid, friend)
     }
 
     override suspend fun getFriends(uuid: UUID): Flow<UUID> {
         return supplier.getFriends(uuid)
     }
 
-    override suspend fun getFriendPendingRequests(uuid: UUID): Flow<UUID> {
-        return supplier.getFriendPendingRequests(uuid)
+    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
+        return supplier.getPendingFriends(uuid)
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
         return supplier.isFriend(uuid, friend)
     }
 
-    override suspend fun isFriendPendingRequest(uuid: UUID, friend: UUID): Boolean {
-        return supplier.isFriendPendingRequest(uuid, friend)
+    override suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean {
+        return supplier.isPendingFriend(uuid, friend)
     }
 
     override fun withStrategy(strategy: IDatabaseEntitySupplier): FriendService = FriendService(strategy)
