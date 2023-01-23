@@ -9,9 +9,6 @@ import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.supplier.database.IDatabaseStrategizable
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.lettuce.core.api.coroutines.multi
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import org.komapper.annotation.KomapperAutoIncrement
 import org.komapper.annotation.KomapperEntity
@@ -23,7 +20,6 @@ import org.komapper.core.dsl.operator.and
 import org.komapper.core.dsl.operator.or
 import org.komapper.r2dbc.R2dbcDatabase
 import java.util.*
-import kotlin.time.Duration
 
 /**
  * Service to manage the friendship relationship.
@@ -115,14 +111,6 @@ public interface IFriendCacheService : IFriendService {
      * @return `true` if the pending requests were set successfully, `false` otherwise.
      */
     public suspend fun setFriendPendingRequests(uuid: UUID, friends: Set<UUID>): Boolean
-
-    /**
-     * Set an expiration time for all friends data related to an entity.
-     * @param uuid ID of the entity.
-     * @param expiration Expiration time.
-     * @return `true` if the expiration time was set successfully, `false` otherwise.
-     */
-    public suspend fun setExpiration(uuid: UUID, expiration: Duration): Boolean
 
 }
 
@@ -221,18 +209,6 @@ public class FriendCacheService(
         )
     }
 
-    override suspend fun setExpiration(uuid: UUID, expiration: Duration): Boolean {
-        val milliseconds = expiration.inWholeMilliseconds
-        val result = cacheClient.connect { connection ->
-            connection.multi {
-                Type.values().forEach { type ->
-                    pexpire(encodeUserKey(uuid.toString(), type.key), milliseconds)
-                }
-            }
-        }
-        return result != null && result.any { it == true }
-    }
-
     private suspend fun relationExistsInFirstOrSecondButNotInThird(
         uuid: UUID,
         friend: UUID,
@@ -251,13 +227,11 @@ public class FriendCacheService(
         addList: Type,
         removeList: Type,
     ): Boolean {
-        val result = cacheClient.connect {
-            it.multi {
-                add(it, uuid, listOf(friend), addList)
-                remove(it, uuid, friend, removeList)
-            }
+        return cacheClient.connect { connection ->
+            val added = add(connection, uuid, listOf(friend), addList)
+            val removed = remove(connection, uuid, friend, removeList)
+            added || removed
         }
-        return result != null && result.get(0)
     }
 
     /**
@@ -339,18 +313,12 @@ public class FriendCacheService(
         removed: Type
     ): Flow<UUID> {
         return cacheClient.connect {
-            coroutineScope {
-                val friendsDeferred = listOf(
-                    async { getAll(it, uuid, list) },
-                    async { getAll(it, uuid, added) }
-                )
+            val removed = getAll(it, uuid, removed).toSet()
 
-                val remove = getAll(it, uuid, removed).toSet()
-                friendsDeferred.awaitAll()
-                    .merge()
-                    .distinctUntilChanged()
-                    .filter { it !in remove }
-            }
+            listOf(getAll(it, uuid, list), getAll(it, uuid, added))
+                .merge()
+                .distinctUntilChanged()
+                .filter { it !in removed }
         }
     }
 
