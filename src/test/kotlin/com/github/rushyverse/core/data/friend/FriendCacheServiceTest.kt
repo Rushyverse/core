@@ -8,6 +8,7 @@ import com.github.rushyverse.core.serializer.UUIDSerializer
 import io.lettuce.core.RedisURI
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.toSet
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
@@ -905,6 +906,122 @@ class FriendCacheServiceTest {
                     assertThat(getAll(it, uuid2, type)).isEmpty()
                 }
             }
+        }
+    }
+
+    @Nested
+    inner class GetFriends {
+
+        private lateinit var uuid1: UUID
+        private lateinit var uuid2: UUID
+
+        @BeforeTest
+        fun onBefore() {
+            uuid1 = UUID.randomUUID()
+            uuid2 = UUID.randomUUID()
+        }
+
+        @Test
+        fun `should returns empty flow when no relation`() = runTest {
+            val cacheService = FriendCacheService(cacheClient, userCacheService)
+            assertThat(cacheService.getFriends(uuid1).toList()).isEmpty()
+        }
+
+        @Test
+        fun `should returns elements from relation`() = runTest {
+            val uuid3 = UUID.randomUUID()
+            val cacheService = FriendCacheService(cacheClient, userCacheService)
+
+            cacheClient.connect {
+                add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
+                add(it, uuid1, uuid3, FriendCacheService.Type.FRIENDS)
+            }
+
+            assertThat(cacheService.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid2, uuid3)
+
+            val uuid4 = UUID.randomUUID()
+            cacheClient.connect {
+                add(it, uuid1, uuid4, FriendCacheService.Type.FRIENDS)
+            }
+
+            assertThat(cacheService.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid2, uuid3, uuid4)
+        }
+
+        @Test
+        fun `should returns elements from relation and added relation`() = runTest {
+            val uuid3 = UUID.randomUUID()
+            val cacheService = FriendCacheService(cacheClient, userCacheService)
+
+            cacheClient.connect {
+                add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
+                add(it, uuid1, uuid3, FriendCacheService.Type.ADD_FRIEND)
+            }
+
+            assertThat(cacheService.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid2, uuid3)
+        }
+
+        @Test
+        fun `should returns elements from empty relation and not empty added relation`() = runTest {
+            val uuid3 = UUID.randomUUID()
+            val cacheService = FriendCacheService(cacheClient, userCacheService)
+
+            cacheClient.connect {
+                add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
+                add(it, uuid1, uuid3, FriendCacheService.Type.ADD_FRIEND)
+            }
+
+            assertThat(cacheService.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid2, uuid3)
+        }
+
+        @Test
+        fun `should returns elements from relation and empty added relation`() = runTest {
+            val cacheService = FriendCacheService(cacheClient, userCacheService)
+
+            cacheClient.connect {
+                add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
+            }
+
+            assertThat(cacheService.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid2)
+        }
+
+        @Test
+        fun `should not returns duplicate from relations`() = runTest {
+            val cacheService = FriendCacheService(cacheClient, userCacheService)
+
+            cacheClient.connect {
+                add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
+                add(it, uuid1, uuid2, FriendCacheService.Type.ADD_FRIEND)
+            }
+
+            assertThat(cacheService.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid2)
+        }
+
+        @Test
+        fun `should remove elements present in remove relation`() = runTest {
+            val uuid3 = UUID.randomUUID()
+            val uuid4 = UUID.randomUUID()
+            val cacheService = FriendCacheService(cacheClient, userCacheService)
+
+            cacheClient.connect {
+                add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
+                add(it, uuid1, uuid3, FriendCacheService.Type.FRIENDS)
+                add(it, uuid1, uuid4, FriendCacheService.Type.ADD_FRIEND)
+                add(it, uuid1, uuid3, FriendCacheService.Type.REMOVE_FRIEND)
+            }
+
+            assertThat(cacheService.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid2, uuid4)
+
+            cacheClient.connect {
+                add(it, uuid1, uuid2, FriendCacheService.Type.REMOVE_FRIEND)
+            }
+
+            assertThat(cacheService.getFriends(uuid1).toList()).containsExactlyInAnyOrder(uuid4)
+
+            cacheClient.connect {
+                add(it, uuid1, uuid4, FriendCacheService.Type.REMOVE_FRIEND)
+            }
+
+            assertThat(cacheService.getFriends(uuid1).toList()).isEmpty()
         }
     }
 
