@@ -7,12 +7,6 @@ import kotlinx.serialization.builtins.serializer
 import kotlin.time.Duration
 
 /**
- * Default prefix key for user cache.
- * When used, the key must be formatted using another string to put the user id.
- */
-public const val DEFAULT_PREFIX_KEY_USER_CACHE: String = "user:%s:"
-
-/**
  * Service to encode and decode information with cache.
  */
 public abstract class AbstractCacheService(
@@ -20,6 +14,14 @@ public abstract class AbstractCacheService(
     public val prefixKey: String,
     public val expirationKey: Duration? = null
 ) {
+
+    public companion object {
+        /**
+         * Default prefix key for user cache.
+         * When used, the key must be formatted using another string to put the user id.
+         */
+        public const val DEFAULT_PREFIX_KEY_USER_CACHE: String = "user:%s:"
+    }
 
     /**
      *

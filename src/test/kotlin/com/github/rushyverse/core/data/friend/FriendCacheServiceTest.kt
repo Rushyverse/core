@@ -1,10 +1,9 @@
 package com.github.rushyverse.core.data.friend
 
+import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
-import com.github.rushyverse.core.cache.DEFAULT_PREFIX_KEY_USER_CACHE
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.FriendCacheService
-import com.github.rushyverse.core.data.ProfileIdCacheService
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import io.lettuce.core.RedisURI
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
@@ -55,7 +54,7 @@ class FriendCacheServiceTest {
 
         @Test
         fun `default values`() {
-            assertEquals(DEFAULT_PREFIX_KEY_USER_CACHE, cacheService.prefixKey)
+            assertEquals(AbstractCacheService.DEFAULT_PREFIX_KEY_USER_CACHE, cacheService.prefixKey)
             assertNull(cacheService.expirationKey)
         }
 
