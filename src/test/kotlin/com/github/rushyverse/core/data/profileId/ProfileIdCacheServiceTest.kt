@@ -16,12 +16,15 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Timeout
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.*
+import java.util.concurrent.TimeUnit
 import kotlin.test.*
 import kotlin.time.Duration.Companion.seconds
 
+@Timeout(3, unit = TimeUnit.SECONDS)
 @Testcontainers
 class ProfileIdCacheServiceTest {
 
