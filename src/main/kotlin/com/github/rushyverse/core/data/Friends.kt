@@ -17,6 +17,7 @@ import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.expression.WhereDeclaration
 import org.komapper.core.dsl.operator.and
 import org.komapper.core.dsl.operator.or
+import org.komapper.core.dsl.query.where
 import org.komapper.r2dbc.R2dbcDatabase
 import java.util.*
 
@@ -382,31 +383,74 @@ public class FriendCacheService(
 public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriendDatabaseService {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
-        val query = QueryDsl.insert(friends).single(Friends(uuid, friend, false))
-        database.runQuery(query)
-        return true
+        return add(uuid, friend, false)
     }
 
     override suspend fun addPendingFriend(uuid: UUID, friend: UUID): Boolean {
-        val query = QueryDsl.insert(friends).single(Friends(uuid, friend, true))
+        return add(uuid, friend, true)
+    }
+
+    override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
+        return remove(uuid, friend, false)
+    }
+
+    override suspend fun removePendingFriend(uuid: UUID, friend: UUID): Boolean {
+        return remove(uuid, friend, true)
+    }
+
+    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
+        return getAll(uuid, false)
+    }
+
+    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
+        return getAll(uuid, true)
+    }
+
+    override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
+        return isFriend(uuid, friend, false)
+    }
+
+    override suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean {
+        return isFriend(uuid, friend, true)
+    }
+
+    /**
+     * Add a new relationship between [uuid] and [friend] with the status [pending].
+     * @param uuid ID of the user.
+     * @param friend ID of the friend.
+     * @param pending `true` if the relationship is pending, `false` otherwise.
+     * @return Always return `true`.
+     */
+    private suspend fun add(uuid: UUID, friend: UUID, pending: Boolean): Boolean {
+        val query = QueryDsl.insert(friends).single(Friends(uuid, friend, pending))
         database.runQuery(query)
         return true
     }
 
-    override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
-        val where = createWhereBidirectional(uuid, friend)
+    /**
+     * Remove the [friend] from the [uuid] with the given [pending] state.
+     * @param uuid ID of the entity.
+     * @param friend ID of the friend.
+     * @param pending State of the relationship.
+     * @return `true` if the relationship was removed, `false` otherwise.
+     */
+    private suspend fun remove(uuid: UUID, friend: UUID, pending: Boolean): Boolean {
+        val where = createWhereBidirectional(uuid, friend).and(createWherePending(pending))
         val query = QueryDsl.delete(friends).where(where)
         return database.runQuery(query) > 0
     }
 
-    override suspend fun removePendingFriend(uuid: UUID, friend: UUID): Boolean {
-        TODO("Not yet implemented")
-    }
+    /**
+     * Get all friends of [uuid] for the given [pending].
+     * @param uuid UUID of the user.
+     * @param pending `true` to get all pending friends, `false` to get all friends.
+     * @return Flow of the friends of [uuid] for the given [pending].
+     */
+    private fun getAll(uuid: UUID, pending: Boolean): Flow<UUID> {
+        val w1 = where { friends.uuid1 eq uuid }
+        val w2 = where { friends.uuid2 eq uuid }
 
-    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
-        val w1: WhereDeclaration = { friends.uuid1 eq uuid }
-        val w2: WhereDeclaration = { friends.uuid2 eq uuid }
-        val where = (w1.or(w2))
+        val where = where { w1.or(w2) }.and(createWherePending(pending))
 
         val query = QueryDsl.from(friends).where(where)
         return database.flowQuery(query).map {
@@ -415,18 +459,17 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         }
     }
 
-    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
-        val where = createWhereBidirectional(uuid, friend)
+    /**
+     * Check if [friend] is a friend of [uuid] with the given [pending] status.
+     * @param uuid UUID of the user.
+     * @param friend UUID of the friend.
+     * @param pending `true` to check if the friend is pending, `false` to check if the friend is accepted.
+     * @return `true` if [friend] is a friend of [uuid] with the given [pending] status, `false` otherwise.
+     */
+    private suspend fun isFriend(uuid: UUID, friend: UUID, pending: Boolean): Boolean {
+        val where = createWhereBidirectional(uuid, friend).and(createWherePending(pending))
         val query = QueryDsl.from(friends).where(where).limit(1)
         return database.runQuery(query).isNotEmpty()
-    }
-
-    override suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean {
-        TODO("Not yet implemented")
     }
 
     /**
@@ -436,13 +479,22 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      * @return Where clause.
      */
     private fun createWhereBidirectional(uuid: UUID, friend: UUID): WhereDeclaration {
-        val w1: WhereDeclaration = { friends.uuid1 eq uuid }
-        val w2: WhereDeclaration = { friends.uuid2 eq friend }
+        val w1 = where { friends.uuid1 eq uuid }
+        val w2 = where { friends.uuid2 eq friend }
 
-        val w3: WhereDeclaration = { friends.uuid1 eq friend }
-        val w4: WhereDeclaration = { friends.uuid2 eq uuid }
+        val w3 = where { friends.uuid1 eq friend }
+        val w4 = where { friends.uuid2 eq uuid }
 
-        return (w1.and(w2)).or(w3.and(w4))
+        return where { (w1.and(w2)).or(w3.and(w4)) }
+    }
+
+    /**
+     * Create a where clause to check if [Friends.pending] is [pending].
+     * @param pending `true` to check if the relationship is pending, `false` otherwise.
+     * @return Where clause.
+     */
+    private fun createWherePending(pending: Boolean): WhereDeclaration {
+        return where { friends.pending eq pending }
     }
 }
 
