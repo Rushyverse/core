@@ -8,7 +8,7 @@ import java.util.*
  * [IDatabaseEntitySupplier] that uses cache to manage entities.
  * @property friendCacheService Friend cache service.
  */
-public class DatabaseCacheEntitySupplier(public val friendCacheService: IFriendCacheService) : IDatabaseEntitySupplier {
+public class DatabaseCacheEntitySupplier(public val friendCacheService: IFriendCacheService) : IDatabaseEntitySupplier, IFriendCacheService by friendCacheService {
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return friendCacheService.addFriend(uuid, friend)
@@ -32,14 +32,6 @@ public class DatabaseCacheEntitySupplier(public val friendCacheService: IFriendC
 
     override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
         return friendCacheService.getPendingFriends(uuid)
-    }
-
-    public suspend fun setFriends(uuid: UUID, friends: Set<UUID>): Boolean {
-        return friendCacheService.setFriends(uuid, friends)
-    }
-
-    public suspend fun setPendingFriends(uuid: UUID, friends: Set<UUID>): Boolean {
-        return friendCacheService.setPendingFriends(uuid, friends)
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {

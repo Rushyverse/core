@@ -5,9 +5,13 @@ import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.data._Friends.Companion.friends
 import com.github.rushyverse.core.extension.toTypedArray
 import com.github.rushyverse.core.serializer.UUIDSerializer
+import com.github.rushyverse.core.supplier.database.DatabaseSupplierServices
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.supplier.database.IDatabaseStrategizable
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import org.komapper.annotation.KomapperAutoIncrement
 import org.komapper.annotation.KomapperEntity
@@ -110,12 +114,55 @@ public interface IFriendCacheService : IFriendService {
      */
     public suspend fun setPendingFriends(uuid: UUID, friends: Set<UUID>): Boolean
 
+    /**
+     * Retrieve all data stored in cache for a specific type of data.
+     * @param uuid ID of the entity.
+     * @param type Type of data to retrieve.
+     * @return Map of IDs to data.
+     */
+    public suspend fun getAll(uuid: UUID, type: FriendCacheService.Type): Flow<UUID>
+
 }
 
 /**
  * Service to manage the friendship relationship in database.
  */
-public interface IFriendDatabaseService : IFriendService
+public interface IFriendDatabaseService : IFriendService {
+
+    /**
+     * Add a new relationship of friendship between the [uuid] entity and all entities in [friends].
+     * @param uuid ID of the first entity.
+     * @param friends IDs of entities.
+     * @return `true` if at least one relationship was added successfully, `false` otherwise.
+     */
+    public suspend fun addFriends(uuid: UUID, friends: List<UUID>): Boolean
+
+    /**
+     * Add a new pending relationship of friendship between the [uuid] entity and all entities in [friends].
+     * @param uuid ID of the first entity.
+     * @param friends IDs of entities.
+     * @return `true` if at least one relationship was added successfully, `false` otherwise.
+     */
+    public suspend fun addPendingFriends(uuid: UUID, friends: List<UUID>): Boolean
+
+    /**
+     * Remove a relationship of friendship between the [uuid] entity and all entities in [friends].
+     * @param uuid ID of the first entity.
+     * @param friends IDs of entities.
+     * @return `true` if at least one relationship was removed successfully, `false` otherwise.
+     */
+    public suspend fun removeFriends(uuid: UUID, friends: List<UUID>): Boolean
+
+    /**
+     * Remove a pending relationship of friendship between the [uuid] entity and all entities in [friends].
+     * @param uuid ID of the first entity.
+     * @param friends IDs of entities.
+     * @return `true` if at least one relationship was removed successfully, `false` otherwise.
+     */
+    public suspend fun removePendingFriends(uuid: UUID, friends: List<UUID>): Boolean
+
+
+}
 
 /**
  * Table to store the friendship relationship in database.
@@ -148,6 +195,45 @@ public class FriendCacheService(
         PENDING_FRIENDS("friends:pending"),
         ADD_PENDING_FRIEND("friends:pending:add"),
         REMOVE_PENDING_FRIEND("friends:pending:remove"),
+    }
+
+    public companion object {
+
+        /**
+         * Retrieve data of the user [uuid] from cache related to [Type.ADD_FRIEND], [Type.REMOVE_FRIEND],
+         * [Type.ADD_PENDING_FRIEND] and [Type.REMOVE_PENDING_FRIEND] and send them to the database.
+         * @param uuid ID of the user.
+         * @param services Services to manage the friendship relationship.
+         * @return `true` if at least one relationship was added or removed successfully, `false` otherwise.
+         */
+        public suspend fun userCacheToDatabase(uuid: UUID, services: DatabaseSupplierServices): Boolean {
+            val cache = IDatabaseEntitySupplier.cache(services)
+            val database = IDatabaseEntitySupplier.database(services)
+
+            suspend fun saveInDatabaseIfNotEmpty(flow: Flow<UUID>, save: suspend (UUID, List<UUID>) -> Boolean): Boolean {
+                val list = flow.toList()
+                return list.isNotEmpty() && save(uuid, list)
+            }
+
+            return coroutineScope {
+                listOf(
+                    async { saveInDatabaseIfNotEmpty(cache.getAll(uuid, Type.ADD_FRIEND), database::addFriends) },
+                    async {
+                        saveInDatabaseIfNotEmpty(cache.getAll(uuid, Type.REMOVE_FRIEND), database::removeFriends)
+                    },
+                    async {
+                        saveInDatabaseIfNotEmpty(cache.getAll(uuid, Type.ADD_PENDING_FRIEND), database::addPendingFriends)
+                    },
+                    async {
+                        saveInDatabaseIfNotEmpty(
+                            cache.getAll(uuid, Type.REMOVE_PENDING_FRIEND),
+                            database::removePendingFriends
+                        )
+                    }
+                ).awaitAll().any { it }
+            }
+        }
+
     }
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
@@ -205,6 +291,12 @@ public class FriendCacheService(
             Type.ADD_PENDING_FRIEND,
             Type.REMOVE_PENDING_FRIEND
         )
+    }
+
+    override suspend fun getAll(uuid: UUID, type: Type): Flow<UUID> {
+        return cacheClient.connect { connection ->
+            getAll(connection, uuid, type)
+        }
     }
 
     /**
@@ -384,16 +476,32 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         return add(uuid, friend, false)
     }
 
+    override suspend fun addFriends(uuid: UUID, friends: List<UUID>): Boolean {
+        return addAll(uuid, friends, false)
+    }
+
     override suspend fun addPendingFriend(uuid: UUID, friend: UUID): Boolean {
         return add(uuid, friend, true)
+    }
+
+    override suspend fun addPendingFriends(uuid: UUID, friends: List<UUID>): Boolean {
+        return addAll(uuid, friends, true)
     }
 
     override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
         return remove(uuid, friend, false)
     }
 
+    override suspend fun removeFriends(uuid: UUID, friends: List<UUID>): Boolean {
+        return removeAll(uuid, friends, false)
+    }
+
     override suspend fun removePendingFriend(uuid: UUID, friend: UUID): Boolean {
         return remove(uuid, friend, true)
+    }
+
+    override suspend fun removePendingFriends(uuid: UUID, friends: List<UUID>): Boolean {
+        return removeAll(uuid, friends, true)
     }
 
     override suspend fun getFriends(uuid: UUID): Flow<UUID> {
@@ -426,6 +534,20 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
     }
 
     /**
+     * Add a new relationship between [uuid] and [friends] with the status [pending].
+     * @param uuid ID of the user.
+     * @param friendIds ID of the friends.
+     * @param pending `true` if the relationship is pending, `false` otherwise.
+     * @return Always return `true`.
+     */
+    private suspend fun addAll(uuid: UUID, friendIds: List<UUID>, pending: Boolean): Boolean {
+        val friendEntities = friendIds.map { Friends(uuid, it, pending) }
+        val query = QueryDsl.insert(friends).multiple(friendEntities)
+        database.runQuery(query)
+        return true
+    }
+
+    /**
      * Remove the [friend] from the [uuid] with the given [pending] state.
      * @param uuid ID of the entity.
      * @param friend ID of the friend.
@@ -434,6 +556,23 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      */
     private suspend fun remove(uuid: UUID, friend: UUID, pending: Boolean): Boolean {
         val where = createWhereBidirectional(uuid, friend).and(createWherePending(pending))
+        val query = QueryDsl.delete(friends).where(where)
+        return database.runQuery(query) > 0
+    }
+
+    /**
+     * Remove the [friendIds] from the [uuid] with the given [pending] state.
+     * @param uuid ID of the entity.
+     * @param friendIds ID of the friends.
+     * @param pending State of the relationship.
+     * @return `true` if the relationship was removed, `false` otherwise.
+     */
+    private suspend fun removeAll(uuid: UUID, friendIds: List<UUID>, pending: Boolean): Boolean {
+        val where = friendIds.asSequence()
+            .map { createWhereBidirectional(uuid, it) }
+            .reduce { acc, where -> acc.or(where) }
+            .and { createWherePending(pending) }
+
         val query = QueryDsl.delete(friends).where(where)
         return database.runQuery(query) > 0
     }
