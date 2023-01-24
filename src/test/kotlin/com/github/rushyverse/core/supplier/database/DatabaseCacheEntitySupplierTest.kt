@@ -229,6 +229,76 @@ class DatabaseCacheEntitySupplierTest {
     }
 
     @Nested
+    inner class SetFriends {
+
+        @Test
+        fun `should set in supplier`() = runTest {
+            val slotUuid1 = slot<UUID>()
+            val slotFriends = slot<Set<UUID>>()
+
+            coEvery { cacheService.setFriends(capture(slotUuid1), capture(slotFriends)) } returns true
+
+            val uuid1 = UUID.randomUUID()
+            val friends = List(5) { UUID.randomUUID() }.toSet()
+            assertTrue { cacheEntitySupplier.setFriends(uuid1, friends) }
+            coVerify(exactly = 1) { cacheService.setFriends(any(), any()) }
+
+            assertEquals(uuid1, slotUuid1.captured)
+            assertEquals(friends, slotFriends.captured)
+        }
+
+        @Test
+        fun `should return false when supplier returns false`() = runTest {
+            coEvery { cacheService.setFriends(any(), any()) } returns false
+            assertFalse { cacheEntitySupplier.setFriends(mockk(), mockk()) }
+            coVerify(exactly = 1) { cacheService.setFriends(any(), any()) }
+        }
+
+        @Test
+        fun `should return true when supplier returns false`() = runTest {
+            coEvery { cacheService.setFriends(any(), any()) } returns true
+            assertTrue { cacheEntitySupplier.setFriends(mockk(), mockk()) }
+            coVerify(exactly = 1) { cacheService.setFriends(any(), any()) }
+        }
+
+    }
+
+    @Nested
+    inner class SetPendingFriends {
+
+        @Test
+        fun `should set in supplier`() = runTest {
+            val slotUuid1 = slot<UUID>()
+            val slotFriends = slot<Set<UUID>>()
+
+            coEvery { cacheService.setPendingFriends(capture(slotUuid1), capture(slotFriends)) } returns true
+
+            val uuid1 = UUID.randomUUID()
+            val friends = List(5) { UUID.randomUUID() }.toSet()
+            assertTrue { cacheEntitySupplier.setPendingFriends(uuid1, friends) }
+            coVerify(exactly = 1) { cacheService.setPendingFriends(any(), any()) }
+
+            assertEquals(uuid1, slotUuid1.captured)
+            assertEquals(friends, slotFriends.captured)
+        }
+
+        @Test
+        fun `should return false when supplier returns false`() = runTest {
+            coEvery { cacheService.setPendingFriends(any(), any()) } returns false
+            assertFalse { cacheEntitySupplier.setPendingFriends(mockk(), mockk()) }
+            coVerify(exactly = 1) { cacheService.setPendingFriends(any(), any()) }
+        }
+
+        @Test
+        fun `should return true when supplier returns false`() = runTest {
+            coEvery { cacheService.setPendingFriends(any(), any()) } returns true
+            assertTrue { cacheEntitySupplier.setPendingFriends(mockk(), mockk()) }
+            coVerify(exactly = 1) { cacheService.setPendingFriends(any(), any()) }
+        }
+
+    }
+
+    @Nested
     inner class IsFriend {
 
         @Test
