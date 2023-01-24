@@ -11,17 +11,22 @@ import com.github.rushyverse.core.utils.getTTL
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisURI
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
+import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Timeout
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.util.concurrent.TimeUnit
 import kotlin.test.*
 import kotlin.time.Duration.Companion.seconds
 
+@Timeout(3, unit = TimeUnit.SECONDS)
 @Testcontainers
 class ProfileSkinCacheServiceTest {
 
@@ -104,6 +109,19 @@ class ProfileSkinCacheServiceTest {
     @Nested
     @DisplayName("Save")
     inner class Save {
+
+        @Test
+        fun `should define the key`() = runTest {
+            val profile = createProfileSkin()
+            val key = profile.id
+            service.save(profile)
+
+            cacheClient.connect {
+                val expectedKey =
+                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "${service.prefixKey}$key")
+                Assertions.assertThat(it.keys(expectedKey).toList()).hasSize(1)
+            }
+        }
 
         @Test
         fun `save identity with key not exists`() = runTest {

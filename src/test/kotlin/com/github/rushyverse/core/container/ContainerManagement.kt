@@ -7,4 +7,4 @@ fun createPSQLContainer(): PostgreSQLContainer<*> = PostgreSQLContainer("postgre
     .withUsername("test")
     .withPassword("test")
 
-fun createRedisContainer(): RedisContainer<*> = RedisContainer("redis:7.0.7")
+fun createRedisContainer(): RedisContainer<*> = RedisContainer("redis:7.0.8")

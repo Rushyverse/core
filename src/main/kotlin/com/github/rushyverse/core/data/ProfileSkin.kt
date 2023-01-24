@@ -36,7 +36,7 @@ public interface IProfileSkinCacheService : IProfileSkinService {
 
 /**
  * Cache service for [ProfileSkin].
- * @property client Cache client.
+ * @property cacheClient Cache client.
  * @property expirationKey Expiration time applied when a new relationship is set.
  * @property prefixKey Prefix key to identify the data in cache.
  */
@@ -48,13 +48,15 @@ public class ProfileSkinCacheService(
 
     override suspend fun getSkinById(id: String): ProfileSkin? {
         val key = encodeKey(id)
-        val dataSerial = client.connect { it.get(key) } ?: return null
+        val dataSerial = cacheClient.connect { it.get(key) } ?: return null
         return decodeFromByteArrayOrNull(ProfileSkin.serializer(), dataSerial)
     }
 
     override suspend fun save(profile: ProfileSkin) {
         val key = encodeKey(profile.id)
         val value = encodeToByteArray(ProfileSkin.serializer(), profile)
-        client.connect { setWithExpiration(it, key, value) }
+        cacheClient.connect {
+            setWithExpiration(it, key, value)
+        }
     }
 }

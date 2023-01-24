@@ -8,13 +8,69 @@ import kotlin.time.Duration
 
 /**
  * Service to encode and decode information with cache.
- * @property prefixKey Prefix key to identify the data in cache.
  */
 public abstract class AbstractCacheService(
-    public val client: CacheClient,
+    public val cacheClient: CacheClient,
     public val prefixKey: String,
-    public val expirationKey: Duration?
+    public val expirationKey: Duration? = null
 ) {
+
+    public companion object {
+        /**
+         * Default prefix key for user cache.
+         * When used, the key must be formatted using another string to put the user id.
+         */
+        public const val DEFAULT_PREFIX_KEY_USER_CACHE: String = "user:%s:"
+    }
+
+    /**
+     * Use [args] to format [prefixKey] before concatenating it with [key].
+     * The result will be the final key used to identify data in cache.
+     * @param key The key to use.
+     * @param args The arguments to use to format [prefixKey].
+     * @return [ByteArray] corresponding to the key using the [prefixKey] and [key].
+     */
+    protected open fun encodeFormatKey(key: String, vararg args: String): ByteArray {
+        return encodeToByteArray(
+            String.serializer(),
+            prefixKey.format(*args) + key
+        )
+    }
+
+    /**
+     * Create the key from a [String] value to identify data in cache.
+     * @param key Value using to create key.
+     * @return [ByteArray] corresponding to the key using the [prefixKey] and [key].
+     */
+    protected open fun encodeKey(key: String): ByteArray = encodeToByteArray(
+        String.serializer(),
+        prefixKey + key
+    )
+
+    /**
+     * Transform an instance to a [ByteArray] by encoding data using [binaryFormat][CacheClient.binaryFormat].
+     * @param value Value that will be serialized.
+     * @return Result of the serialization of [value].
+     */
+    protected open fun <T> encodeToByteArray(
+        serializer: SerializationStrategy<T>,
+        value: T
+    ): ByteArray = cacheClient.binaryFormat.encodeToByteArray(serializer, value)
+
+    /***
+     * Transform a [ByteArray] to a value by decoding data using [binaryFormat][CacheClient.binaryFormat].
+     * @param valueSerial Serialization of the value.
+     * @return The value from the [valueSerial] decoded.
+     */
+    protected open fun <T> decodeFromByteArrayOrNull(
+        deserializer: DeserializationStrategy<T>,
+        valueSerial: ByteArray
+    ): T? =
+        try {
+            cacheClient.binaryFormat.decodeFromByteArray(deserializer, valueSerial)
+        } catch (_: Exception) {
+            null
+        }
 
     /**
      * Set the value for the key.
@@ -34,39 +90,4 @@ public abstract class AbstractCacheService(
             connection.set(key, value)
         }
     }
-
-    /**
-     * Create the key from a [String] value to identify data in cache.
-     * @param key Value using to create key.
-     * @return [ByteArray] corresponding to the key using the [prefixKey] and [key].
-     */
-    protected fun encodeKey(key: String): ByteArray = encodeToByteArray(
-        String.serializer(),
-        "$prefixKey$key"
-    )
-
-    /**
-     * Transform an instance to a [ByteArray] by encoding data using [binaryFormat][CacheClient.binaryFormat].
-     * @param value Value that will be serialized.
-     * @return Result of the serialization of [value].
-     */
-    protected fun <T> encodeToByteArray(
-        serializer: SerializationStrategy<T>,
-        value: T
-    ): ByteArray = client.binaryFormat.encodeToByteArray(serializer, value)
-
-    /***
-     * Transform a [ByteArray] to a value by decoding data using [binaryFormat][CacheClient.binaryFormat].
-     * @param valueSerial Serialization of the value.
-     * @return The value from the [valueSerial] decoded.
-     */
-    protected fun <T> decodeFromByteArrayOrNull(
-        deserializer: DeserializationStrategy<T>,
-        valueSerial: ByteArray
-    ): T? =
-        try {
-            client.binaryFormat.decodeFromByteArray(deserializer, valueSerial)
-        } catch (_: Exception) {
-            null
-        }
 }

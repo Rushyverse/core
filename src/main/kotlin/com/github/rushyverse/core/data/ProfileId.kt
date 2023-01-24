@@ -36,7 +36,7 @@ public interface IProfileIdCacheService : IProfileIdService {
 
 /**
  * Cache service for [ProfileId].
- * @property client Cache client.
+ * @property cacheClient Cache client.
  * @property expirationKey Expiration time applied when a new relationship is set.
  * @property prefixKey Prefix key to identify the data in cache.
  */
@@ -48,7 +48,7 @@ public class ProfileIdCacheService(
 
     override suspend fun getIdByName(name: String): ProfileId? {
         val key = encodeKey(name)
-        val dataSerial = client.connect { it.get(key) } ?: return null
+        val dataSerial = cacheClient.connect { it.get(key) } ?: return null
         val uuid = decodeFromByteArrayOrNull(String.serializer(), dataSerial) ?: return null
         return ProfileId(id = uuid, name = name)
     }
@@ -56,6 +56,8 @@ public class ProfileIdCacheService(
     override suspend fun save(profile: ProfileId) {
         val key = encodeKey(profile.name)
         val value = encodeToByteArray(String.serializer(), profile.id)
-        client.connect { setWithExpiration(it, key, value) }
+        cacheClient.connect {
+            setWithExpiration(it, key, value)
+        }
     }
 }
