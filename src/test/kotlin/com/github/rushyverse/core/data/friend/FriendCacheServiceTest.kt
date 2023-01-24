@@ -13,7 +13,6 @@ import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
