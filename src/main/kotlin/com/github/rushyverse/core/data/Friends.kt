@@ -288,9 +288,9 @@ public class FriendCacheService(
 
         val size = friends.size
         val key = encodeFormatKey(type.key, uuid.toString())
-        val friends = friends.asSequence().map { encodeToByteArray(UUIDSerializer, it) }.toTypedArray(size)
+        val friendsSerialized = friends.asSequence().map { encodeToByteArray(UUIDSerializer, it) }.toTypedArray(size)
 
-        val result = connection.sadd(key, *friends)
+        val result = connection.sadd(key, *friendsSerialized)
         return result != null && result > 0
     }
 
@@ -329,12 +329,12 @@ public class FriendCacheService(
         removed: Type
     ): Flow<UUID> {
         return cacheClient.connect { connection ->
-            val removed = getAll(connection, uuid, removed).toSet()
+            val removedFriend = getAll(connection, uuid, removed).toSet()
 
             listOf(getAll(connection, uuid, list), getAll(connection, uuid, added))
                 .merge()
                 .distinctUntilChanged()
-                .filter { it !in removed }
+                .filter { it !in removedFriend }
         }
     }
 
