@@ -1,6 +1,7 @@
 package com.github.rushyverse.core.data.friend
 
 import com.github.rushyverse.core.data.FriendService
+import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.utils.getRandomString
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -22,6 +23,18 @@ class FriendServiceTest {
     @BeforeTest
     fun onBefore() {
         service = FriendService(mockk(getRandomString()))
+    }
+
+    @Test
+    fun `should create a new instance with another strategy`() {
+        val strategy = mockk<IDatabaseEntitySupplier>(getRandomString())
+        val service = FriendService(strategy)
+        assertEquals(strategy, service.supplier)
+
+        val strategy2 = mockk<IDatabaseEntitySupplier>(getRandomString())
+        val service2 = service.withStrategy(strategy2)
+        assertEquals(strategy2, service2.supplier)
+
     }
 
     @Nested
