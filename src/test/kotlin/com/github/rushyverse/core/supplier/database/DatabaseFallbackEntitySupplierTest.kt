@@ -50,6 +50,30 @@ class DatabaseFallbackEntitySupplierTest {
     }
 
     @Nested
+    inner class AddPendingFriend {
+
+        @Test
+        fun `should invoke setPriority supplier first and not getPriority`() = runTest {
+            val id = UUID.randomUUID()
+            val friend = UUID.randomUUID()
+            coEvery { setPrioritySupplier.addPendingFriend(id, friend) } returns false
+            coEvery { getPrioritySupplier.addPendingFriend(id, friend) } returns false
+
+            assertFalse(fallbackEntitySupplier.addPendingFriend(id, friend))
+            coVerify(exactly = 1) { setPrioritySupplier.addPendingFriend(id, friend) }
+            coVerify(exactly = 0) { getPrioritySupplier.addPendingFriend(id, friend) }
+
+            coEvery { setPrioritySupplier.addPendingFriend(id, friend) } returns true
+            coEvery { getPrioritySupplier.addPendingFriend(id, friend) } returns false
+
+            assertTrue(fallbackEntitySupplier.addPendingFriend(id, friend))
+            coVerify(exactly = 2) { setPrioritySupplier.addPendingFriend(id, friend) }
+            coVerify(exactly = 0) { getPrioritySupplier.addPendingFriend(id, friend) }
+        }
+
+    }
+
+    @Nested
     inner class RemoveFriend {
 
         @Test
@@ -69,6 +93,30 @@ class DatabaseFallbackEntitySupplierTest {
             assertTrue(fallbackEntitySupplier.removeFriend(id, friend))
             coVerify(exactly = 2) { setPrioritySupplier.removeFriend(id, friend) }
             coVerify(exactly = 0) { getPrioritySupplier.removeFriend(id, friend) }
+        }
+
+    }
+
+    @Nested
+    inner class RemovePendingFriend {
+
+        @Test
+        fun `should invoke setPriority supplier first and not getPriority`() = runTest {
+            val id = UUID.randomUUID()
+            val friend = UUID.randomUUID()
+            coEvery { setPrioritySupplier.removePendingFriend(id, friend) } returns false
+            coEvery { getPrioritySupplier.removePendingFriend(id, friend) } returns false
+
+            assertFalse(fallbackEntitySupplier.removePendingFriend(id, friend))
+            coVerify(exactly = 1) { setPrioritySupplier.removePendingFriend(id, friend) }
+            coVerify(exactly = 0) { getPrioritySupplier.removePendingFriend(id, friend) }
+
+            coEvery { setPrioritySupplier.removePendingFriend(id, friend) } returns true
+            coEvery { getPrioritySupplier.removePendingFriend(id, friend) } returns false
+
+            assertTrue(fallbackEntitySupplier.removePendingFriend(id, friend))
+            coVerify(exactly = 2) { setPrioritySupplier.removePendingFriend(id, friend) }
+            coVerify(exactly = 0) { getPrioritySupplier.removePendingFriend(id, friend) }
         }
 
     }
@@ -97,6 +145,33 @@ class DatabaseFallbackEntitySupplierTest {
             assertEquals(emptyList(), fallbackEntitySupplier.getFriends(id).toList())
             coVerify(exactly = 1) { setPrioritySupplier.getFriends(id) }
             coVerify(exactly = 1) { getPrioritySupplier.getFriends(id) }
+        }
+    }
+
+    @Nested
+    inner class GetPendingFriends {
+
+        @Test
+        fun `should invoke getPriority supplier first and not setPriority if list is not empty`() = runTest {
+            val id = UUID.randomUUID()
+            val returnedList = listOf(UUID.randomUUID())
+            coEvery { setPrioritySupplier.getPendingFriends(id) } returns emptyFlow()
+            coEvery { getPrioritySupplier.getPendingFriends(id) } returns returnedList.asFlow()
+
+            assertEquals(returnedList, fallbackEntitySupplier.getPendingFriends(id).toList())
+            coVerify(exactly = 0) { setPrioritySupplier.getPendingFriends(id) }
+            coVerify(exactly = 1) { getPrioritySupplier.getPendingFriends(id) }
+        }
+
+        @Test
+        fun `should invoke getPriority supplier first and setPriority if list is empty`() = runTest {
+            val id = UUID.randomUUID()
+            coEvery { setPrioritySupplier.getPendingFriends(id) } returns emptyFlow()
+            coEvery { getPrioritySupplier.getPendingFriends(id) } returns emptyFlow()
+
+            assertEquals(emptyList(), fallbackEntitySupplier.getPendingFriends(id).toList())
+            coVerify(exactly = 1) { setPrioritySupplier.getPendingFriends(id) }
+            coVerify(exactly = 1) { getPrioritySupplier.getPendingFriends(id) }
         }
     }
 
@@ -145,6 +220,55 @@ class DatabaseFallbackEntitySupplierTest {
             coEvery { getPrioritySupplier.isFriend(id, friend) } returns false
 
             assertFalse(fallbackEntitySupplier.isFriend(id, friend))
+        }
+
+    }
+
+    @Nested
+    inner class IsPendingFriend {
+
+        @Test
+        fun `should invoke getPriority supplier first and setPriority if return false`() = runTest {
+            val id = UUID.randomUUID()
+            val friend = UUID.randomUUID()
+            coEvery { setPrioritySupplier.isPendingFriend(id, friend) } returns false
+            coEvery { getPrioritySupplier.isPendingFriend(id, friend) } returns false
+
+            assertFalse(fallbackEntitySupplier.isPendingFriend(id, friend))
+            coVerify(exactly = 1) { setPrioritySupplier.isPendingFriend(id, friend) }
+            coVerify(exactly = 1) { getPrioritySupplier.isPendingFriend(id, friend) }
+        }
+
+        @Test
+        fun `should invoke getPriority supplier first and not setPriority if return true`() = runTest {
+            val id = UUID.randomUUID()
+            val friend = UUID.randomUUID()
+            coEvery { setPrioritySupplier.isPendingFriend(id, friend) } returns false
+            coEvery { getPrioritySupplier.isPendingFriend(id, friend) } returns true
+
+            assertTrue(fallbackEntitySupplier.isPendingFriend(id, friend))
+            coVerify(exactly = 0) { setPrioritySupplier.isPendingFriend(id, friend) }
+            coVerify(exactly = 1) { getPrioritySupplier.isPendingFriend(id, friend) }
+        }
+
+        @Test
+        fun `should return true if one of the supplier returns true`() = runTest {
+            val id = UUID.randomUUID()
+            val friend = UUID.randomUUID()
+            coEvery { setPrioritySupplier.isPendingFriend(id, friend) } returns false
+            coEvery { getPrioritySupplier.isPendingFriend(id, friend) } returns true
+
+            assertTrue(fallbackEntitySupplier.isPendingFriend(id, friend))
+
+            coEvery { setPrioritySupplier.isPendingFriend(id, friend) } returns true
+            coEvery { getPrioritySupplier.isPendingFriend(id, friend) } returns false
+
+            assertTrue(fallbackEntitySupplier.isPendingFriend(id, friend))
+
+            coEvery { setPrioritySupplier.isPendingFriend(id, friend) } returns false
+            coEvery { getPrioritySupplier.isPendingFriend(id, friend) } returns false
+
+            assertFalse(fallbackEntitySupplier.isPendingFriend(id, friend))
         }
 
     }

@@ -28,7 +28,7 @@ class FriendServiceTest {
     inner class AddFriend {
 
         @Test
-        fun `should add friend in supplier`() = runTest {
+        fun `should add in supplier`() = runTest {
             val slotUuid1 = slot<UUID>()
             val slotUuid2 = slot<UUID>()
 
@@ -62,7 +62,7 @@ class FriendServiceTest {
     inner class AddPendingFriend {
 
         @Test
-        fun `should add pending friend in supplier`() = runTest {
+        fun `should add in supplier`() = runTest {
             val slotUuid1 = slot<UUID>()
             val slotUuid2 = slot<UUID>()
 
@@ -96,7 +96,7 @@ class FriendServiceTest {
     inner class RemoveFriend {
 
         @Test
-        fun `should remove friend in supplier`() = runTest {
+        fun `should remove in supplier`() = runTest {
             val slotUuid1 = slot<UUID>()
             val slotUuid2 = slot<UUID>()
 
@@ -130,7 +130,7 @@ class FriendServiceTest {
     inner class RemovePendingFriend {
 
         @Test
-        fun `should remove friend in supplier`() = runTest {
+        fun `should remove in supplier`() = runTest {
             val slotUuid1 = slot<UUID>()
             val slotUuid2 = slot<UUID>()
 
@@ -164,7 +164,7 @@ class FriendServiceTest {
     inner class GetFriends {
 
         @Test
-        fun `should get friends in supplier`() = runTest {
+        fun `should get in supplier`() = runTest {
             val slotUuid = slot<UUID>()
 
             coEvery { supplier.getFriends(capture(slotUuid)) } returns emptyFlow()
@@ -197,7 +197,7 @@ class FriendServiceTest {
     inner class GetPendingFriends {
 
         @Test
-        fun `should get pending friends in supplier`() = runTest {
+        fun `should get in supplier`() = runTest {
             val slotUuid = slot<UUID>()
 
             coEvery { supplier.getPendingFriends(capture(slotUuid)) } returns emptyFlow()
@@ -230,7 +230,7 @@ class FriendServiceTest {
     inner class IsFriend {
 
         @Test
-        fun `should is friend in supplier`() = runTest {
+        fun `should is in supplier`() = runTest {
             val slotUuid1 = slot<UUID>()
             val slotUuid2 = slot<UUID>()
 
@@ -264,7 +264,7 @@ class FriendServiceTest {
     inner class IsPendingFriend {
 
         @Test
-        fun `should is pending friend in supplier`() = runTest {
+        fun `should is in supplier`() = runTest {
             val slotUuid1 = slot<UUID>()
             val slotUuid2 = slot<UUID>()
 

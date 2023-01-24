@@ -28,7 +28,7 @@ class DatabaseEntitySupplierTest {
     inner class AddFriend {
 
         @Test
-        fun `should add friend in supplier`() = runTest {
+        fun `should add in supplier`() = runTest {
             val slotUuid1 = slot<UUID>()
             val slotUuid2 = slot<UUID>()
 
@@ -55,6 +55,40 @@ class DatabaseEntitySupplierTest {
             coEvery { service.addFriend(any(), any()) } returns true
             assertTrue { databaseEntitySupplier.addFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { service.addFriend(any(), any()) }
+        }
+    }
+
+    @Nested
+    inner class AddPendingFriend {
+
+        @Test
+        fun `should add in supplier`() = runTest {
+            val slotUuid1 = slot<UUID>()
+            val slotUuid2 = slot<UUID>()
+
+            coEvery { service.addPendingFriend(capture(slotUuid1), capture(slotUuid2)) } returns true
+
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            assertTrue { databaseEntitySupplier.addPendingFriend(uuid1, uuid2) }
+            coVerify(exactly = 1) { service.addPendingFriend(any(), any()) }
+
+            assertEquals(uuid1, slotUuid1.captured)
+            assertEquals(uuid2, slotUuid2.captured)
+        }
+
+        @Test
+        fun `should return false when supplier returns false`() = runTest {
+            coEvery { service.addPendingFriend(any(), any()) } returns false
+            assertFalse { databaseEntitySupplier.addPendingFriend(mockk(), mockk()) }
+            coVerify(exactly = 1) { service.addPendingFriend(any(), any()) }
+        }
+
+        @Test
+        fun `should return true when supplier returns false`() = runTest {
+            coEvery { service.addPendingFriend(any(), any()) } returns true
+            assertTrue { databaseEntitySupplier.addPendingFriend(mockk(), mockk()) }
+            coVerify(exactly = 1) { service.addPendingFriend(any(), any()) }
         }
     }
 
@@ -93,6 +127,40 @@ class DatabaseEntitySupplierTest {
     }
 
     @Nested
+    inner class RemovePendingFriend {
+
+        @Test
+        fun `should remove in supplier`() = runTest {
+            val slotUuid1 = slot<UUID>()
+            val slotUuid2 = slot<UUID>()
+
+            coEvery { service.removePendingFriend(capture(slotUuid1), capture(slotUuid2)) } returns true
+
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            assertTrue { databaseEntitySupplier.removePendingFriend(uuid1, uuid2) }
+            coVerify(exactly = 1) { service.removePendingFriend(any(), any()) }
+
+            assertEquals(uuid1, slotUuid1.captured)
+            assertEquals(uuid2, slotUuid2.captured)
+        }
+
+        @Test
+        fun `should return false when supplier returns false`() = runTest {
+            coEvery { service.removePendingFriend(any(), any()) } returns false
+            assertFalse { databaseEntitySupplier.removePendingFriend(mockk(), mockk()) }
+            coVerify(exactly = 1) { service.removePendingFriend(any(), any()) }
+        }
+
+        @Test
+        fun `should return true when supplier returns false`() = runTest {
+            coEvery { service.removePendingFriend(any(), any()) } returns true
+            assertTrue { databaseEntitySupplier.removePendingFriend(mockk(), mockk()) }
+            coVerify(exactly = 1) { service.removePendingFriend(any(), any()) }
+        }
+    }
+
+    @Nested
     inner class GetFriends {
 
         @Test
@@ -126,10 +194,43 @@ class DatabaseEntitySupplierTest {
     }
 
     @Nested
+    inner class GetPendingFriends {
+
+        @Test
+        fun `should get in supplier`() = runTest {
+            val slotUuid = slot<UUID>()
+
+            coEvery { service.getPendingFriends(capture(slotUuid)) } returns emptyFlow()
+
+            val uuid1 = UUID.randomUUID()
+            assertEquals(emptyList(), databaseEntitySupplier.getPendingFriends(uuid1).toList())
+            coVerify(exactly = 1) { service.getPendingFriends(any()) }
+
+            assertEquals(uuid1, slotUuid.captured)
+        }
+
+        @Test
+        fun `should return empty collection when supplier returns empty collection`() = runTest {
+            coEvery { service.getPendingFriends(any()) } returns emptyFlow()
+            assertEquals(emptyList(), databaseEntitySupplier.getPendingFriends(mockk()).toList())
+            coVerify(exactly = 1) { service.getPendingFriends(any()) }
+        }
+
+        @Test
+        fun `should return not empty collection when supplier returns not empty collection`() = runTest {
+            val expected = List(5) { UUID.randomUUID() }
+            coEvery { service.getPendingFriends(any()) } returns expected.asFlow()
+            assertEquals(expected, databaseEntitySupplier.getPendingFriends(mockk()).toList())
+            coVerify(exactly = 1) { service.getPendingFriends(any()) }
+        }
+
+    }
+
+    @Nested
     inner class IsFriend {
 
         @Test
-        fun `should is friend in supplier`() = runTest {
+        fun `should is in supplier`() = runTest {
             val slotUuid1 = slot<UUID>()
             val slotUuid2 = slot<UUID>()
 
@@ -156,6 +257,40 @@ class DatabaseEntitySupplierTest {
             coEvery { service.isFriend(any(), any()) } returns true
             assertTrue { databaseEntitySupplier.isFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { service.isFriend(any(), any()) }
+        }
+    }
+
+    @Nested
+    inner class IsPendingFriend {
+
+        @Test
+        fun `should is in supplier`() = runTest {
+            val slotUuid1 = slot<UUID>()
+            val slotUuid2 = slot<UUID>()
+
+            coEvery { service.isPendingFriend(capture(slotUuid1), capture(slotUuid2)) } returns true
+
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            assertTrue { databaseEntitySupplier.isPendingFriend(uuid1, uuid2) }
+            coVerify(exactly = 1) { service.isPendingFriend(any(), any()) }
+
+            assertEquals(uuid1, slotUuid1.captured)
+            assertEquals(uuid2, slotUuid2.captured)
+        }
+
+        @Test
+        fun `should return false when supplier returns false`() = runTest {
+            coEvery { service.isPendingFriend(any(), any()) } returns false
+            assertFalse { databaseEntitySupplier.isPendingFriend(mockk(), mockk()) }
+            coVerify(exactly = 1) { service.isPendingFriend(any(), any()) }
+        }
+
+        @Test
+        fun `should return true when supplier returns false`() = runTest {
+            coEvery { service.isPendingFriend(any(), any()) } returns true
+            assertTrue { databaseEntitySupplier.isPendingFriend(mockk(), mockk()) }
+            coVerify(exactly = 1) { service.isPendingFriend(any(), any()) }
         }
     }
 
