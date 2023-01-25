@@ -206,7 +206,7 @@ public class FriendCacheService(
          * @param services Services to manage the friendship relationship.
          * @return `true` if at least one relationship was added or removed successfully, `false` otherwise.
          */
-        public suspend fun userCacheToDatabase(uuid: UUID, services: DatabaseSupplierServices): Boolean {
+        public suspend fun cacheToDatabase(uuid: UUID, services: DatabaseSupplierServices): Boolean {
             val cache = IDatabaseEntitySupplier.cache(services)
             val database = IDatabaseEntitySupplier.database(services)
 

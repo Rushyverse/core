@@ -90,7 +90,7 @@ class FriendCacheServiceTest {
             coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_FRIEND) } returns emptyFlow()
             coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_FRIEND) } returns emptyFlow()
 
-            assertFalse(FriendCacheService.userCacheToDatabase(uuid, configuration))
+            assertFalse(FriendCacheService.cacheToDatabase(uuid, configuration))
         }
 
         @Test
@@ -104,12 +104,105 @@ class FriendCacheServiceTest {
             coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_FRIEND) } returns emptyFlow()
 
             coEvery { databaseService.addFriends(uuid, friends) } returns true
-            assertTrue(FriendCacheService.userCacheToDatabase(uuid, configuration))
+            assertTrue(FriendCacheService.cacheToDatabase(uuid, configuration))
             coVerify(exactly = 1) { databaseService.addFriends(uuid, friends) }
 
             coEvery { databaseService.addFriends(uuid, friends) } returns false
-            assertFalse(FriendCacheService.userCacheToDatabase(uuid, configuration))
+            assertFalse(FriendCacheService.cacheToDatabase(uuid, configuration))
             coVerify(exactly = 2) { databaseService.addFriends(uuid, friends) }
+        }
+
+        @Test
+        fun `should returns result of adding database when remove friend is not empty`() = runTest {
+            val uuid = UUID.randomUUID()
+            val friends = List(10) { UUID.randomUUID() }
+
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_PENDING_FRIEND) } returns emptyFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_PENDING_FRIEND) } returns emptyFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_FRIEND) } returns emptyFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_FRIEND) } returns friends.asFlow()
+
+            coEvery { databaseService.removeFriends(uuid, friends) } returns true
+            assertTrue(FriendCacheService.cacheToDatabase(uuid, configuration))
+            coVerify(exactly = 1) { databaseService.removeFriends(uuid, friends) }
+
+            coEvery { databaseService.removeFriends(uuid, friends) } returns false
+            assertFalse(FriendCacheService.cacheToDatabase(uuid, configuration))
+            coVerify(exactly = 2) { databaseService.removeFriends(uuid, friends) }
+        }
+
+        @Test
+        fun `should returns result of adding database when add pending friend is not empty`() = runTest {
+            val uuid = UUID.randomUUID()
+            val friends = List(10) { UUID.randomUUID() }
+
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_PENDING_FRIEND) } returns friends.asFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_PENDING_FRIEND) } returns emptyFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_FRIEND) } returns emptyFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_FRIEND) } returns emptyFlow()
+
+            coEvery { databaseService.addPendingFriends(uuid, friends) } returns true
+            assertTrue(FriendCacheService.cacheToDatabase(uuid, configuration))
+            coVerify(exactly = 1) { databaseService.addPendingFriends(uuid, friends) }
+
+            coEvery { databaseService.addPendingFriends(uuid, friends) } returns false
+            assertFalse(FriendCacheService.cacheToDatabase(uuid, configuration))
+            coVerify(exactly = 2) { databaseService.addPendingFriends(uuid, friends) }
+        }
+
+        @Test
+        fun `should returns result of adding database when remove pending friend is not empty`() = runTest {
+            val uuid = UUID.randomUUID()
+            val friends = List(10) { UUID.randomUUID() }
+
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_PENDING_FRIEND) } returns emptyFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_PENDING_FRIEND) } returns friends.asFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_FRIEND) } returns emptyFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_FRIEND) } returns emptyFlow()
+
+            coEvery { databaseService.removePendingFriends(uuid, friends) } returns true
+            assertTrue(FriendCacheService.cacheToDatabase(uuid, configuration))
+            coVerify(exactly = 1) { databaseService.removePendingFriends(uuid, friends) }
+
+            coEvery { databaseService.removePendingFriends(uuid, friends) } returns false
+            assertFalse(FriendCacheService.cacheToDatabase(uuid, configuration))
+            coVerify(exactly = 2) { databaseService.removePendingFriends(uuid, friends) }
+        }
+
+        @Test
+        fun `should returns true when all data in cache is defined`() = runTest {
+            val uuid = UUID.randomUUID()
+            val add = List(10) { UUID.randomUUID() }
+            val remove = List(10) { UUID.randomUUID() }
+            val addPending = List(10) { UUID.randomUUID() }
+            val removePending = List(10) { UUID.randomUUID() }
+
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_PENDING_FRIEND) } returns addPending.asFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_PENDING_FRIEND) } returns removePending.asFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_FRIEND) } returns add.asFlow()
+            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_FRIEND) } returns remove.asFlow()
+
+            coEvery { databaseService.addFriends(uuid, add) } returns true
+            coEvery { databaseService.removeFriends(uuid, remove) } returns true
+            coEvery { databaseService.removePendingFriends(uuid, removePending) } returns true
+            coEvery { databaseService.addPendingFriends(uuid, addPending) } returns true
+
+            assertTrue(FriendCacheService.cacheToDatabase(uuid, configuration))
+            coVerify(exactly = 1) { databaseService.addFriends(uuid, add) }
+            coVerify(exactly = 1) { databaseService.removeFriends(uuid, remove) }
+            coVerify(exactly = 1) { databaseService.removePendingFriends(uuid, removePending) }
+            coVerify(exactly = 1) { databaseService.addPendingFriends(uuid, addPending) }
+
+            coEvery { databaseService.addFriends(uuid, add) } returns false
+            coEvery { databaseService.removeFriends(uuid, remove) } returns false
+            coEvery { databaseService.removePendingFriends(uuid, removePending) } returns false
+            coEvery { databaseService.addPendingFriends(uuid, addPending) } returns false
+
+            assertFalse(FriendCacheService.cacheToDatabase(uuid, configuration))
+            coVerify(exactly = 2) { databaseService.addFriends(uuid, add) }
+            coVerify(exactly = 2) { databaseService.removeFriends(uuid, remove) }
+            coVerify(exactly = 2) { databaseService.removePendingFriends(uuid, removePending) }
+            coVerify(exactly = 2) { databaseService.addPendingFriends(uuid, addPending) }
         }
     }
 
