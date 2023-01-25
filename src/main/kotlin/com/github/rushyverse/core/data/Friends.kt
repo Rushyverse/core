@@ -21,6 +21,7 @@ import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.expression.WhereDeclaration
 import org.komapper.core.dsl.operator.and
 import org.komapper.core.dsl.operator.or
+import org.komapper.core.dsl.query.dryRun
 import org.komapper.core.dsl.query.where
 import org.komapper.r2dbc.R2dbcDatabase
 import java.util.*
@@ -210,7 +211,10 @@ public class FriendCacheService(
             val cache = IDatabaseEntitySupplier.cache(services)
             val database = IDatabaseEntitySupplier.database(services)
 
-            suspend fun saveInDatabaseIfNotEmpty(flow: Flow<UUID>, save: suspend (UUID, List<UUID>) -> Boolean): Boolean {
+            suspend fun saveInDatabaseIfNotEmpty(
+                flow: Flow<UUID>,
+                save: suspend (UUID, List<UUID>) -> Boolean
+            ): Boolean {
                 val list = flow.toList()
                 return list.isNotEmpty() && save(uuid, list)
             }
@@ -222,7 +226,10 @@ public class FriendCacheService(
                         saveInDatabaseIfNotEmpty(cache.getAll(uuid, Type.REMOVE_FRIEND), database::removeFriends)
                     },
                     async {
-                        saveInDatabaseIfNotEmpty(cache.getAll(uuid, Type.ADD_PENDING_FRIEND), database::addPendingFriends)
+                        saveInDatabaseIfNotEmpty(
+                            cache.getAll(uuid, Type.ADD_PENDING_FRIEND),
+                            database::addPendingFriends
+                        )
                     },
                     async {
                         saveInDatabaseIfNotEmpty(
@@ -541,6 +548,8 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      * @return Always return `true`.
      */
     private suspend fun addAll(uuid: UUID, friendIds: List<UUID>, pending: Boolean): Boolean {
+        if (friendIds.isEmpty()) return true
+
         val friendEntities = friendIds.map { Friends(uuid, it, pending) }
         val query = QueryDsl.insert(friends).multiple(friendEntities)
         database.runQuery(query)
@@ -568,12 +577,21 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      * @return `true` if the relationship was removed, `false` otherwise.
      */
     private suspend fun removeAll(uuid: UUID, friendIds: List<UUID>, pending: Boolean): Boolean {
-        val where = friendIds.asSequence()
-            .map { createWhereBidirectional(uuid, it) }
-            .reduce { acc, where -> acc.or(where) }
-            .and { createWherePending(pending) }
+        if (friendIds.isEmpty()) return true
+
+        val where = createWherePending(pending).and(where {
+            or {
+                friends.uuid1 eq uuid
+                and { friends.uuid2 inList friendIds }
+                or {
+                    friends.uuid2 eq uuid
+                    and { friends.uuid1 inList friendIds }
+                }
+            }
+        })
 
         val query = QueryDsl.delete(friends).where(where)
+        println(query.dryRun())
         return database.runQuery(query) > 0
     }
 
