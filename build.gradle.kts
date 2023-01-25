@@ -92,6 +92,7 @@ kotlin {
                 optIn("kotlin.ExperimentalStdlibApi")
                 optIn("kotlin.contracts.ExperimentalContracts")
                 optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
+                optIn("io.lettuce.core.ExperimentalLettuceCoroutinesApi")
             }
         }
     }
