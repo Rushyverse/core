@@ -1,9 +1,6 @@
-@file:OptIn(ExperimentalLettuceCoroutinesApi::class)
-
 package com.github.rushyverse.core.cache
 
 import com.github.rushyverse.core.container.createRedisContainer
-import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisURI
 import io.lettuce.core.api.StatefulRedisConnection

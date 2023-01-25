@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalLettuceCoroutinesApi::class, ExperimentalLettuceCoroutinesApi::class)
+@file:OptIn(ExperimentalLettuceCoroutinesApi::class)
 
 package com.github.rushyverse.core.data
 
