@@ -21,7 +21,6 @@ import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.expression.WhereDeclaration
 import org.komapper.core.dsl.operator.and
 import org.komapper.core.dsl.operator.or
-import org.komapper.core.dsl.query.dryRun
 import org.komapper.core.dsl.query.where
 import org.komapper.r2dbc.R2dbcDatabase
 import java.util.*
@@ -579,19 +578,16 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
     private suspend fun removeAll(uuid: UUID, friendIds: List<UUID>, pending: Boolean): Boolean {
         if (friendIds.isEmpty()) return true
 
-        val where = createWherePending(pending).and(where {
+        val where = createWherePending(pending).and {
+            friends.uuid1 eq uuid
+            and { friends.uuid2 inList friendIds }
             or {
-                friends.uuid1 eq uuid
-                and { friends.uuid2 inList friendIds }
-                or {
-                    friends.uuid2 eq uuid
-                    and { friends.uuid1 inList friendIds }
-                }
+                friends.uuid2 eq uuid
+                and { friends.uuid1 inList friendIds }
             }
-        })
+        }
 
         val query = QueryDsl.delete(friends).where(where)
-        println(query.dryRun())
         return database.runQuery(query) > 0
     }
 
