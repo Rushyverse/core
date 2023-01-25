@@ -466,16 +466,23 @@ class FriendDatabaseServiceTest {
         fun `should not remove pending relationship`() = runTest {
             val uuid1 = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
             val friends = List(10) { UUID.randomUUID() }
 
             assertTrue { service.addPendingFriend(uuid1, uuid2) }
+            assertTrue { service.addPendingFriend(uuid2, uuid1) }
+            assertTrue { service.addPendingFriend(uuid1, uuid3) }
+            assertTrue { service.addPendingFriend(uuid3, uuid1) }
             assertTrue { service.addFriends(uuid1, friends) }
             assertTrue { service.addFriend(uuid1, uuid2) }
 
             assertTrue { service.removeFriends(uuid1, friends + uuid2) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, true, 1)
+                Friends(uuid1, uuid2, true, 1),
+                Friends(uuid2, uuid1, true, 2),
+                Friends(uuid1, uuid3, true, 3),
+                Friends(uuid3, uuid1, true, 4)
             )
         }
 
