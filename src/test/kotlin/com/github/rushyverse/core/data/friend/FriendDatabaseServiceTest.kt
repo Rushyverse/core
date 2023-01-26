@@ -2,8 +2,8 @@ package com.github.rushyverse.core.data.friend
 
 import com.github.rushyverse.core.container.createPSQLContainer
 import com.github.rushyverse.core.data.FriendDatabaseService
-import com.github.rushyverse.core.data.Friends
-import com.github.rushyverse.core.data._Friends.Companion.friends
+import com.github.rushyverse.core.data.Friend
+import com.github.rushyverse.core.data._Friend
 import io.r2dbc.spi.ConnectionFactoryOptions
 import io.r2dbc.spi.Option
 import kotlinx.coroutines.flow.toList
@@ -46,14 +46,13 @@ class FriendDatabaseServiceTest {
 
         database = R2dbcDatabase(options)
 
-        database.runQuery(QueryDsl.create(friends))
-
+        Friend.createTable(database)
         service = FriendDatabaseService(database)
     }
 
     @AfterTest
     fun onAfter() = runBlocking {
-        database.runQuery(QueryDsl.drop(friends))
+        database.runQuery(QueryDsl.drop(_Friend.friend))
     }
 
     @Nested
@@ -66,11 +65,12 @@ class FriendDatabaseServiceTest {
             val uuid3 = UUID.randomUUID()
 
             assertTrue { service.addFriend(uuid1, uuid2) }
+            assertFalse { service.addFriend(uuid2, uuid1) }
             assertTrue { service.addFriend(uuid1, uuid3) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, false, 1),
-                Friends(uuid1, uuid3, false, 2)
+                Friend(uuid1, uuid2, false),
+                Friend(uuid1, uuid3, false)
             )
         }
 
@@ -82,7 +82,7 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addFriend(uuid1, uuid2) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, false, 1),
+                Friend(uuid1, uuid2, false),
             )
         }
 
@@ -95,8 +95,8 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addFriend(uuid1, uuid2) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, false, 1),
-                Friends(uuid1, uuid2, false, 2)
+                Friend(uuid1, uuid2, false),
+                Friend(uuid1, uuid2, false)
             )
         }
 
@@ -109,8 +109,8 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addFriend(uuid2, uuid1) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, false, 1),
-                Friends(uuid2, uuid1, false, 2)
+                Friend(uuid1, uuid2, false),
+                Friend(uuid2, uuid1, false)
             )
         }
 
@@ -136,7 +136,7 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addFriends(uuid1, listOf(uuid2)) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, false, 1)
+                Friend(uuid1, uuid2, false)
             )
         }
 
@@ -149,8 +149,8 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addFriends(uuid1, listOf(uuid2, uuid3)) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, false, 1),
-                Friends(uuid1, uuid3, false, 2)
+                Friend(uuid1, uuid2, false),
+                Friend(uuid1, uuid3, false)
             )
         }
 
@@ -162,8 +162,8 @@ class FriendDatabaseServiceTest {
             repeat(2) { assertTrue { service.addFriends(uuid1, listOf(uuid2)) } }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, false, 1),
-                Friends(uuid1, uuid2, false, 2)
+                Friend(uuid1, uuid2, false),
+                Friend(uuid1, uuid2, false)
             )
         }
 
@@ -176,8 +176,8 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addFriends(uuid2, listOf(uuid1)) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, false, 1),
-                Friends(uuid2, uuid1, false, 2)
+                Friend(uuid1, uuid2, false),
+                Friend(uuid2, uuid1, false)
             )
         }
 
@@ -196,8 +196,8 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addPendingFriend(uuid1, uuid3) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, true, 1),
-                Friends(uuid1, uuid3, true, 2)
+                Friend(uuid1, uuid2, true),
+                Friend(uuid1, uuid3, true)
             )
         }
 
@@ -209,7 +209,7 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addPendingFriend(uuid1, uuid2) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, true, 1),
+                Friend(uuid1, uuid2, true),
             )
         }
 
@@ -222,8 +222,8 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addPendingFriend(uuid1, uuid2) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, true, 1),
-                Friends(uuid1, uuid2, true, 2)
+                Friend(uuid1, uuid2, true),
+                Friend(uuid1, uuid2, true)
             )
         }
 
@@ -236,8 +236,8 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addPendingFriend(uuid2, uuid1) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, true, 1),
-                Friends(uuid2, uuid1, true, 2)
+                Friend(uuid1, uuid2, true),
+                Friend(uuid2, uuid1, true)
             )
         }
 
@@ -263,7 +263,7 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addPendingFriends(uuid1, listOf(uuid2)) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, true, 1)
+                Friend(uuid1, uuid2, true)
             )
         }
 
@@ -276,8 +276,8 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addPendingFriends(uuid1, listOf(uuid2, uuid3)) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, true, 1),
-                Friends(uuid1, uuid3, true, 2)
+                Friend(uuid1, uuid2, true),
+                Friend(uuid1, uuid3, true)
             )
         }
 
@@ -289,8 +289,8 @@ class FriendDatabaseServiceTest {
             repeat(2) { assertTrue { service.addPendingFriends(uuid1, listOf(uuid2)) } }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, true, 1),
-                Friends(uuid1, uuid2, true, 2)
+                Friend(uuid1, uuid2, true),
+                Friend(uuid1, uuid2, true)
             )
         }
 
@@ -303,8 +303,8 @@ class FriendDatabaseServiceTest {
             assertTrue { service.addPendingFriends(uuid2, listOf(uuid1)) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, true, 1),
-                Friends(uuid2, uuid1, true, 2)
+                Friend(uuid1, uuid2, true),
+                Friend(uuid2, uuid1, true)
             )
         }
 
@@ -365,7 +365,7 @@ class FriendDatabaseServiceTest {
             assertFalse { service.removeFriend(uuid1, uuid2) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, true, 1)
+                Friend(uuid1, uuid2, true)
             )
         }
 
@@ -384,7 +384,7 @@ class FriendDatabaseServiceTest {
             assertTrue { service.removeFriends(uuid1, emptyList()) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, false, 1)
+                Friend(uuid1, uuid2, false)
             )
         }
 
@@ -424,7 +424,7 @@ class FriendDatabaseServiceTest {
             assertTrue { service.removeFriends(uuid1, friends) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, false, 11)
+                Friend(uuid1, uuid2, false)
             )
         }
 
@@ -479,10 +479,10 @@ class FriendDatabaseServiceTest {
             assertTrue { service.removeFriends(uuid1, friends + uuid2) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, true, 1),
-                Friends(uuid2, uuid1, true, 2),
-                Friends(uuid1, uuid3, true, 3),
-                Friends(uuid3, uuid1, true, 4)
+                Friend(uuid1, uuid2, true),
+                Friend(uuid2, uuid1, true),
+                Friend(uuid1, uuid3, true),
+                Friend(uuid3, uuid1, true)
             )
         }
 
@@ -543,7 +543,7 @@ class FriendDatabaseServiceTest {
             assertFalse { service.removePendingFriend(uuid1, uuid2) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friends(uuid1, uuid2, false, 1)
+                Friend(uuid1, uuid2, false)
             )
         }
 
@@ -755,8 +755,8 @@ class FriendDatabaseServiceTest {
         }
     }
 
-    private suspend fun getAll(): List<Friends> {
-        val query = QueryDsl.from(friends)
+    private suspend fun getAll(): List<Friend> {
+        val query = QueryDsl.from(_Friend.friend)
         return database.flowQuery(query).toList()
     }
 }

@@ -2,7 +2,6 @@ package com.github.rushyverse.core.data
 
 import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
-import com.github.rushyverse.core.data._Friends.Companion.friends
 import com.github.rushyverse.core.extension.toTypedArray
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.supplier.database.DatabaseSupplierServices
@@ -13,14 +12,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import org.komapper.annotation.KomapperAutoIncrement
-import org.komapper.annotation.KomapperEntity
-import org.komapper.annotation.KomapperId
-import org.komapper.annotation.KomapperTable
+import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.expression.WhereDeclaration
 import org.komapper.core.dsl.operator.and
-import org.komapper.core.dsl.operator.or
 import org.komapper.core.dsl.query.where
 import org.komapper.r2dbc.R2dbcDatabase
 import java.util.*
@@ -165,18 +160,55 @@ public interface IFriendDatabaseService : IFriendService {
 }
 
 /**
+ * Ids of the friendship relationship.
+ * @property uuid1 First UUID
+ * @property uuid2 Second UUID
+ */
+public data class FriendId(val uuid1: UUID, val uuid2: UUID)
+
+/**
  * Table to store the friendship relationship in database.
  */
 @KomapperEntity
-@KomapperTable("friends")
-public data class Friends(
-    val uuid1: UUID,
-    val uuid2: UUID,
+@KomapperTable("friend")
+public data class Friend(
+    @KomapperEmbeddedId
+    val uuid: FriendId,
     val pending: Boolean,
-    @KomapperId
-    @KomapperAutoIncrement
-    val id: Int = 0,
-)
+) {
+
+    public companion object {
+
+        /**
+         * Create the table in database.
+         * @param database Database to create the table in.
+         */
+        public suspend fun createTable(database: R2dbcDatabase) {
+            val meta = _Friend.friend
+            database.runQuery(QueryDsl.create(meta))
+
+            val uuid = meta.uuid
+
+            database.runQuery(
+                QueryDsl.executeScript(
+                    """
+                        create unique index friend_unique_idx
+                        on ${meta.tableName()} (GREATEST(${uuid.uuid1.name}, ${uuid.uuid2.name}), LEAST(${uuid.uuid1.name}, ${uuid.uuid2.name}));
+                    """.trimIndent()
+                )
+            )
+        }
+
+    }
+
+    val uuid1: UUID
+        get() = uuid.uuid1
+
+    val uuid2: UUID
+        get() = uuid.uuid2
+
+    public constructor(uuid1: UUID, uuid2: UUID, pending: Boolean) : this(FriendId(uuid1, uuid2), pending)
+}
 
 /**
  * Implementation of [IFriendCacheService] that uses [CacheClient] to manage data in cache.
@@ -534,13 +566,13 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      * @return Always return `true`.
      */
     private suspend fun add(uuid: UUID, friend: UUID, pending: Boolean): Boolean {
-        val query = QueryDsl.insert(friends).single(Friends(uuid, friend, pending))
-        database.runQuery(query)
-        return true
+        return database.withTransaction {
+            insertOrUpdate(uuid, friend, pending)
+        }
     }
 
     /**
-     * Add a new relationship between [uuid] and [friends] with the status [pending].
+     * Add a new relationship between [uuid] and [friendIds] with the status [pending].
      * @param uuid ID of the user.
      * @param friendIds ID of the friends.
      * @param pending `true` if the relationship is pending, `false` otherwise.
@@ -548,11 +580,9 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      */
     private suspend fun addAll(uuid: UUID, friendIds: List<UUID>, pending: Boolean): Boolean {
         if (friendIds.isEmpty()) return true
-
-        val friendEntities = friendIds.map { Friends(uuid, it, pending) }
-        val query = QueryDsl.insert(friends).multiple(friendEntities)
-        database.runQuery(query)
-        return true
+        return database.withTransaction {
+            friendIds.map { insertOrUpdate(uuid, it, pending) }.any { it }
+        }
     }
 
     /**
@@ -564,7 +594,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      */
     private suspend fun remove(uuid: UUID, friend: UUID, pending: Boolean): Boolean {
         val where = createWhereBidirectional(uuid, friend).and(createWherePending(pending))
-        val query = QueryDsl.delete(friends).where(where)
+        val query = QueryDsl.delete(_Friend.friend).where(where)
         return database.runQuery(query) > 0
     }
 
@@ -578,17 +608,49 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
     private suspend fun removeAll(uuid: UUID, friendIds: List<UUID>, pending: Boolean): Boolean {
         if (friendIds.isEmpty()) return true
 
+        val meta = _Friend.friend
+        val metaUUID = meta.uuid
+
         val where = createWherePending(pending).and {
-            friends.uuid1 eq uuid
-            and { friends.uuid2 inList friendIds }
+            metaUUID.uuid1 eq uuid
+            and { metaUUID.uuid2 inList friendIds }
             or {
-                friends.uuid2 eq uuid
-                and { friends.uuid1 inList friendIds }
+                metaUUID.uuid2 eq uuid
+                and { metaUUID.uuid1 inList friendIds }
             }
         }
 
-        val query = QueryDsl.delete(friends).where(where)
+        val query = QueryDsl.delete(_Friend.friend).where(where)
         return database.runQuery(query) > 0
+    }
+
+    /**
+     * Get the existing relationship between [uuid] and [friend].
+     * If the relation exists, will update the [pending] state.
+     * Otherwise, will create a new relationship.
+     * @param uuid First ID.
+     * @param friend Second ID.
+     * @param pending State of the relationship.
+     * @return `true` if the relationship was created or updated, `false` otherwise.
+     */
+    private suspend fun insertOrUpdate(
+        uuid: UUID,
+        friend: UUID,
+        pending: Boolean
+    ): Boolean {
+        val meta = _Friend.friend
+        val queryFind = QueryDsl.from(meta).where(createWhereBidirectional(uuid, friend))
+        val existingFriend = database.flowQuery(queryFind).firstOrNull()
+
+        return if (existingFriend == null) {
+            database.runQuery(QueryDsl.insert(meta).single(Friend(uuid, friend, pending)))
+            true
+        } else if (existingFriend.pending != pending) {
+            database.runQuery(QueryDsl.update(meta).single(existingFriend.copy(pending = pending)))
+            true
+        } else {
+            false
+        }
     }
 
     /**
@@ -598,12 +660,18 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      * @return Flow of the friends of [uuid] for the given [pending].
      */
     private fun getAll(uuid: UUID, pending: Boolean): Flow<UUID> {
-        val w1 = where { friends.uuid1 eq uuid }
-        val w2 = where { friends.uuid2 eq uuid }
+        val meta = _Friend.friend
+        val metaUUID = meta.uuid
 
-        val where = where { w1.or(w2) }.and(createWherePending(pending))
+        val where = where {
+            metaUUID.uuid1 eq uuid
+            or { metaUUID.uuid2 eq uuid }
+            and {
+                meta.pending eq pending
+            }
+        }
 
-        val query = QueryDsl.from(friends).where(where)
+        val query = QueryDsl.from(_Friend.friend).where(where)
         return database.flowQuery(query).map {
             val uuid1 = it.uuid1
             if (uuid1 == uuid) it.uuid2 else uuid1
@@ -619,33 +687,36 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      */
     private suspend fun isFriend(uuid: UUID, friend: UUID, pending: Boolean): Boolean {
         val where = createWhereBidirectional(uuid, friend).and(createWherePending(pending))
-        val query = QueryDsl.from(friends).where(where).limit(1)
+        val query = QueryDsl.from(_Friend.friend).where(where).limit(1)
         return database.runQuery(query).isNotEmpty()
     }
 
     /**
-     * Create a where clause to check if [Friends.uuid1] is [uuid] and [Friends.uuid2] is [friend] or vice versa.
+     * Create a where clause to check if [Friend.uuid1] is [uuid] and [Friend.uuid2] is [friend] or vice versa.
      * @param uuid ID of the entity.
      * @param friend ID of the friend.
      * @return Where clause.
      */
     private fun createWhereBidirectional(uuid: UUID, friend: UUID): WhereDeclaration {
-        val w1 = where { friends.uuid1 eq uuid }
-        val w2 = where { friends.uuid2 eq friend }
-
-        val w3 = where { friends.uuid1 eq friend }
-        val w4 = where { friends.uuid2 eq uuid }
-
-        return where { (w1.and(w2)).or(w3.and(w4)) }
+        val uuid1 = _Friend.friend.uuid.uuid1
+        val uuid2 = _Friend.friend.uuid.uuid2
+        return where {
+            uuid1 eq uuid
+            and { uuid2 eq friend }
+            or {
+                uuid1 eq friend
+                and { uuid2 eq uuid }
+            }
+        }
     }
 
     /**
-     * Create a where clause to check if [Friends.pending] is [pending].
+     * Create a where clause to check if [Friend.pending] is [pending].
      * @param pending `true` to check if the relationship is pending, `false` otherwise.
      * @return Where clause.
      */
     private fun createWherePending(pending: Boolean): WhereDeclaration {
-        return where { friends.pending eq pending }
+        return where { _Friend.friend.pending eq pending }
     }
 }
 
