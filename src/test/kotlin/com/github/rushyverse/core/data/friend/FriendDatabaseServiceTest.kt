@@ -59,13 +59,24 @@ class FriendDatabaseServiceTest {
     inner class AddFriend {
 
         @Test
+        fun `should add one friend`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            assertTrue { service.addFriend(uuid1, uuid2) }
+
+            assertThat(getAll()).containsExactlyInAnyOrder(
+                Friend(uuid1, uuid2, false)
+            )
+        }
+
+        @Test
         fun `should add several friends`() = runTest {
             val uuid1 = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
             val uuid3 = UUID.randomUUID()
 
             assertTrue { service.addFriend(uuid1, uuid2) }
-            assertFalse { service.addFriend(uuid2, uuid1) }
             assertTrue { service.addFriend(uuid1, uuid3) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
@@ -75,42 +86,51 @@ class FriendDatabaseServiceTest {
         }
 
         @Test
-        fun `should add friend if relation doesn't exist`() = runTest {
+        fun `should not add friend if relation already exists`() = runTest {
             val uuid1 = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
 
             assertTrue { service.addFriend(uuid1, uuid2) }
+            assertFalse { service.addFriend(uuid1, uuid2) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
-                Friend(uuid1, uuid2, false),
-            )
-        }
-
-        @Test
-        fun `should add friend if relation already exists`() = runTest {
-            val uuid1 = UUID.randomUUID()
-            val uuid2 = UUID.randomUUID()
-
-            assertTrue { service.addFriend(uuid1, uuid2) }
-            assertTrue { service.addFriend(uuid1, uuid2) }
-
-            assertThat(getAll()).containsExactlyInAnyOrder(
-                Friend(uuid1, uuid2, false),
                 Friend(uuid1, uuid2, false)
             )
         }
 
         @Test
-        fun `should add friend if relation doesn't exist but exists in the other direction`() = runTest {
+        fun `should not add friend if relation doesn't exist but exists in the other direction`() = runTest {
             val uuid1 = UUID.randomUUID()
             val uuid2 = UUID.randomUUID()
 
             assertTrue { service.addFriend(uuid1, uuid2) }
-            assertTrue { service.addFriend(uuid2, uuid1) }
+            assertFalse { service.addFriend(uuid2, uuid1) }
 
             assertThat(getAll()).containsExactlyInAnyOrder(
                 Friend(uuid1, uuid2, false),
-                Friend(uuid2, uuid1, false)
+            )
+        }
+
+        @Test
+        fun `should update friend if relation already exists but is pending`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+
+            assertTrue { service.addPendingFriend(uuid1, uuid2) }
+            assertTrue { service.addFriend(uuid1, uuid2) }
+
+            assertThat(getAll()).containsExactlyInAnyOrder(
+                Friend(uuid1, uuid2, false),
+            )
+
+            val uuid3 = UUID.randomUUID()
+
+            assertTrue { service.addPendingFriend(uuid1, uuid3) }
+            assertTrue { service.addFriend(uuid3, uuid1) }
+
+            assertThat(getAll()).containsExactlyInAnyOrder(
+                Friend(uuid1, uuid2, false),
+                Friend(uuid1, uuid3, false),
             )
         }
 
