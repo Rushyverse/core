@@ -185,18 +185,22 @@ public data class Friend(
          */
         public suspend fun createTable(database: R2dbcDatabase) {
             val meta = _Friend.friend
-            database.runQuery(QueryDsl.create(meta))
-
             val uuid = meta.uuid
+            val tableName = meta.tableName()
+            val uuid1Name = uuid.uuid1.name
+            val uuid2Name = uuid.uuid2.name
 
-            database.runQuery(
-                QueryDsl.executeScript(
-                    """
-                        create unique index friend_unique_idx
-                        on ${meta.tableName()} (GREATEST(${uuid.uuid1.name}, ${uuid.uuid2.name}), LEAST(${uuid.uuid1.name}, ${uuid.uuid2.name}));
+            database.withTransaction {
+                database.runQuery(QueryDsl.create(meta))
+                database.runQuery(
+                    QueryDsl.executeScript(
+                        """
+                        create unique index ${tableName}_unique_idx
+                        on $tableName (GREATEST($uuid1Name, $uuid2Name), LEAST($uuid1Name, $uuid2Name));
                     """.trimIndent()
+                    )
                 )
-            )
+            }
         }
 
     }
