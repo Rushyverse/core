@@ -16,6 +16,7 @@ import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.expression.WhereDeclaration
 import org.komapper.core.dsl.operator.and
+import org.komapper.core.dsl.query.bind
 import org.komapper.core.dsl.query.where
 import org.komapper.r2dbc.R2dbcDatabase
 import java.util.*
@@ -195,8 +196,8 @@ public data class Friend(
                 database.runQuery(
                     QueryDsl.executeScript(
                         """
-                        create unique index ${tableName}_unique_idx
-                        on $tableName (GREATEST($uuid1Name, $uuid2Name), LEAST($uuid1Name, $uuid2Name));
+                        CREATE UNIQUE INDEX ${tableName}_unique_idx
+                        ON $tableName (GREATEST($uuid1Name, $uuid2Name), LEAST($uuid1Name, $uuid2Name));
                     """.trimIndent()
                     )
                 )
@@ -570,9 +571,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      * @return Always return `true`.
      */
     private suspend fun add(uuid: UUID, friend: UUID, pending: Boolean): Boolean {
-        return database.withTransaction {
-            insertOrUpdate(uuid, friend, pending)
-        }
+        return insertOrUpdate(uuid, friend, pending)
     }
 
     /**
@@ -643,18 +642,23 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         pending: Boolean
     ): Boolean {
         val meta = _Friend.friend
-        val queryFind = QueryDsl.from(meta).where(createWhereBidirectional(uuid, friend))
-        val existingFriend = database.flowQuery(queryFind).firstOrNull()
+        val metaUUID = meta.uuid
+        val uuid1Name = metaUUID.uuid1.name
+        val uuid2Name = metaUUID.uuid2.name
+        val pendingName = meta.pending.name
 
-        return if (existingFriend == null) {
-            database.runQuery(QueryDsl.insert(meta).single(Friend(uuid, friend, pending)))
-            true
-        } else if (existingFriend.pending != pending) {
-            database.runQuery(QueryDsl.update(meta).single(existingFriend.copy(pending = pending)))
-            true
-        } else {
-            false
-        }
+        val result = database.runQuery(QueryDsl.executeTemplate("""
+                INSERT INTO ${meta.tableName()} ($uuid1Name, $uuid2Name, $pendingName) 
+                VALUES (/*uuid1*/'', /*uuid2*/'', /*pending*/false) 
+                ON CONFLICT (GREATEST($uuid1Name, $uuid2Name), LEAST($uuid1Name, $uuid2Name)) 
+                DO UPDATE SET $pendingName = /*pending*/false WHERE ("${meta.tableName()}".$pendingName != /*pending*/false)
+        """.trimIndent())
+            .bind("uuid1", uuid)
+            .bind("uuid2", friend)
+            .bind("pending", pending)
+        )
+
+        return result > 0
     }
 
     /**
