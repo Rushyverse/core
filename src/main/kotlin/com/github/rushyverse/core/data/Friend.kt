@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.*
 import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.expression.WhereDeclaration
-import org.komapper.core.dsl.operator.and
 import org.komapper.core.dsl.query.bind
 import org.komapper.core.dsl.query.where
 import org.komapper.r2dbc.R2dbcDatabase
@@ -596,8 +595,12 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      * @return `true` if the relationship was removed, `false` otherwise.
      */
     private suspend fun remove(uuid: UUID, friend: UUID, pending: Boolean): Boolean {
-        val where = createWhereBidirectional(uuid, friend).and(createWherePending(pending))
-        val query = QueryDsl.delete(_Friend.friend).where(where)
+        val meta = _Friend.friend
+        val where = where {
+            meta.pending eq pending
+            and(createWhereBidirectional(uuid, friend))
+        }
+        val query = QueryDsl.delete(meta).where(where)
         return database.runQuery(query) > 0
     }
 
@@ -614,12 +617,15 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         val meta = _Friend.friend
         val metaUUID = meta.uuid
 
-        val where = createWherePending(pending).and {
-            metaUUID.uuid1 eq uuid
-            and { metaUUID.uuid2 inList friendIds }
-            or {
-                metaUUID.uuid2 eq uuid
-                and { metaUUID.uuid1 inList friendIds }
+        val where = where {
+            meta.pending eq pending
+            and {
+                metaUUID.uuid1 eq uuid
+                and { metaUUID.uuid2 inList friendIds }
+                or {
+                    metaUUID.uuid2 eq uuid
+                    and { metaUUID.uuid1 inList friendIds }
+                }
             }
         }
 
@@ -647,16 +653,21 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         val uuid2Name = metaUUID.uuid2.name
         val pendingName = meta.pending.name
 
-        val result = database.runQuery(QueryDsl.executeTemplate("""
+        val result = database.runQuery(
+            QueryDsl.executeTemplate(
+                """
                 INSERT INTO ${meta.tableName()} ($uuid1Name, $uuid2Name, $pendingName) 
                 VALUES (/*uuid1*/'', /*uuid2*/'', /*pending*/false) 
                 ON CONFLICT (GREATEST($uuid1Name, $uuid2Name), LEAST($uuid1Name, $uuid2Name)) 
-                DO UPDATE SET $pendingName = /*pending*/false WHERE ("${meta.tableName()}".$pendingName != /*pending*/false)
-        """.trimIndent())
-            .bind("uuid1", uuid)
-            .bind("uuid2", friend)
-            .bind("pending", pending)
+                DO UPDATE SET $pendingName = /*pending*/false WHERE ("${meta.tableName()}".$pendingName = true AND /*pending*/false = false)
+                """.trimIndent()
+            )
+                .bind("uuid1", uuid)
+                .bind("uuid2", friend)
+                .bind("pending", pending)
         )
+
+        println("Result: $result")
 
         return result > 0
     }
@@ -672,14 +683,14 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         val metaUUID = meta.uuid
 
         val where = where {
-            metaUUID.uuid1 eq uuid
-            or { metaUUID.uuid2 eq uuid }
+            meta.pending eq pending
             and {
-                meta.pending eq pending
+                metaUUID.uuid1 eq uuid
+                or { metaUUID.uuid2 eq uuid }
             }
         }
 
-        val query = QueryDsl.from(_Friend.friend).where(where)
+        val query = QueryDsl.from(meta).where(where)
         return database.flowQuery(query).map {
             val uuid1 = it.uuid1
             if (uuid1 == uuid) it.uuid2 else uuid1
@@ -694,8 +705,12 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      * @return `true` if [friend] is a friend of [uuid] with the given [pending] status, `false` otherwise.
      */
     private suspend fun isFriend(uuid: UUID, friend: UUID, pending: Boolean): Boolean {
-        val where = createWhereBidirectional(uuid, friend).and(createWherePending(pending))
-        val query = QueryDsl.from(_Friend.friend).where(where).limit(1)
+        val meta = _Friend.friend
+        val where = where {
+            meta.pending eq pending
+            and(createWhereBidirectional(uuid, friend))
+        }
+        val query = QueryDsl.from(meta).where(where).limit(1)
         return database.runQuery(query).isNotEmpty()
     }
 
@@ -706,8 +721,9 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      * @return Where clause.
      */
     private fun createWhereBidirectional(uuid: UUID, friend: UUID): WhereDeclaration {
-        val uuid1 = _Friend.friend.uuid.uuid1
-        val uuid2 = _Friend.friend.uuid.uuid2
+        val metaUUID = _Friend.friend.uuid
+        val uuid1 = metaUUID.uuid1
+        val uuid2 = metaUUID.uuid2
         return where {
             uuid1 eq uuid
             and { uuid2 eq friend }
@@ -716,15 +732,6 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
                 and { uuid2 eq uuid }
             }
         }
-    }
-
-    /**
-     * Create a where clause to check if [Friend.pending] is [pending].
-     * @param pending `true` to check if the relationship is pending, `false` otherwise.
-     * @return Where clause.
-     */
-    private fun createWherePending(pending: Boolean): WhereDeclaration {
-        return where { _Friend.friend.pending eq pending }
     }
 }
 
