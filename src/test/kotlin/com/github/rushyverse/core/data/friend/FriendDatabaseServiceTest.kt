@@ -311,6 +311,26 @@ class FriendDatabaseServiceTest {
             )
         }
 
+        @Test
+        fun `should update the pending relationship even if non pending relation is added`() = runTest {
+            val uuid1 = UUID.randomUUID()
+            val uuid2 = UUID.randomUUID()
+            val uuid3 = UUID.randomUUID()
+            val uuid4 = UUID.randomUUID()
+
+            assertTrue { service.addPendingFriend(uuid1, uuid2) }
+            assertTrue { service.addPendingFriend(uuid1, uuid3) }
+            assertTrue { service.addFriend(uuid1, uuid4) }
+
+            assertTrue { service.addFriends(uuid1, listOf(uuid2, uuid3, uuid4)) }
+
+            assertThat(getAll()).containsExactlyInAnyOrder(
+                Friend(uuid1, uuid2, false),
+                Friend(uuid1, uuid3, false),
+                Friend(uuid1, uuid4, false),
+            )
+        }
+
     }
 
     @Nested

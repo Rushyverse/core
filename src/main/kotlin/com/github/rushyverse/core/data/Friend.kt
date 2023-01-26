@@ -583,7 +583,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
     private suspend fun addAll(uuid: UUID, friendIds: List<UUID>, pending: Boolean): Boolean {
         if (friendIds.isEmpty()) return true
         return database.withTransaction {
-            friendIds.map { insertOrUpdate(uuid, it, pending) }.any { it }
+            insertOrUpdateAll(uuid, friendIds, pending)
         }
     }
 
@@ -647,29 +647,46 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         friend: UUID,
         pending: Boolean
     ): Boolean {
+        return insertOrUpdateAll(uuid, listOf(friend), pending)
+    }
+
+    /**
+     * Get the existing relationship between [uuid] and [friendIds].
+     * If the relation exists, will update the [pending] state.
+     * Otherwise, will create a new relationship.
+     * @param uuid First ID.
+     * @param friendIds Ids of future friends, must not be empty.
+     * @param pending State of the relationship.
+     * @return `true` if the relationship was created or updated, `false` otherwise.
+     */
+    private suspend fun insertOrUpdateAll(
+        uuid: UUID,
+        friendIds: List<UUID>,
+        pending: Boolean
+    ): Boolean {
         val meta = _Friend.friend
         val metaUUID = meta.uuid
         val uuid1Name = metaUUID.uuid1.name
         val uuid2Name = metaUUID.uuid2.name
         val pendingName = meta.pending.name
 
-        val result = database.runQuery(
-            QueryDsl.executeTemplate(
-                """
-                INSERT INTO ${meta.tableName()} ($uuid1Name, $uuid2Name, $pendingName) 
-                VALUES (/*uuid1*/'', /*uuid2*/'', /*pending*/false) 
-                ON CONFLICT (GREATEST($uuid1Name, $uuid2Name), LEAST($uuid1Name, $uuid2Name)) 
-                DO UPDATE SET $pendingName = /*pending*/false WHERE ("${meta.tableName()}".$pendingName = true AND /*pending*/false = false)
-                """.trimIndent()
-            )
-                .bind("uuid1", uuid)
-                .bind("uuid2", friend)
-                .bind("pending", pending)
+        val query = QueryDsl.executeTemplate(
+            """
+                    INSERT INTO ${meta.tableName()} ($uuid1Name, $uuid2Name, $pendingName) 
+                    VALUES ${friendIds.indices.joinToString(", ") { "(/*uuid*/'', /*uuid$it*/'', /*pending*/false)" }}
+                    ON CONFLICT (GREATEST($uuid1Name, $uuid2Name), LEAST($uuid1Name, $uuid2Name)) 
+                    DO UPDATE SET $pendingName = /*pending*/false WHERE ("${meta.tableName()}".$pendingName = true AND /*pending*/false = false)
+                    """.trimIndent()
         )
+            .bind("uuid", uuid)
+            .let {
+                friendIds.foldIndexed(it) { index, acc, friendId ->
+                    acc.bind("uuid$index", friendId)
+                }
+            }
+            .bind("pending", pending)
 
-        println("Result: $result")
-
-        return result > 0
+        return database.runQuery(query) > 0
     }
 
     /**
@@ -738,39 +755,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
 /**
  * Implementation of [IFriendService] to manage friends according to a [IDatabaseEntitySupplier].
  */
-public class FriendService(override val supplier: IDatabaseEntitySupplier) : IFriendService, IDatabaseStrategizable {
-
-    override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
-        return supplier.addFriend(uuid, friend)
-    }
-
-    override suspend fun addPendingFriend(uuid: UUID, friend: UUID): Boolean {
-        return supplier.addPendingFriend(uuid, friend)
-    }
-
-    override suspend fun removeFriend(uuid: UUID, friend: UUID): Boolean {
-        return supplier.removeFriend(uuid, friend)
-    }
-
-    override suspend fun removePendingFriend(uuid: UUID, friend: UUID): Boolean {
-        return supplier.removePendingFriend(uuid, friend)
-    }
-
-    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
-        return supplier.getFriends(uuid)
-    }
-
-    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
-        return supplier.getPendingFriends(uuid)
-    }
-
-    override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
-        return supplier.isFriend(uuid, friend)
-    }
-
-    override suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean {
-        return supplier.isPendingFriend(uuid, friend)
-    }
-
+public class FriendService(override val supplier: IDatabaseEntitySupplier) : IFriendService by supplier,
+    IDatabaseStrategizable {
     override fun withStrategy(strategy: IDatabaseEntitySupplier): FriendService = FriendService(strategy)
 }
