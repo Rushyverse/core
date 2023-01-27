@@ -136,7 +136,12 @@ class FriendCacheServiceTest {
             val uuid = UUID.randomUUID()
             val friends = List(10) { UUID.randomUUID() }
 
-            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_PENDING_FRIEND) } returns friends.asFlow()
+            coEvery {
+                cacheServiceMock.getAll(
+                    uuid,
+                    FriendCacheService.Type.ADD_PENDING_FRIEND
+                )
+            } returns friends.asFlow()
             coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_PENDING_FRIEND) } returns emptyFlow()
             coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_FRIEND) } returns emptyFlow()
             coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_FRIEND) } returns emptyFlow()
@@ -156,7 +161,12 @@ class FriendCacheServiceTest {
             val friends = List(10) { UUID.randomUUID() }
 
             coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_PENDING_FRIEND) } returns emptyFlow()
-            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_PENDING_FRIEND) } returns friends.asFlow()
+            coEvery {
+                cacheServiceMock.getAll(
+                    uuid,
+                    FriendCacheService.Type.REMOVE_PENDING_FRIEND
+                )
+            } returns friends.asFlow()
             coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_FRIEND) } returns emptyFlow()
             coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_FRIEND) } returns emptyFlow()
 
@@ -177,8 +187,18 @@ class FriendCacheServiceTest {
             val addPending = List(10) { UUID.randomUUID() }
             val removePending = List(10) { UUID.randomUUID() }
 
-            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_PENDING_FRIEND) } returns addPending.asFlow()
-            coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_PENDING_FRIEND) } returns removePending.asFlow()
+            coEvery {
+                cacheServiceMock.getAll(
+                    uuid,
+                    FriendCacheService.Type.ADD_PENDING_FRIEND
+                )
+            } returns addPending.asFlow()
+            coEvery {
+                cacheServiceMock.getAll(
+                    uuid,
+                    FriendCacheService.Type.REMOVE_PENDING_FRIEND
+                )
+            } returns removePending.asFlow()
             coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.ADD_FRIEND) } returns add.asFlow()
             coEvery { cacheServiceMock.getAll(uuid, FriendCacheService.Type.REMOVE_FRIEND) } returns remove.asFlow()
 
