@@ -570,7 +570,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      * @return Always return `true`.
      */
     private suspend fun add(uuid: UUID, friend: UUID, pending: Boolean): Boolean {
-        return insertOrUpdate(uuid, friend, pending)
+        return insertOrUpdateAll(uuid, listOf(friend), pending)
     }
 
     /**
@@ -582,9 +582,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
      */
     private suspend fun addAll(uuid: UUID, friendIds: List<UUID>, pending: Boolean): Boolean {
         if (friendIds.isEmpty()) return true
-        return database.withTransaction {
-            insertOrUpdateAll(uuid, friendIds, pending)
-        }
+        return insertOrUpdateAll(uuid, friendIds, pending)
     }
 
     /**
@@ -629,25 +627,8 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
             }
         }
 
-        val query = QueryDsl.delete(_Friend.friend).where(where)
+        val query = QueryDsl.delete(meta).where(where)
         return database.runQuery(query) > 0
-    }
-
-    /**
-     * Get the existing relationship between [uuid] and [friend].
-     * If the relation exists, will update the [pending] state.
-     * Otherwise, will create a new relationship.
-     * @param uuid First ID.
-     * @param friend Second ID.
-     * @param pending State of the relationship.
-     * @return `true` if the relationship was created or updated, `false` otherwise.
-     */
-    private suspend fun insertOrUpdate(
-        uuid: UUID,
-        friend: UUID,
-        pending: Boolean
-    ): Boolean {
-        return insertOrUpdateAll(uuid, listOf(friend), pending)
     }
 
     /**
