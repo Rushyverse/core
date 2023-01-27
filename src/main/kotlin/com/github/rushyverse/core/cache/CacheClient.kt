@@ -1,10 +1,9 @@
-@file:OptIn(ExperimentalSerializationApi::class, ExperimentalLettuceCoroutinesApi::class)
+@file:OptIn(ExperimentalSerializationApi::class)
 
 package com.github.rushyverse.core.cache
 
 import com.github.rushyverse.core.extension.acquire
 import com.github.rushyverse.core.extension.toTypedArray
-import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisURI
 import io.lettuce.core.api.AsyncCloseable

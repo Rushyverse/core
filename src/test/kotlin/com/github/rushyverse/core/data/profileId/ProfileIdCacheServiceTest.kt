@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalLettuceCoroutinesApi::class)
-
 package com.github.rushyverse.core.data.profileId
 
 import com.github.rushyverse.core.cache.CacheClient
@@ -8,7 +6,6 @@ import com.github.rushyverse.core.data.ProfileIdCacheService
 import com.github.rushyverse.core.utils.createProfileId
 import com.github.rushyverse.core.utils.getRandomString
 import com.github.rushyverse.core.utils.getTTL
-import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisURI
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await

@@ -1,12 +1,9 @@
-@file:OptIn(ExperimentalLettuceCoroutinesApi::class)
-
 package com.github.rushyverse.core.cache
 
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.utils.assertCoroutineContextUseDispatcher
 import com.github.rushyverse.core.utils.getRandomString
-import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisURI
 import io.lettuce.core.support.BoundedPoolConfig
