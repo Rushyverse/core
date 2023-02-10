@@ -34,9 +34,9 @@ class MojangServiceIT {
         private val redisContainer = createRedisContainer()
     }
 
-    lateinit var cache: CacheClient
-    lateinit var httpClient: HttpClient
-    lateinit var services: HttpSupplierServices
+    private lateinit var cache: CacheClient
+    private lateinit var httpClient: HttpClient
+    private lateinit var services: HttpSupplierServices
 
     @BeforeTest
     fun onBefore(): Unit = runBlocking {
