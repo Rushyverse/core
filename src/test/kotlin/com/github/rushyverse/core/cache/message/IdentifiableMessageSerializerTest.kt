@@ -58,16 +58,7 @@ class IdentifiableMessageSerializerTest {
     inner class Serialize {
 
         @Test
-        fun `should serialize message with id`() {
-            val serializer = IdentifiableMessageSerializer(String.serializer())
-            val message = IdentifiableMessage(null, "data")
-            val expected = "{\"id\":null,\"data\":\"data\"}"
-            val actual = Json.encodeToString(serializer, message)
-            assertEquals(expected, actual)
-        }
-
-        @Test
-        fun `should serialize message without id`() {
+        fun `should serialize string message`() {
             val serializer = IdentifiableMessageSerializer(String.serializer())
             val id = getRandomString()
             val message = IdentifiableMessage(id, "data")
@@ -79,8 +70,9 @@ class IdentifiableMessageSerializerTest {
         @Test
         fun `should serialize message`() {
             val serializer = IdentifiableMessageSerializer(ColorAsObjectSerializer)
-            val message = IdentifiableMessage(null, Color(0x05F0C1))
-            val expected = "{\"id\":null,\"data\":{\"r\":5,\"g\":240,\"b\":193}}"
+            val id = getRandomString()
+            val message = IdentifiableMessage(id, Color(0x05F0C1))
+            val expected = "{\"id\":\"$id\",\"data\":{\"r\":5,\"g\":240,\"b\":193}}"
             val actual = Json.encodeToString(serializer, message)
             assertEquals(expected, actual)
         }
@@ -91,21 +83,12 @@ class IdentifiableMessageSerializerTest {
     inner class Deserialize {
 
         @Test
-        fun `should deserialize message with id`() {
+        fun `should deserialize string message`() {
             val serializer = IdentifiableMessageSerializer(String.serializer())
             val id = getRandomString()
             val data = getRandomString()
             val message = IdentifiableMessage(id, data)
             val expected = "{\"id\":\"$id\",\"data\":\"$data\"}"
-            val actual = Json.decodeFromString(serializer, expected)
-            assertEquals(message, actual)
-        }
-
-        @Test
-        fun `should deserialize message without id`() {
-            val serializer = IdentifiableMessageSerializer(String.serializer())
-            val message = IdentifiableMessage(null, "data")
-            val expected = "{\"id\":null,\"data\":\"data\"}"
             val actual = Json.decodeFromString(serializer, expected)
             assertEquals(message, actual)
         }
