@@ -87,13 +87,13 @@ class MojangServiceIT {
 
         @Test
         fun `should store and retrieve from cache`() = runTest {
-            val id = "Notch"
+            val name = "Notch"
             val supplier = IHttpEntitySupplier.cacheWithCachingRestFallback(services)
             val serviceWeb = MojangService(supplier)
-            val skinFromWeb = serviceWeb.getSkinByName(id)
+            val skinFromWeb = serviceWeb.getSkinByName(name)
 
             val serviceCache = serviceWeb.withStrategy(IHttpEntitySupplier.cache(services))
-            val skinFromCache = serviceCache.getSkinById(id)
+            val skinFromCache = serviceCache.getSkinByName(name)
 
             assertEquals(skinFromWeb, skinFromCache)
         }
@@ -105,13 +105,13 @@ class MojangServiceIT {
 
         @Test
         fun `should store and retrieve from cache`() = runTest {
-            val id = "Notch"
+            val name = "Notch"
             val supplier = IHttpEntitySupplier.cacheWithCachingRestFallback(services)
             val serviceWeb = MojangService(supplier)
-            val skinFromWeb = serviceWeb.getIdByName(id)
+            val skinFromWeb = serviceWeb.getIdByName(name)
 
             val serviceCache = serviceWeb.withStrategy(IHttpEntitySupplier.cache(services))
-            val skinFromCache = serviceCache.getIdByName(id)
+            val skinFromCache = serviceCache.getIdByName(name)
 
             assertEquals(skinFromWeb, skinFromCache)
         }
