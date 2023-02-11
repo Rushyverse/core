@@ -18,7 +18,6 @@ dependencies {
     val ktSerializationVersion = "1.4.1"
     val coroutinesCoreVersion = "1.6.4"
     val loggingVersion = "3.0.5"
-    val slf4jVersion = "2.0.6"
     val mockkVersion = "1.13.4"
     val junitVersion = "5.9.2"
     val testContainersVersion = "1.17.6"
@@ -59,8 +58,6 @@ dependencies {
 
     // Logging information
     api("io.github.microutils:kotlin-logging:$loggingVersion")
-    api("org.slf4j:slf4j-api:$slf4jVersion")
-    api("org.slf4j:slf4j-simple:$slf4jVersion")
 
     testImplementation(kotlin("test-junit5"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesCoreVersion")
