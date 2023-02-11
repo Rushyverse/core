@@ -1,5 +1,7 @@
 package com.github.rushyverse.core.cache
 
+import com.github.rushyverse.core.cache.message.IdentifiableMessage
+import com.github.rushyverse.core.cache.message.IdentifiableMessageSerializer
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.utils.assertCoroutineContextUseDispatcher
@@ -30,6 +32,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 import kotlin.test.*
+import kotlin.time.Duration.Companion.seconds
 
 @Timeout(5, unit = TimeUnit.SECONDS)
 @Testcontainers
@@ -722,5 +725,168 @@ class CacheClientTest {
                 }.launchIn(CoroutineScope(Dispatchers.IO))
         }
 
+    }
+
+    @Nested
+    inner class PublishIdentifiable {
+
+        @Test
+        fun `should publish identifiable message`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val message = getRandomString()
+            val id = getRandomString()
+
+            val messageSerializer = String.serializer()
+
+            val latch = CountDownLatch(1)
+            client.subscribe(
+                channel,
+                IdentifiableMessageSerializer(messageSerializer)
+            ) {
+                assertEquals(IdentifiableMessage(id, message), it)
+                latch.countDown()
+            }
+
+            client.publishIdentifiable(
+                channel,
+                id,
+                message,
+                messageSerializer,
+            )
+
+            latch.await()
+        }
+    }
+
+    @Nested
+    inner class PublishAndWaitResponse {
+
+        @Test
+        fun `should publish and wait response`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+            var isReceived = false
+
+            client.subscribe(
+                channel,
+                IdentifiableMessageSerializer(messageSerializer)
+            ) {
+                assertEquals(IdentifiableMessage(id, message), it)
+                isReceived = true
+                client.publishIdentifiable(
+                    channelResponse,
+                    id,
+                    expectedResponse,
+                    responseSerializer
+                )
+            }
+
+            val response = client.publishAndWaitResponse(
+                channelSubscribe = channelResponse,
+                channelPublish = channel,
+                messagePublish = message,
+                messageSerializer = messageSerializer,
+                responseSerializer = responseSerializer,
+                id = id
+            ) {
+                assertEquals(expectedResponse, it)
+                it
+            }
+
+            assertEquals(expectedResponse, response)
+            assertTrue(isReceived)
+        }
+
+        @Test
+        @Timeout(3, unit = TimeUnit.SECONDS)
+        fun `should stop listening after timeout`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val timeout = 1.seconds
+
+            val currentTime = System.currentTimeMillis()
+
+            client.publishAndWaitResponse(
+                channelSubscribe = getRandomString(),
+                channelPublish = getRandomString(),
+                messagePublish = getRandomString(),
+                messageSerializer = String.serializer(),
+                responseSerializer = UUIDSerializer,
+                timeout = timeout
+            ) {
+                error("Should not be called")
+            }
+
+            val elapsedTime = System.currentTimeMillis() - currentTime
+            assertTrue(elapsedTime >= timeout.inWholeMilliseconds)
+        }
+
+        @Test
+        fun `should cancel created job for subscribe`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+            var isReceived = false
+
+            val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
+
+            client.subscribe(
+                channel,
+                IdentifiableMessageSerializer(messageSerializer)
+            ) {
+                assertTrue { coroutineScope.coroutineContext.job.children.count() > 0 }
+                isReceived = true
+                client.publishIdentifiable(
+                    channelResponse,
+                    id,
+                    expectedResponse,
+                    responseSerializer
+                )
+            }
+
+            client.publishAndWaitResponse(
+                channelSubscribe = channelResponse,
+                channelPublish = channel,
+                messagePublish = message,
+                messageSerializer = messageSerializer,
+                responseSerializer = responseSerializer,
+                id = id,
+                subscribeScope = coroutineScope
+            ) {
+                assertEquals(expectedResponse, it)
+                it
+            }
+
+            assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
+            assertTrue(isReceived)
+        }
     }
 }
