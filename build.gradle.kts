@@ -14,7 +14,7 @@ repositories {
 }
 
 dependencies {
-    val ktorVersion = "2.2.2"
+    val ktorVersion = "2.2.3"
     val ktSerializationVersion = "1.4.1"
     val coroutinesCoreVersion = "1.6.4"
     val loggingVersion = "3.0.4"
@@ -23,7 +23,7 @@ dependencies {
     val junitVersion = "5.9.2"
     val testContainersVersion = "1.17.6"
     val lettuceVersion = "6.2.2.RELEASE"
-    val kotlinMojangApi = "2.1.0"
+    val kotlinMojangApi = "2.2.0"
     val nettyCodecVersion = "4.1.87.Final"
     val assertJcoreVersion = "3.24.2"
     val komapperVersion = "1.6.1"
