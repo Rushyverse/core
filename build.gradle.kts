@@ -19,7 +19,7 @@ dependencies {
     val coroutinesCoreVersion = "1.6.4"
     val loggingVersion = "3.0.4"
     val slf4jVersion = "2.0.6"
-    val mockkVersion = "1.13.3"
+    val mockkVersion = "1.13.4"
     val junitVersion = "5.9.2"
     val testContainersVersion = "1.17.6"
     val lettuceVersion = "6.2.2.RELEASE"
