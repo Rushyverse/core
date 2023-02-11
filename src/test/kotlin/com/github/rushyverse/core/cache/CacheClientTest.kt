@@ -879,6 +879,14 @@ class CacheClientTest {
             val id = getRandomString()
 
             val latch = CountDownLatch(1)
+            val latchReceiveWrongId = CountDownLatch(1)
+
+            client.subscribe(
+                channel,
+                IdentifiableMessageSerializer(messageSerializer)
+            ) {
+                latchReceiveWrongId.countDown()
+            }
 
             client.launch {
                 client.publishAndWaitResponse(
@@ -900,7 +908,7 @@ class CacheClientTest {
                 responseSerializer
             )
 
-            delay(500)
+            latchReceiveWrongId.await()
             assertEquals(1, latch.count)
 
             client.publishWithID(
@@ -920,7 +928,7 @@ class CacheClientTest {
             }
 
             val channel = getRandomString()
-            val channelResponse = getRandomString()
+            val channelSubscribe = getRandomString()
             val message = getRandomString()
             val expectedResponse = UUID.randomUUID()
 
@@ -930,41 +938,46 @@ class CacheClientTest {
             val id = getRandomString()
 
             val latch = CountDownLatch(1)
-            var dataReceived: Any? = null
+            val latchReceiveWrongId = CountDownLatch(1)
+
+            client.subscribe(
+                channelSubscribe,
+                IdentifiableMessageSerializer(Int.serializer())
+            ) {
+                latchReceiveWrongId.countDown()
+            }
 
             client.launch {
                 client.publishAndWaitResponse(
-                    channelSubscribe = channelResponse,
+                    channelSubscribe = channelSubscribe,
                     channelPublish = channel,
                     messagePublish = message,
                     messageSerializer = messageSerializer,
                     responseSerializer = responseSerializer,
                     id = id
                 ) {
-                    dataReceived = it
                     latch.countDown()
                 }
             }
 
             client.publishWithID(
-                channelResponse,
+                channelSubscribe,
                 getRandomString(),
                 1,
                 Int.serializer()
             )
 
-            delay(500)
+            latchReceiveWrongId.await()
             assertEquals(1, latch.count)
 
             client.publishWithID(
-                channelResponse,
+                channelSubscribe,
                 id,
                 expectedResponse,
                 responseSerializer
             )
 
             latch.await()
-            assertEquals(expectedResponse, dataReceived)
         }
 
         @Test
