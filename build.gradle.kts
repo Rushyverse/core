@@ -17,7 +17,7 @@ dependencies {
     val ktorVersion = "2.2.3"
     val ktSerializationVersion = "1.4.1"
     val coroutinesCoreVersion = "1.6.4"
-    val loggingVersion = "3.0.4"
+    val loggingVersion = "3.0.5"
     val slf4jVersion = "2.0.6"
     val mockkVersion = "1.13.4"
     val junitVersion = "5.9.2"
