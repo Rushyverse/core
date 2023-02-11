@@ -728,7 +728,7 @@ class CacheClientTest {
     }
 
     @Nested
-    inner class PublishIdentifiable {
+    inner class PublishWithID {
 
         @Test
         fun `should publish identifiable message`() = runTest {
@@ -751,7 +751,7 @@ class CacheClientTest {
                 latch.countDown()
             }
 
-            client.publishIdentifiable(
+            client.publishWithID(
                 channel,
                 id,
                 message,
@@ -788,7 +788,7 @@ class CacheClientTest {
             ) {
                 assertEquals(IdentifiableMessage(id, message), it)
                 isReceived = true
-                client.publishIdentifiable(
+                client.publishWithID(
                     channelResponse,
                     id,
                     expectedResponse,
@@ -810,6 +810,161 @@ class CacheClientTest {
 
             assertEquals(expectedResponse, response)
             assertTrue(isReceived)
+        }
+
+        @Test
+        fun `should cancel created job for subscribe when finish by message`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+            var hasChildrenDuringSubscription = false
+
+            val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
+
+            client.subscribe(
+                channel,
+                IdentifiableMessageSerializer(messageSerializer)
+            ) {
+                hasChildrenDuringSubscription = coroutineScope.coroutineContext.job.children.count() > 0
+                client.publishWithID(
+                    channelResponse,
+                    id,
+                    expectedResponse,
+                    responseSerializer
+                )
+            }
+
+            client.publishAndWaitResponse(
+                channelSubscribe = channelResponse,
+                channelPublish = channel,
+                messagePublish = message,
+                messageSerializer = messageSerializer,
+                responseSerializer = responseSerializer,
+                id = id,
+                subscribeScope = coroutineScope
+            ) {
+                assertEquals(expectedResponse, it)
+                it
+            }
+
+            assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
+            assertTrue(hasChildrenDuringSubscription)
+        }
+
+        @Test
+        fun `should not be triggered when the id is not the same`() = runBlocking {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+
+            val latch = CountDownLatch(1)
+
+            client.launch {
+                client.publishAndWaitResponse(
+                    channelSubscribe = channelResponse,
+                    channelPublish = channel,
+                    messagePublish = message,
+                    messageSerializer = messageSerializer,
+                    responseSerializer = responseSerializer,
+                    id = id
+                ) {
+                    latch.countDown()
+                }
+            }
+
+            client.publishWithID(
+                channelResponse,
+                getRandomString(),
+                expectedResponse,
+                responseSerializer
+            )
+
+            delay(500)
+            assertEquals(1, latch.count)
+
+            client.publishWithID(
+                channelResponse,
+                id,
+                expectedResponse,
+                responseSerializer
+            )
+
+            latch.await()
+        }
+
+        @Test
+        fun `should not be triggered when the message is not deserializable`(): Unit = runBlocking {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+
+            val latch = CountDownLatch(1)
+            var dataReceived: Any? = null
+
+            client.launch {
+                client.publishAndWaitResponse(
+                    channelSubscribe = channelResponse,
+                    channelPublish = channel,
+                    messagePublish = message,
+                    messageSerializer = messageSerializer,
+                    responseSerializer = responseSerializer,
+                    id = id
+                ) {
+                    dataReceived = it
+                    latch.countDown()
+                }
+            }
+
+            client.publishWithID(
+                channelResponse,
+                getRandomString(),
+                1,
+                Int.serializer()
+            )
+
+            delay(500)
+            assertEquals(1, latch.count)
+
+            client.publishWithID(
+                channelResponse,
+                id,
+                expectedResponse,
+                responseSerializer
+            )
+
+            latch.await()
+            assertEquals(expectedResponse, dataReceived)
         }
 
         @Test
@@ -839,54 +994,28 @@ class CacheClientTest {
         }
 
         @Test
-        fun `should cancel created job for subscribe`() = runTest {
+        @Timeout(3, unit = TimeUnit.SECONDS)
+        fun `should cancel created job for subscribe when finish by timeout`() = runTest {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
 
-            val channel = getRandomString()
-            val channelResponse = getRandomString()
-            val message = getRandomString()
-            val expectedResponse = UUID.randomUUID()
-
-            val messageSerializer = String.serializer()
-            val responseSerializer = UUIDSerializer
-
-            val id = getRandomString()
-            var isReceived = false
-
+            val timeout = 1.seconds
             val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
             assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
 
-            client.subscribe(
-                channel,
-                IdentifiableMessageSerializer(messageSerializer)
-            ) {
-                assertTrue { coroutineScope.coroutineContext.job.children.count() > 0 }
-                isReceived = true
-                client.publishIdentifiable(
-                    channelResponse,
-                    id,
-                    expectedResponse,
-                    responseSerializer
-                )
-            }
-
             client.publishAndWaitResponse(
-                channelSubscribe = channelResponse,
-                channelPublish = channel,
-                messagePublish = message,
-                messageSerializer = messageSerializer,
-                responseSerializer = responseSerializer,
-                id = id,
-                subscribeScope = coroutineScope
+                channelSubscribe = getRandomString(),
+                channelPublish = getRandomString(),
+                messagePublish = getRandomString(),
+                messageSerializer = String.serializer(),
+                responseSerializer = UUIDSerializer,
+                timeout = timeout
             ) {
-                assertEquals(expectedResponse, it)
-                it
+                error("Should not be called")
             }
 
             assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
-            assertTrue(isReceived)
         }
     }
 }

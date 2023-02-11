@@ -42,7 +42,7 @@ private val logger = KotlinLogging.logger { }
  * @param message Message to publish.
  * @param messageSerializer Serializer to encode the message.
  */
-public suspend fun <T> CacheClient.publishIdentifiable(
+public suspend fun <T> CacheClient.publishWithID(
     channel: String,
     id: String,
     message: T,
@@ -262,7 +262,7 @@ public class CacheClient(
             }
         }
 
-        publishIdentifiable(
+        publishWithID(
             channel = channelPublish,
             id = id,
             message = messagePublish,
