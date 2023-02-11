@@ -2,6 +2,8 @@
 
 package com.github.rushyverse.core.cache
 
+import com.github.rushyverse.core.cache.message.IdentifiableMessage
+import com.github.rushyverse.core.cache.message.IdentifiableMessageSerializer
 import com.github.rushyverse.core.extension.acquire
 import com.github.rushyverse.core.extension.toTypedArray
 import io.lettuce.core.RedisClient
@@ -24,9 +26,32 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.protobuf.ProtoBuf
 import mu.KotlinLogging
+import java.util.*
 import java.util.concurrent.CompletableFuture
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 
 private val logger = KotlinLogging.logger { }
+
+/**
+ * Publish a response message to a channel.
+ * A response message is an [IdentifiableMessage] with an [id] and a [message].
+ * @receiver CacheClient to publish the message.
+ * @param channel Channel to publish.
+ * @param id ID of the message.
+ * @param message Message to publish.
+ * @param messageSerializer Serializer to encode the message.
+ */
+public suspend fun <T> CacheClient.publishIdentifiable(
+    channel: String,
+    id: String,
+    message: T,
+    messageSerializer: KSerializer<T>
+): Unit = publish(
+    channel = channel,
+    message = IdentifiableMessage(id, message),
+    messageSerializer = IdentifiableMessageSerializer(messageSerializer)
+)
 
 /**
  * Wrapper of [RedisClient] using pool to manage connection.
@@ -201,8 +226,8 @@ public class CacheClient(
     /**
      * Publish a message to a channel.
      * @param channel Channel to publish.
-     * @param messageSerializer Serializer to encode the message.
      * @param message Message to publish.
+     * @param messageSerializer Serializer to encode the message.
      */
     public suspend fun <T> publish(channel: String, message: T, messageSerializer: KSerializer<T>) {
         val channelByteArray = binaryFormat.encodeToByteArray(String.serializer(), channel)
@@ -210,6 +235,49 @@ public class CacheClient(
         connectionManager.poolPubSub.acquire {
             it.coroutines().publish(channelByteArray, messageByteArray)
         }
+    }
+
+    public suspend fun <M, R, T> publishAndWaitResponse(
+        channelPublish: String,
+        channelSubscribe: String,
+        messagePublish: M,
+        messageSerializer: KSerializer<M>,
+        responseSerializer: KSerializer<R>,
+        id: String = UUID.randomUUID().toString(),
+        subscribeScope: CoroutineScope = this,
+        timeout: Duration = 1.minutes,
+        body: suspend (R) -> T
+    ): T? {
+        var result: T? = null
+
+        lateinit var subscribeJob: Job
+        subscribeJob = subscribe(
+            channel = channelSubscribe,
+            messageSerializer = IdentifiableMessageSerializer(responseSerializer),
+            scope = subscribeScope
+        ) {
+            if (it.id == id) {
+                subscribeJob.cancel()
+                result = body(it.data)
+            }
+        }
+
+        publishIdentifiable(
+            channel = channelPublish,
+            id = id,
+            message = messagePublish,
+            messageSerializer = messageSerializer
+        )
+
+        val timeoutJob = subscribeScope.launch {
+            delay(timeout)
+            subscribeJob.cancel()
+        }
+
+        subscribeJob.invokeOnCompletion { timeoutJob.cancel() }
+        joinAll(subscribeJob, timeoutJob)
+
+        return result
     }
 
     override fun closeAsync(): CompletableFuture<Void> {
