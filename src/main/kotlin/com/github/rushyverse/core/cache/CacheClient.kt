@@ -42,7 +42,7 @@ private val logger = KotlinLogging.logger { }
  * @param message Message to publish.
  * @param messageSerializer Serializer to encode the message.
  */
-public suspend fun <T> CacheClient.publishWithID(
+public suspend fun <T> CacheClient.publishIdentifiableMessage(
     channel: String,
     id: String,
     message: T,
@@ -237,6 +237,22 @@ public class CacheClient(
         }
     }
 
+    /**
+     * Publish the [messagePublish] to the [channelPublish] and wait for a response on the [channelSubscribe].
+     * The [messagePublish] is wrapped in a [IdentifiableMessage] with the [id] as [IdentifiableMessage.id].
+     * The [channelSubscribe] must deserialize the message to a [IdentifiableMessage] and check if the [IdentifiableMessage.id] is the same as the [id].
+     * The subscription is cancelled after the [timeout] or when the first message with the same [id] is received.
+     * @param channelPublish Channel to publish the [messagePublish].
+     * @param channelSubscribe Channel to subscribe to the response.
+     * @param messagePublish Message that will be wrapped in a [IdentifiableMessage] and published to the [channelPublish].
+     * @param messageSerializer Serializer to encode the [messagePublish].
+     * @param responseSerializer Serializer to decode the response.
+     * @param id Id of the [messagePublish] to match the response.
+     * @param subscribeScope Scope to launch the subscription.
+     * @param timeout Timeout to cancel the subscription.
+     * @param body Function to execute when a message is received.
+     * @return The result of the [body] function or null if the [timeout] is reached.
+     */
     public suspend fun <M, R, T> publishAndWaitResponse(
         channelPublish: String,
         channelSubscribe: String,
@@ -257,12 +273,15 @@ public class CacheClient(
             scope = subscribeScope
         ) {
             if (it.id == id) {
-                subscribeJob.cancel()
-                result = body(it.data)
+                try {
+                    result = body(it.data)
+                } finally {
+                    subscribeJob.cancel()
+                }
             }
         }
 
-        publishWithID(
+        publishIdentifiableMessage(
             channel = channelPublish,
             id = id,
             message = messagePublish,
