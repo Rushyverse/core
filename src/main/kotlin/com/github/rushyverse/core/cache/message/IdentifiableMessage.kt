@@ -4,6 +4,7 @@ import com.github.rushyverse.core.cache.CacheClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
@@ -138,8 +139,8 @@ public class IdentifiableMessageSerializer<T>(private val dataSerializer: KSeria
             }
 
             IdentifiableMessage(
-                id = id ?: error("The field id is missing"),
-                data = data ?: error("The field data is missing")
+                id = id ?: throw SerializationException("The field id is missing"),
+                data = data ?: throw SerializationException("The field data is missing")
             )
         }
     }

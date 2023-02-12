@@ -3,6 +3,7 @@ package com.github.rushyverse.core.cache.message
 import com.github.rushyverse.core.utils.getRandomString
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
@@ -10,6 +11,7 @@ import kotlinx.serialization.descriptors.element
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -103,5 +105,24 @@ class IdentifiableMessageSerializerTest {
             assertEquals(message, actual)
         }
 
+        @Test
+        fun `should throws exception if id is missing`() {
+            val serializer = IdentifiableMessageSerializer(ColorAsObjectSerializer)
+            val expected = "{\"data\":{\"r\":5,\"g\":240,\"b\":193}}"
+            val exception = assertThrows<SerializationException> {
+                Json.decodeFromString(serializer, expected)
+            }
+            assertEquals("The field id is missing", exception.message)
+        }
+
+        @Test
+        fun `should throws exception if data is missing`() {
+            val serializer = IdentifiableMessageSerializer(ColorAsObjectSerializer)
+            val expected = "{\"id\":\"test\"}"
+            val exception = assertThrows<SerializationException> {
+                Json.decodeFromString(serializer, expected)
+            }
+            assertEquals("The field data is missing", exception.message)
+        }
     }
 }
