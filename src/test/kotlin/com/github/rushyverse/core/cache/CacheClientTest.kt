@@ -1,7 +1,7 @@
 package com.github.rushyverse.core.cache
 
-import com.github.rushyverse.core.cache.message.IdentifiableMessage
-import com.github.rushyverse.core.cache.message.IdentifiableMessageSerializer
+import com.github.rushyverse.core.cache.message.publishIdentifiableMessage
+import com.github.rushyverse.core.cache.message.subscribeIdentifiableMessage
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.utils.assertCoroutineContextUseDispatcher
@@ -744,11 +744,12 @@ class CacheClientTest {
             val messageSerializer = String.serializer()
 
             val latch = CountDownLatch(1)
-            client.subscribe(
+            client.subscribeIdentifiableMessage(
                 channel,
-                IdentifiableMessageSerializer(messageSerializer)
-            ) {
-                assertEquals(IdentifiableMessage(id, message), it)
+                messageSerializer
+            ) { messageId, data ->
+                assertEquals(id, messageId)
+                assertEquals(message, data)
                 latch.countDown()
             }
 
@@ -783,11 +784,12 @@ class CacheClientTest {
             val id = getRandomString()
             var isReceived = false
 
-            client.subscribe(
+            client.subscribeIdentifiableMessage(
                 channel,
-                IdentifiableMessageSerializer(messageSerializer)
-            ) {
-                assertEquals(IdentifiableMessage(id, message), it)
+                messageSerializer
+            ) { msgId, data ->
+                assertEquals(id, msgId)
+                assertEquals(message, data)
                 isReceived = true
                 client.publishIdentifiableMessage(
                     channelResponse,
@@ -833,10 +835,12 @@ class CacheClientTest {
             val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
             assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
 
-            client.subscribe(
+            client.subscribeIdentifiableMessage(
                 channel,
-                IdentifiableMessageSerializer(messageSerializer)
-            ) {
+                messageSerializer
+            ) { msgId, data ->
+                assertEquals(id, msgId)
+                assertEquals(message, data)
                 hasChildrenDuringSubscription = coroutineScope.coroutineContext.job.children.count() > 0
                 client.publishIdentifiableMessage(
                     channelResponse,
@@ -882,10 +886,10 @@ class CacheClientTest {
             val latch = CountDownLatch(1)
             val latchReceiveWrongId = CountDownLatch(1)
 
-            client.subscribe(
+            client.subscribeIdentifiableMessage(
                 channel,
-                IdentifiableMessageSerializer(messageSerializer)
-            ) {
+                messageSerializer
+            ) { _, _ ->
                 latchReceiveWrongId.countDown()
             }
 
@@ -941,10 +945,10 @@ class CacheClientTest {
             val latch = CountDownLatch(1)
             val latchReceiveWrongId = CountDownLatch(1)
 
-            client.subscribe(
+            client.subscribeIdentifiableMessage(
                 channelSubscribe,
-                IdentifiableMessageSerializer(Int.serializer())
-            ) {
+                Int.serializer()
+            ) { _, _ ->
                 latchReceiveWrongId.countDown()
             }
 
@@ -997,10 +1001,10 @@ class CacheClientTest {
 
             val id = getRandomString()
 
-            client.subscribe(
+            client.subscribeIdentifiableMessage(
                 channel,
-                IdentifiableMessageSerializer(messageSerializer)
-            ) {
+                messageSerializer
+            ) { _, _ ->
                 List(10) {
                     client.async {
                         client.publishIdentifiableMessage(
@@ -1050,10 +1054,10 @@ class CacheClientTest {
 
             val latch = CountDownLatch(2)
 
-            client.subscribe(
+            client.subscribeIdentifiableMessage(
                 channel,
-                IdentifiableMessageSerializer(messageSerializer)
-            ) {
+                messageSerializer
+            ) { _, _ ->
                 client.publishIdentifiableMessage(
                     channelResponse,
                     id,
@@ -1095,10 +1099,10 @@ class CacheClientTest {
 
             val id = getRandomString()
 
-            client.subscribe(
+            client.subscribeIdentifiableMessage(
                 channel,
-                IdentifiableMessageSerializer(messageSerializer)
-            ) {
+                messageSerializer
+            ) { _, _ ->
                 client.publishIdentifiableMessage(
                     channelResponse,
                     id,
