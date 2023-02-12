@@ -8,9 +8,7 @@ import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisURI
 import io.lettuce.core.support.BoundedPoolConfig
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import io.mockk.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -406,85 +404,52 @@ class CacheClientTest {
         }
 
         @Nested
-        inner class OneChannelIdentifiableMessage {
+        inner class SubscribeIdentifiableMessage {
 
             @Test
-            fun `should use pool pubSub`() = runBlocking {
-                val pool = client.connectionManager.poolPubSub
+            fun `should depends of subscribe method for one channel`() = runTest {
+                val clientMock = mockk<CacheClient>()
+
                 val channel = getRandomString()
+                val serializer = Int.serializer()
+                val expectedJob = mockk<Job>()
 
-                val latch = CountDownLatch(1)
-                val job = client.subscribeIdentifiableMessage(channel, String.serializer()) { id, _ ->
-                    assertEquals(0, pool.idle)
-                    assertEquals(1, pool.objectCount)
-                    latch.countDown()
+                val serializerSlot = slot<KSerializer<IdentifiableMessageSerializer<Int>>>()
+                coEvery {
+                    clientMock.subscribe(any<Array<String>>(), capture(serializerSlot), any(), any())
+                } returns expectedJob
+
+                val job = clientMock.subscribeIdentifiableMessage(channel, serializer) { _, _ -> }
+                assertEquals(expectedJob, job)
+
+                coVerify {
+                    clientMock.subscribe(eq(arrayOf(channel)), serializerSlot.captured, eq(clientMock), any())
                 }
-
-                assertEquals(0, pool.idle)
-                assertEquals(1, pool.objectCount)
-
-                val idMessage = IdentifiableMessage(
-                    getRandomString(),
-                    getRandomString()
-                )
-
-                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
-                val messageByteArray = client.binaryFormat.encodeToByteArray(
-                    IdentifiableMessageSerializer(String.serializer()),
-                    idMessage
-                )
-
-                client.connect {
-                    it.publish(channelByteArray, messageByteArray)
-                }
-
-                latch.await()
-
-                job.cancel()
-
-                val latchRelease = CountDownLatch(10)
-
-                while (pool.idle == 0 && !latchRelease.await(100, TimeUnit.MILLISECONDS)) {
-                    latchRelease.countDown()
-                }
-
-                assertEquals(1, pool.idle)
-                assertEquals(1, pool.objectCount)
             }
 
             @Test
-            fun `receive string message`() = runTest {
-                val channel = getRandomString()
+            fun `should depends of subscribe method for several channels`() = runTest {
+                val clientMock = mockk<CacheClient>()
 
-                val latch = CountDownLatch(1)
-                var receivedMessage: IIdentifiableMessage<String>? = null
-                client.subscribeIdentifiableMessage(channel, String.serializer()) { id, message ->
-                    receivedMessage = IdentifiableMessage(id, message)
-                    latch.countDown()
+                val channels = Array(10) { getRandomString() }
+                val serializer = Int.serializer()
+                val expectedJob = mockk<Job>()
+
+                val serializerSlot = slot<KSerializer<IdentifiableMessageSerializer<Int>>>()
+                coEvery {
+                    clientMock.subscribe(any<Array<String>>(), capture(serializerSlot), any(), any())
+                } returns expectedJob
+
+                val job = clientMock.subscribeIdentifiableMessage(channels, serializer) { _, _, _ -> }
+                assertEquals(expectedJob, job)
+
+                coVerify {
+                    clientMock.subscribe(eq(channels), serializerSlot.captured, eq(clientMock), any())
                 }
-
-                val idMessage = IdentifiableMessage(
-                    getRandomString(),
-                    getRandomString()
-                )
-
-                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
-                val messageByteArray = client.binaryFormat.encodeToByteArray(
-                    IdentifiableMessageSerializer(String.serializer()),
-                    idMessage
-                )
-
-                client.connect {
-                    it.publish(channelByteArray, messageByteArray)
-                }
-
-                latch.await()
-
-                assertEquals(idMessage, receivedMessage)
             }
 
             @Test
-            fun `receive custom type message`() = runTest {
+            fun `receive custom type message for one channel`() = runTest {
                 val channel = getRandomString()
                 val expectedMessage = UUID.randomUUID()
 
@@ -516,51 +481,32 @@ class CacheClientTest {
             }
 
             @Test
-            fun `throw exception in handler for the first message but continue to receive`() = runTest {
-                val channel = getRandomString()
+            fun `receive custom type message for several channel`() = runTest {
+                val channels = Array(2) { getRandomString() }
+                val expectedMessage = UUID.randomUUID()
+
+                val idMessage = IdentifiableMessage(
+                    getRandomString(),
+                    expectedMessage
+                )
 
                 val latch = CountDownLatch(2)
-                client.subscribeIdentifiableMessage(channel, String.serializer()) { _, _ ->
-                    latch.countDown()
-                    if (latch.count == 1L) {
-                        error("Error")
+                client.subscribeIdentifiableMessage(channels, UUIDSerializer) { channel, id, message ->
+                    when (latch.count) {
+                        2L -> {
+                            assertEquals(channels[0], channel)
+                        }
+                        1L -> {
+                            assertEquals(channels[1], channel)
+                        }
+                        else -> {
+                            fail("Should not be called")
+                        }
                     }
-                }
-
-                val idMessage = IdentifiableMessage(
-                    getRandomString(),
-                    getRandomString()
-                )
-
-                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
-                val messageByteArray = client.binaryFormat.encodeToByteArray(
-                    IdentifiableMessageSerializer(String.serializer()),
-                    idMessage
-                )
-
-                client.connect {
-                    it.publish(channelByteArray, messageByteArray)
-                    it.publish(channelByteArray, messageByteArray)
-                }
-
-                latch.await()
-            }
-
-            @Test
-            fun `throw exception in parse message for the first message but continue to receive`() = runTest {
-                val channel = getRandomString()
-
-                val latch = CountDownLatch(1)
-                client.subscribeIdentifiableMessage(channel, UUIDSerializer) { _, _ ->
+                    assertEquals(idMessage, IdentifiableMessage(id, message))
                     latch.countDown()
                 }
 
-                val idMessage = IdentifiableMessage(
-                    getRandomString(),
-                    UUID.randomUUID()
-                )
-
-                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
                 val messageByteArray = client.binaryFormat.encodeToByteArray(
                     IdentifiableMessageSerializer(UUIDSerializer),
                     idMessage
@@ -568,87 +514,17 @@ class CacheClientTest {
 
                 client.connect {
                     it.publish(
-                        channelByteArray,
-                        client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString())
+                        client.binaryFormat.encodeToByteArray(String.serializer(), channels[0]),
+                        messageByteArray
                     )
                     it.publish(
-                        channelByteArray,
+                        client.binaryFormat.encodeToByteArray(String.serializer(), channels[1]),
                         messageByteArray
                     )
                 }
 
                 latch.await()
             }
-
-            @Test
-            fun `doesn't receive message for other channel`() = runTest {
-                val expectedChannel = getRandomString()
-                val expectedMessage = getRandomString()
-
-                val latch = CountDownLatch(1)
-
-                client.subscribeIdentifiableMessage(expectedChannel, String.serializer()) { _, message ->
-                    assertEquals(expectedMessage, message)
-                    latch.countDown()
-                }
-
-                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), expectedChannel)
-                val messageByteArray = client.binaryFormat.encodeToByteArray(
-                    IdentifiableMessageSerializer(String.serializer()),
-                    IdentifiableMessage(
-                        getRandomString(),
-                        expectedMessage
-                    )
-                )
-
-                client.connect {
-                    it.publish(
-                        client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString()),
-                        client.binaryFormat.encodeToByteArray(
-                            IdentifiableMessageSerializer(String.serializer()),
-                            IdentifiableMessage(
-                                getRandomString(),
-                                getRandomString()
-                            )
-                        )
-                    )
-                    it.publish(
-                        channelByteArray,
-                        messageByteArray
-                    )
-                }
-
-                latch.await()
-            }
-
-            @Test
-            fun `should receive in a coroutine from scope`() = runTest {
-                val expectedChannel = getRandomString()
-
-                val latch = CountDownLatch(1)
-
-                val scope = CoroutineScope(Dispatchers.Default)
-                client.subscribeIdentifiableMessage(expectedChannel, String.serializer(), scope = scope) { _, _ ->
-                    assertCoroutineContextUseDispatcher(currentCoroutineContext(), Dispatchers.Default)
-                    latch.countDown()
-                }
-
-                client.connect {
-                    it.publish(
-                        client.binaryFormat.encodeToByteArray(String.serializer(), expectedChannel),
-                        client.binaryFormat.encodeToByteArray(
-                            IdentifiableMessageSerializer(String.serializer()),
-                            IdentifiableMessage(
-                                getRandomString(),
-                                getRandomString()
-                            )
-                        )
-                    )
-                }
-
-                latch.await()
-            }
-
         }
 
         @Nested
