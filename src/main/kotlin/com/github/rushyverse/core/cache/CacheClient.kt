@@ -2,6 +2,9 @@
 
 package com.github.rushyverse.core.cache
 
+import com.github.rushyverse.core.cache.message.IdentifiableMessage
+import com.github.rushyverse.core.cache.message.publishIdentifiableMessage
+import com.github.rushyverse.core.cache.message.subscribeIdentifiableMessage
 import com.github.rushyverse.core.extension.acquire
 import com.github.rushyverse.core.extension.toTypedArray
 import io.lettuce.core.RedisClient
@@ -24,7 +27,10 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.protobuf.ProtoBuf
 import mu.KotlinLogging
+import java.util.*
 import java.util.concurrent.CompletableFuture
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 
 private val logger = KotlinLogging.logger { }
 
@@ -201,8 +207,8 @@ public class CacheClient(
     /**
      * Publish a message to a channel.
      * @param channel Channel to publish.
-     * @param messageSerializer Serializer to encode the message.
      * @param message Message to publish.
+     * @param messageSerializer Serializer to encode the message.
      */
     public suspend fun <T> publish(channel: String, message: T, messageSerializer: KSerializer<T>) {
         val channelByteArray = binaryFormat.encodeToByteArray(String.serializer(), channel)
@@ -210,6 +216,68 @@ public class CacheClient(
         connectionManager.poolPubSub.acquire {
             it.coroutines().publish(channelByteArray, messageByteArray)
         }
+    }
+
+    /**
+     * Publish the [messagePublish] to the [channelPublish] and wait for a response on the [channelSubscribe].
+     * The [messagePublish] is wrapped in a [IdentifiableMessage] with the [id] as [IdentifiableMessage.id].
+     * The [channelSubscribe] must deserialize the message to a [IdentifiableMessage] and check if the [IdentifiableMessage.id] is the same as the [id].
+     * The subscription is cancelled after the [timeout] or when the first message with the same [id] is received.
+     * @param channelPublish Channel to publish the [messagePublish].
+     * @param channelSubscribe Channel to subscribe to the response.
+     * @param messagePublish Message that will be wrapped in a [IdentifiableMessage] and published to the [channelPublish].
+     * @param messageSerializer Serializer to encode the [messagePublish].
+     * @param responseSerializer Serializer to decode the response.
+     * @param id Id of the [messagePublish] to match the response.
+     * @param subscribeScope Scope to launch the subscription.
+     * @param timeout Timeout to cancel the subscription.
+     * @param body Function to execute when a message is received.
+     * @return The result of the [body] function or null if the [timeout] is reached.
+     */
+    public suspend fun <M, R, T> publishAndWaitResponse(
+        channelPublish: String,
+        channelSubscribe: String,
+        messagePublish: M,
+        messageSerializer: KSerializer<M>,
+        responseSerializer: KSerializer<R>,
+        id: String = UUID.randomUUID().toString(),
+        subscribeScope: CoroutineScope = this,
+        timeout: Duration = 1.minutes,
+        body: suspend (R) -> T
+    ): T? {
+        var result: T? = null
+
+        lateinit var subscribeJob: Job
+        subscribeJob = subscribeIdentifiableMessage(
+            channel = channelSubscribe,
+            messageSerializer = responseSerializer,
+            scope = subscribeScope
+        ) { messageId, data ->
+            if (messageId == id) {
+                try {
+                    result = body(data)
+                } finally {
+                    subscribeJob.cancel()
+                }
+            }
+        }
+
+        publishIdentifiableMessage(
+            channel = channelPublish,
+            id = id,
+            message = messagePublish,
+            messageSerializer = messageSerializer
+        )
+
+        val timeoutJob = subscribeScope.launch {
+            delay(timeout)
+            subscribeJob.cancel()
+        }
+
+        subscribeJob.invokeOnCompletion { timeoutJob.cancel() }
+        joinAll(subscribeJob, timeoutJob)
+
+        return result
     }
 
     override fun closeAsync(): CompletableFuture<Void> {

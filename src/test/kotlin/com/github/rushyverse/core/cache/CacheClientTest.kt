@@ -1,5 +1,6 @@
 package com.github.rushyverse.core.cache
 
+import com.github.rushyverse.core.cache.message.*
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.utils.assertCoroutineContextUseDispatcher
@@ -7,9 +8,7 @@ import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisURI
 import io.lettuce.core.support.BoundedPoolConfig
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import io.mockk.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -27,9 +26,11 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 import kotlin.test.*
+import kotlin.time.Duration.Companion.seconds
 
 @Timeout(5, unit = TimeUnit.SECONDS)
 @Testcontainers
@@ -220,7 +221,7 @@ class CacheClientTest {
         inner class OneChannel {
 
             @Test
-            fun `should use pool pubSub`() = runBlocking {
+            fun `should use pool pubSub`() = runTest {
                 val pool = client.connectionManager.poolPubSub
                 val channel = getRandomString()
 
@@ -237,7 +238,6 @@ class CacheClientTest {
                 val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
                 val messageByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString())
 
-                delay(100)
                 client.connect {
                     it.publish(channelByteArray, messageByteArray)
                 }
@@ -401,6 +401,130 @@ class CacheClientTest {
                 latch.await()
             }
 
+        }
+
+        @Nested
+        inner class SubscribeIdentifiableMessage {
+
+            @Test
+            fun `should depends of subscribe method for one channel`() = runTest {
+                val clientMock = mockk<CacheClient>()
+
+                val channel = getRandomString()
+                val serializer = Int.serializer()
+                val expectedJob = mockk<Job>()
+
+                val serializerSlot = slot<KSerializer<IdentifiableMessageSerializer<Int>>>()
+                coEvery {
+                    clientMock.subscribe(any<Array<String>>(), capture(serializerSlot), any(), any())
+                } returns expectedJob
+
+                val job = clientMock.subscribeIdentifiableMessage(channel, serializer) { _, _ -> }
+                assertEquals(expectedJob, job)
+
+                coVerify {
+                    clientMock.subscribe(eq(arrayOf(channel)), serializerSlot.captured, eq(clientMock), any())
+                }
+            }
+
+            @Test
+            fun `should depends of subscribe method for several channels`() = runTest {
+                val clientMock = mockk<CacheClient>()
+
+                val channels = Array(10) { getRandomString() }
+                val serializer = Int.serializer()
+                val expectedJob = mockk<Job>()
+
+                val serializerSlot = slot<KSerializer<IdentifiableMessageSerializer<Int>>>()
+                coEvery {
+                    clientMock.subscribe(any<Array<String>>(), capture(serializerSlot), any(), any())
+                } returns expectedJob
+
+                val job = clientMock.subscribeIdentifiableMessage(channels, serializer) { _, _, _ -> }
+                assertEquals(expectedJob, job)
+
+                coVerify {
+                    clientMock.subscribe(eq(channels), serializerSlot.captured, eq(clientMock), any())
+                }
+            }
+
+            @Test
+            fun `receive custom type message for one channel`() = runTest {
+                val channel = getRandomString()
+                val expectedMessage = UUID.randomUUID()
+
+                val latch = CountDownLatch(1)
+                var receivedMessage: IIdentifiableMessage<UUID>? = null
+                client.subscribeIdentifiableMessage(channel, UUIDSerializer) { id, message ->
+                    receivedMessage = IdentifiableMessage(id, message)
+                    latch.countDown()
+                }
+
+                val idMessage = IdentifiableMessage(
+                    getRandomString(),
+                    expectedMessage
+                )
+
+                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
+                val messageByteArray = client.binaryFormat.encodeToByteArray(
+                    IdentifiableMessageSerializer(UUIDSerializer),
+                    idMessage
+                )
+
+                client.connect {
+                    it.publish(channelByteArray, messageByteArray)
+                }
+
+                latch.await()
+
+                assertEquals(idMessage, receivedMessage)
+            }
+
+            @Test
+            fun `receive custom type message for several channel`() = runTest {
+                val channels = Array(2) { getRandomString() }
+                val expectedMessage = UUID.randomUUID()
+
+                val idMessage = IdentifiableMessage(
+                    getRandomString(),
+                    expectedMessage
+                )
+
+                val latch = CountDownLatch(2)
+                client.subscribeIdentifiableMessage(channels, UUIDSerializer) { channel, id, message ->
+                    when (latch.count) {
+                        2L -> {
+                            assertEquals(channels[0], channel)
+                        }
+                        1L -> {
+                            assertEquals(channels[1], channel)
+                        }
+                        else -> {
+                            fail("Should not be called")
+                        }
+                    }
+                    assertEquals(idMessage, IdentifiableMessage(id, message))
+                    latch.countDown()
+                }
+
+                val messageByteArray = client.binaryFormat.encodeToByteArray(
+                    IdentifiableMessageSerializer(UUIDSerializer),
+                    idMessage
+                )
+
+                client.connect {
+                    it.publish(
+                        client.binaryFormat.encodeToByteArray(String.serializer(), channels[0]),
+                        messageByteArray
+                    )
+                    it.publish(
+                        client.binaryFormat.encodeToByteArray(String.serializer(), channels[1]),
+                        messageByteArray
+                    )
+                }
+
+                latch.await()
+            }
         }
 
         @Nested
@@ -722,5 +846,457 @@ class CacheClientTest {
                 }.launchIn(CoroutineScope(Dispatchers.IO))
         }
 
+    }
+
+    @Nested
+    inner class PublishIdentifiableMessage {
+
+        @Test
+        fun `should publish identifiable message`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val message = getRandomString()
+            val id = getRandomString()
+
+            val messageSerializer = String.serializer()
+
+            val latch = CountDownLatch(1)
+            client.subscribeIdentifiableMessage(
+                channel,
+                messageSerializer
+            ) { messageId, data ->
+                assertEquals(id, messageId)
+                assertEquals(message, data)
+                latch.countDown()
+            }
+
+            client.publishIdentifiableMessage(
+                channel,
+                id,
+                message,
+                messageSerializer,
+            )
+
+            latch.await()
+        }
+    }
+
+    @Nested
+    inner class PublishAndWaitResponse {
+
+        @Test
+        fun `should publish and wait response`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+            var isReceived = false
+
+            client.subscribeIdentifiableMessage(
+                channel,
+                messageSerializer
+            ) { msgId, data ->
+                assertEquals(id, msgId)
+                assertEquals(message, data)
+                isReceived = true
+                client.publishIdentifiableMessage(
+                    channelResponse,
+                    id,
+                    expectedResponse,
+                    responseSerializer
+                )
+            }
+
+            val response = client.publishAndWaitResponse(
+                channelSubscribe = channelResponse,
+                channelPublish = channel,
+                messagePublish = message,
+                messageSerializer = messageSerializer,
+                responseSerializer = responseSerializer,
+                id = id
+            ) {
+                assertEquals(expectedResponse, it)
+                it
+            }
+
+            assertEquals(expectedResponse, response)
+            assertTrue(isReceived)
+        }
+
+        @Test
+        fun `should cancel created job for subscribe when finish by message`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+            var hasChildrenDuringSubscription = false
+
+            val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
+
+            client.subscribeIdentifiableMessage(
+                channel,
+                messageSerializer
+            ) { msgId, data ->
+                assertEquals(id, msgId)
+                assertEquals(message, data)
+                hasChildrenDuringSubscription = coroutineScope.coroutineContext.job.children.count() > 0
+                client.publishIdentifiableMessage(
+                    channelResponse,
+                    id,
+                    expectedResponse,
+                    responseSerializer
+                )
+            }
+
+            client.publishAndWaitResponse(
+                channelSubscribe = channelResponse,
+                channelPublish = channel,
+                messagePublish = message,
+                messageSerializer = messageSerializer,
+                responseSerializer = responseSerializer,
+                id = id,
+                subscribeScope = coroutineScope
+            ) {
+                assertEquals(expectedResponse, it)
+                it
+            }
+
+            assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
+            assertTrue(hasChildrenDuringSubscription)
+        }
+
+        @Test
+        fun `should not be triggered when the id is not the same`() = runBlocking {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+
+            val latch = CountDownLatch(1)
+            val latchReceiveWrongId = CountDownLatch(1)
+
+            client.subscribeIdentifiableMessage(
+                channel,
+                messageSerializer
+            ) { _, _ ->
+                latchReceiveWrongId.countDown()
+            }
+
+            client.launch {
+                client.publishAndWaitResponse(
+                    channelSubscribe = channelResponse,
+                    channelPublish = channel,
+                    messagePublish = message,
+                    messageSerializer = messageSerializer,
+                    responseSerializer = responseSerializer,
+                    id = id
+                ) {
+                    latch.countDown()
+                }
+            }
+
+            client.publishIdentifiableMessage(
+                channelResponse,
+                getRandomString(),
+                expectedResponse,
+                responseSerializer
+            )
+
+            latchReceiveWrongId.await()
+            assertEquals(1, latch.count)
+
+            client.publishIdentifiableMessage(
+                channelResponse,
+                id,
+                expectedResponse,
+                responseSerializer
+            )
+
+            latch.await()
+        }
+
+        @Test
+        fun `should not be triggered when the message is not deserializable`(): Unit = runBlocking {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelSubscribe = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+
+            val latch = CountDownLatch(1)
+            val latchReceiveWrongId = CountDownLatch(1)
+
+            client.subscribeIdentifiableMessage(
+                channelSubscribe,
+                Int.serializer()
+            ) { _, _ ->
+                latchReceiveWrongId.countDown()
+            }
+
+            client.launch {
+                client.publishAndWaitResponse(
+                    channelSubscribe = channelSubscribe,
+                    channelPublish = channel,
+                    messagePublish = message,
+                    messageSerializer = messageSerializer,
+                    responseSerializer = responseSerializer,
+                    id = id
+                ) {
+                    latch.countDown()
+                }
+            }
+
+            client.publishIdentifiableMessage(
+                channelSubscribe,
+                getRandomString(),
+                1,
+                Int.serializer()
+            )
+
+            latchReceiveWrongId.await()
+            assertEquals(1, latch.count)
+
+            client.publishIdentifiableMessage(
+                channelSubscribe,
+                id,
+                expectedResponse,
+                responseSerializer
+            )
+
+            latch.await()
+        }
+
+        @Test
+        fun `should trigger the body only once times when several message with same id are sent`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+
+            client.subscribeIdentifiableMessage(
+                channel,
+                messageSerializer
+            ) { _, _ ->
+                List(10) {
+                    client.async {
+                        client.publishIdentifiableMessage(
+                            channelResponse,
+                            id,
+                            expectedResponse,
+                            responseSerializer
+                        )
+                    }
+                }.awaitAll()
+            }
+
+            val atomicInteger = AtomicInteger(0)
+
+            client.publishAndWaitResponse(
+                channelSubscribe = channelResponse,
+                channelPublish = channel,
+                messagePublish = message,
+                messageSerializer = messageSerializer,
+                responseSerializer = responseSerializer,
+                id = id
+            ) {
+                yield()
+                atomicInteger.incrementAndGet()
+                yield()
+            }
+
+            assertEquals(1, atomicInteger.get())
+        }
+
+        @Test
+        @Timeout(3, unit = TimeUnit.SECONDS)
+        fun `should let finish body execution`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+
+            val latch = CountDownLatch(2)
+
+            client.subscribeIdentifiableMessage(
+                channel,
+                messageSerializer
+            ) { _, _ ->
+                client.publishIdentifiableMessage(
+                    channelResponse,
+                    id,
+                    expectedResponse,
+                    responseSerializer
+                )
+            }
+
+            client.publishAndWaitResponse(
+                channelSubscribe = channelResponse,
+                channelPublish = channel,
+                messagePublish = message,
+                messageSerializer = messageSerializer,
+                responseSerializer = responseSerializer,
+                id = id
+            ) {
+                latch.countDown()
+                yield()
+                latch.countDown()
+            }
+
+            latch.await()
+        }
+
+        @Test
+        @Timeout(3, unit = TimeUnit.SECONDS)
+        fun `should stop subscribe job when exception is thrown in body`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+
+            client.subscribeIdentifiableMessage(
+                channel,
+                messageSerializer
+            ) { _, _ ->
+                client.publishIdentifiableMessage(
+                    channelResponse,
+                    id,
+                    expectedResponse,
+                    responseSerializer
+                )
+            }
+
+            val coroutineScope = CoroutineScope(Dispatchers.IO)
+
+            client.publishAndWaitResponse(
+                channelSubscribe = channelResponse,
+                channelPublish = channel,
+                messagePublish = message,
+                messageSerializer = messageSerializer,
+                responseSerializer = responseSerializer,
+                id = id,
+                subscribeScope = coroutineScope
+            ) {
+                error("Excepted exception")
+            }
+
+            assertTrue { coroutineScope.coroutineContext.job.children.count() == 0 }
+        }
+
+        @Test
+        @Timeout(3, unit = TimeUnit.SECONDS)
+        fun `should stop listening after timeout`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val timeout = 1.seconds
+
+            val currentTime = System.currentTimeMillis()
+
+            client.publishAndWaitResponse(
+                channelSubscribe = getRandomString(),
+                channelPublish = getRandomString(),
+                messagePublish = getRandomString(),
+                messageSerializer = String.serializer(),
+                responseSerializer = UUIDSerializer,
+                timeout = timeout
+            ) {
+                error("Should not be called")
+            }
+
+            val elapsedTime = System.currentTimeMillis() - currentTime
+            assertTrue(elapsedTime >= timeout.inWholeMilliseconds)
+        }
+
+        @Test
+        @Timeout(3, unit = TimeUnit.SECONDS)
+        fun `should cancel created job for subscribe when finish by timeout`() = runTest {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val timeout = 1.seconds
+            val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
+
+            client.publishAndWaitResponse(
+                channelSubscribe = getRandomString(),
+                channelPublish = getRandomString(),
+                messagePublish = getRandomString(),
+                messageSerializer = String.serializer(),
+                responseSerializer = UUIDSerializer,
+                timeout = timeout
+            ) {
+                error("Should not be called")
+            }
+
+            assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
+        }
     }
 }
