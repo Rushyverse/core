@@ -1,7 +1,6 @@
 package com.github.rushyverse.core.cache
 
-import com.github.rushyverse.core.cache.message.publishIdentifiableMessage
-import com.github.rushyverse.core.cache.message.subscribeIdentifiableMessage
+import com.github.rushyverse.core.cache.message.*
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.utils.assertCoroutineContextUseDispatcher
@@ -224,7 +223,7 @@ class CacheClientTest {
         inner class OneChannel {
 
             @Test
-            fun `should use pool pubSub`() = runBlocking {
+            fun `should use pool pubSub`() = runTest {
                 val pool = client.connectionManager.poolPubSub
                 val channel = getRandomString()
 
@@ -241,7 +240,6 @@ class CacheClientTest {
                 val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
                 val messageByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString())
 
-                delay(100)
                 client.connect {
                     it.publish(channelByteArray, messageByteArray)
                 }
@@ -399,6 +397,252 @@ class CacheClientTest {
                     it.publish(
                         client.binaryFormat.encodeToByteArray(String.serializer(), expectedChannel),
                         client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString())
+                    )
+                }
+
+                latch.await()
+            }
+
+        }
+
+        @Nested
+        inner class OneChannelIdentifiableMessage {
+
+            @Test
+            fun `should use pool pubSub`() = runBlocking {
+                val pool = client.connectionManager.poolPubSub
+                val channel = getRandomString()
+
+                val latch = CountDownLatch(1)
+                val job = client.subscribeIdentifiableMessage(channel, String.serializer()) { id, _ ->
+                    assertEquals(0, pool.idle)
+                    assertEquals(1, pool.objectCount)
+                    latch.countDown()
+                }
+
+                assertEquals(0, pool.idle)
+                assertEquals(1, pool.objectCount)
+
+                val idMessage = IdentifiableMessage(
+                    getRandomString(),
+                    getRandomString()
+                )
+
+                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
+                val messageByteArray = client.binaryFormat.encodeToByteArray(
+                    IdentifiableMessageSerializer(String.serializer()),
+                    idMessage
+                )
+
+                client.connect {
+                    it.publish(channelByteArray, messageByteArray)
+                }
+
+                latch.await()
+
+                job.cancel()
+
+                val latchRelease = CountDownLatch(10)
+
+                while (pool.idle == 0 && !latchRelease.await(100, TimeUnit.MILLISECONDS)) {
+                    latchRelease.countDown()
+                }
+
+                assertEquals(1, pool.idle)
+                assertEquals(1, pool.objectCount)
+            }
+
+            @Test
+            fun `receive string message`() = runTest {
+                val channel = getRandomString()
+
+                val latch = CountDownLatch(1)
+                var receivedMessage: IIdentifiableMessage<String>? = null
+                client.subscribeIdentifiableMessage(channel, String.serializer()) { id, message ->
+                    receivedMessage = IdentifiableMessage(id, message)
+                    latch.countDown()
+                }
+
+                val idMessage = IdentifiableMessage(
+                    getRandomString(),
+                    getRandomString()
+                )
+
+                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
+                val messageByteArray = client.binaryFormat.encodeToByteArray(
+                    IdentifiableMessageSerializer(String.serializer()),
+                    idMessage
+                )
+
+                client.connect {
+                    it.publish(channelByteArray, messageByteArray)
+                }
+
+                latch.await()
+
+                assertEquals(idMessage, receivedMessage)
+            }
+
+            @Test
+            fun `receive custom type message`() = runTest {
+                val channel = getRandomString()
+                val expectedMessage = UUID.randomUUID()
+
+                val latch = CountDownLatch(1)
+                var receivedMessage: IIdentifiableMessage<UUID>? = null
+                client.subscribeIdentifiableMessage(channel, UUIDSerializer) { id, message ->
+                    receivedMessage = IdentifiableMessage(id, message)
+                    latch.countDown()
+                }
+
+                val idMessage = IdentifiableMessage(
+                    getRandomString(),
+                    expectedMessage
+                )
+
+                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
+                val messageByteArray = client.binaryFormat.encodeToByteArray(
+                    IdentifiableMessageSerializer(UUIDSerializer),
+                    idMessage
+                )
+
+                client.connect {
+                    it.publish(channelByteArray, messageByteArray)
+                }
+
+                latch.await()
+
+                assertEquals(idMessage, receivedMessage)
+            }
+
+            @Test
+            fun `throw exception in handler for the first message but continue to receive`() = runTest {
+                val channel = getRandomString()
+
+                val latch = CountDownLatch(2)
+                client.subscribeIdentifiableMessage(channel, String.serializer()) { _, _ ->
+                    latch.countDown()
+                    if (latch.count == 1L) {
+                        error("Error")
+                    }
+                }
+
+                val idMessage = IdentifiableMessage(
+                    getRandomString(),
+                    getRandomString()
+                )
+
+                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
+                val messageByteArray = client.binaryFormat.encodeToByteArray(
+                    IdentifiableMessageSerializer(String.serializer()),
+                    idMessage
+                )
+
+                client.connect {
+                    it.publish(channelByteArray, messageByteArray)
+                    it.publish(channelByteArray, messageByteArray)
+                }
+
+                latch.await()
+            }
+
+            @Test
+            fun `throw exception in parse message for the first message but continue to receive`() = runTest {
+                val channel = getRandomString()
+
+                val latch = CountDownLatch(1)
+                client.subscribeIdentifiableMessage(channel, UUIDSerializer) { _, _ ->
+                    latch.countDown()
+                }
+
+                val idMessage = IdentifiableMessage(
+                    getRandomString(),
+                    UUID.randomUUID()
+                )
+
+                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), channel)
+                val messageByteArray = client.binaryFormat.encodeToByteArray(
+                    IdentifiableMessageSerializer(UUIDSerializer),
+                    idMessage
+                )
+
+                client.connect {
+                    it.publish(
+                        channelByteArray,
+                        client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString())
+                    )
+                    it.publish(
+                        channelByteArray,
+                        messageByteArray
+                    )
+                }
+
+                latch.await()
+            }
+
+            @Test
+            fun `doesn't receive message for other channel`() = runTest {
+                val expectedChannel = getRandomString()
+                val expectedMessage = getRandomString()
+
+                val latch = CountDownLatch(1)
+
+                client.subscribeIdentifiableMessage(expectedChannel, String.serializer()) { _, message ->
+                    assertEquals(expectedMessage, message)
+                    latch.countDown()
+                }
+
+                val channelByteArray = client.binaryFormat.encodeToByteArray(String.serializer(), expectedChannel)
+                val messageByteArray = client.binaryFormat.encodeToByteArray(
+                    IdentifiableMessageSerializer(String.serializer()),
+                    IdentifiableMessage(
+                        getRandomString(),
+                        expectedMessage
+                    )
+                )
+
+                client.connect {
+                    it.publish(
+                        client.binaryFormat.encodeToByteArray(String.serializer(), getRandomString()),
+                        client.binaryFormat.encodeToByteArray(
+                            IdentifiableMessageSerializer(String.serializer()),
+                            IdentifiableMessage(
+                                getRandomString(),
+                                getRandomString()
+                            )
+                        )
+                    )
+                    it.publish(
+                        channelByteArray,
+                        messageByteArray
+                    )
+                }
+
+                latch.await()
+            }
+
+            @Test
+            fun `should receive in a coroutine from scope`() = runTest {
+                val expectedChannel = getRandomString()
+
+                val latch = CountDownLatch(1)
+
+                val scope = CoroutineScope(Dispatchers.Default)
+                client.subscribeIdentifiableMessage(expectedChannel, String.serializer(), scope = scope) { _, _ ->
+                    assertCoroutineContextUseDispatcher(currentCoroutineContext(), Dispatchers.Default)
+                    latch.countDown()
+                }
+
+                client.connect {
+                    it.publish(
+                        client.binaryFormat.encodeToByteArray(String.serializer(), expectedChannel),
+                        client.binaryFormat.encodeToByteArray(
+                            IdentifiableMessageSerializer(String.serializer()),
+                            IdentifiableMessage(
+                                getRandomString(),
+                                getRandomString()
+                            )
+                        )
                     )
                 }
 
