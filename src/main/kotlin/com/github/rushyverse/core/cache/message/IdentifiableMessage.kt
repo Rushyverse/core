@@ -1,10 +1,81 @@
 package com.github.rushyverse.core.cache.message
 
+import com.github.rushyverse.core.cache.CacheClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.*
+
+/**
+ * Publish a response message to a channel.
+ * A response message is an [IdentifiableMessage] with an [id] and a [message].
+ * @receiver Cache client to publish the message.
+ * @param channel Channel to publish.
+ * @param id ID of the message.
+ * @param message Message to publish.
+ * @param messageSerializer Serializer to encode the message.
+ */
+public suspend fun <T> CacheClient.publishIdentifiableMessage(
+    channel: String,
+    id: String,
+    message: T,
+    messageSerializer: KSerializer<T>
+): Unit = publish(
+    channel = channel,
+    message = IdentifiableMessage(id, message),
+    messageSerializer = IdentifiableMessageSerializer(messageSerializer)
+)
+
+/**
+ * Subscribe to a channel.
+ * The message received must be deserializable by [IdentifiableMessageSerializer].
+ * The id and the data of the [IIdentifiableMessage] will be passed to the [body] callback.
+ * @receiver Cache client to subscribe.
+ * @param channel Channel to subscribe.
+ * @param messageSerializer Serializer to decode the message.
+ * @param scope Scope to launch the flow.
+ * @param body Function to execute when a message is received.
+ * @return A [Job] to cancel the subscription.
+ */
+public suspend fun <T> CacheClient.subscribeIdentifiableMessage(
+    channel: String,
+    messageSerializer: KSerializer<T>,
+    scope: CoroutineScope = this,
+    body: suspend (id: String, message: T) -> Unit
+): Job = subscribeIdentifiableMessage(
+    channels = arrayOf(channel),
+    messageSerializer = messageSerializer,
+    scope = scope
+) { _, id, message ->
+    body(id, message)
+}
+
+/**
+ * Subscribe to multiple channels.
+ * The message received must be deserializable by [IdentifiableMessageSerializer].
+ * The id and the data of the [IIdentifiableMessage] will be passed to the [body] callback.
+ * @receiver Cache client to subscribe.
+ * @param channels Channels to subscribe.
+ * @param messageSerializer Serializer to decode the message.
+ * @param scope Scope to launch the flow.
+ * @param body Function to execute when a message is received.
+ * @return A [Job] to cancel the subscription.
+ */
+public suspend fun <T> CacheClient.subscribeIdentifiableMessage(
+    channels: Array<String>,
+    messageSerializer: KSerializer<T>,
+    scope: CoroutineScope = this,
+    body: suspend (channel: String, id: String, message: T) -> Unit
+): Job = subscribe(
+    channels = channels,
+    messageSerializer = IdentifiableMessageSerializer(messageSerializer),
+    scope = scope
+) { channel, message ->
+    body(channel, message.id, message.data)
+}
 
 /**
  * A message that can be identified by an id.
@@ -72,6 +143,4 @@ public class IdentifiableMessageSerializer<T>(private val dataSerializer: KSeria
             )
         }
     }
-
-
 }

@@ -3,7 +3,8 @@
 package com.github.rushyverse.core.cache
 
 import com.github.rushyverse.core.cache.message.IdentifiableMessage
-import com.github.rushyverse.core.cache.message.IdentifiableMessageSerializer
+import com.github.rushyverse.core.cache.message.publishIdentifiableMessage
+import com.github.rushyverse.core.cache.message.subscribeIdentifiableMessage
 import com.github.rushyverse.core.extension.acquire
 import com.github.rushyverse.core.extension.toTypedArray
 import io.lettuce.core.RedisClient
@@ -32,26 +33,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 private val logger = KotlinLogging.logger { }
-
-/**
- * Publish a response message to a channel.
- * A response message is an [IdentifiableMessage] with an [id] and a [message].
- * @receiver CacheClient to publish the message.
- * @param channel Channel to publish.
- * @param id ID of the message.
- * @param message Message to publish.
- * @param messageSerializer Serializer to encode the message.
- */
-public suspend fun <T> CacheClient.publishIdentifiableMessage(
-    channel: String,
-    id: String,
-    message: T,
-    messageSerializer: KSerializer<T>
-): Unit = publish(
-    channel = channel,
-    message = IdentifiableMessage(id, message),
-    messageSerializer = IdentifiableMessageSerializer(messageSerializer)
-)
 
 /**
  * Wrapper of [RedisClient] using pool to manage connection.
@@ -267,14 +248,14 @@ public class CacheClient(
         var result: T? = null
 
         lateinit var subscribeJob: Job
-        subscribeJob = subscribe(
+        subscribeJob = subscribeIdentifiableMessage(
             channel = channelSubscribe,
-            messageSerializer = IdentifiableMessageSerializer(responseSerializer),
+            messageSerializer = responseSerializer,
             scope = subscribeScope
-        ) {
-            if (it.id == id) {
+        ) { messageId, data ->
+            if (messageId == id) {
                 try {
-                    result = body(it.data)
+                    result = body(data)
                 } finally {
                     subscribeJob.cancel()
                 }
