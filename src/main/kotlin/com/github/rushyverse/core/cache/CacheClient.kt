@@ -248,12 +248,14 @@ public class CacheClient(
         var result: T? = null
 
         lateinit var subscribeJob: Job
+        var timeoutJob: Job? = null
         subscribeJob = subscribeIdentifiableMessage(
             channel = channelSubscribe,
             messageSerializer = responseSerializer,
             scope = subscribeScope
         ) { messageId, data ->
             if (messageId == id) {
+                timeoutJob?.cancel()
                 try {
                     result = body(data)
                 } finally {
@@ -262,12 +264,6 @@ public class CacheClient(
             }
         }
 
-        val timeoutJob = subscribeScope.launch {
-            delay(timeout)
-            subscribeJob.cancel()
-        }
-        subscribeJob.invokeOnCompletion { timeoutJob.cancel() }
-
         try {
             publishIdentifiableMessage(
                 channel = channelPublish,
@@ -275,11 +271,18 @@ public class CacheClient(
                 message = messagePublish,
                 messageSerializer = messageSerializer
             )
+
+            timeoutJob = subscribeScope.launch {
+                delay(timeout)
+                subscribeJob.cancel()
+            }
+            subscribeJob.invokeOnCompletion { timeoutJob.cancel() }
         } catch (throwable: Throwable) {
             subscribeJob.cancel()
             throw throwable
         } finally {
-            joinAll(subscribeJob, timeoutJob)
+            subscribeJob.join()
+            timeoutJob?.join()
         }
 
         return result

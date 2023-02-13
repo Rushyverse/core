@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 import kotlin.test.*
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @Timeout(5, unit = TimeUnit.SECONDS)
@@ -938,7 +939,7 @@ class CacheClientTest {
         }
 
         @Test
-        fun `should cancel created job for subscribe when finish by message`() = runTest {
+        fun `should cancel created job for subscribe when finish by message`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1108,7 +1109,7 @@ class CacheClientTest {
         }
 
         @Test
-        fun `should trigger the body only once times when several message with same id are sent`() = runTest {
+        fun `should trigger the body only once times when several message with same id are sent`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1158,8 +1159,7 @@ class CacheClientTest {
         }
 
         @Test
-        @Timeout(3, unit = TimeUnit.SECONDS)
-        fun `should let finish body execution`() = runTest {
+        fun `should let finish body execution`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1205,8 +1205,7 @@ class CacheClientTest {
         }
 
         @Test
-        @Timeout(3, unit = TimeUnit.SECONDS)
-        fun `should stop subscribe job when exception is thrown in body`() = runTest {
+        fun `should stop subscribe job when exception is thrown in body`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1251,8 +1250,7 @@ class CacheClientTest {
         }
 
         @Test
-        @Timeout(3, unit = TimeUnit.SECONDS)
-        fun `should stop subscribe job when exception is thrown by publish`() = runTest {
+        fun `should stop subscribe job when exception is thrown by publish`() = runBlocking {
             val client = spyk(CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             })
@@ -1282,8 +1280,49 @@ class CacheClientTest {
         }
 
         @Test
-        @Timeout(3, unit = TimeUnit.SECONDS)
-        fun `should stop listening after timeout`() = runTest {
+        fun `should begin timeout after publish`() = runBlocking {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+            val clientSpy = spyk(client)
+
+            val channel = getRandomString()
+            val id = getRandomString()
+            val timeout = 100.milliseconds
+            val coroutineScope = CoroutineScope(Dispatchers.IO)
+
+            coEvery { clientSpy.publish(any(), any(), any<IdentifiableMessageSerializer<UUID>>()) } coAnswers {
+                delay(200.milliseconds)
+                client.publishIdentifiableMessage(
+                    channel,
+                    id,
+                    UUID.randomUUID(),
+                    UUIDSerializer
+                )
+            }
+
+            val latch = CountDownLatch(1)
+            var isCalled = false
+            clientSpy.publishAndWaitResponse(
+                channelSubscribe = channel,
+                channelPublish = getRandomString(),
+                messagePublish = getRandomString(),
+                messageSerializer = String.serializer(),
+                responseSerializer = UUIDSerializer,
+                subscribeScope = coroutineScope,
+                id = id,
+                timeout = timeout
+            ) {
+                isCalled = true
+                latch.countDown()
+            }
+
+            latch.await()
+            assertTrue(isCalled)
+        }
+
+        @Test
+        fun `should stop listening after timeout`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1308,8 +1347,12 @@ class CacheClientTest {
         }
 
         @Test
-        @Timeout(3, unit = TimeUnit.SECONDS)
-        fun `should cancel created job for subscribe when finish by timeout`() = runTest {
+        fun `should cancel timeout if message received`() = runBlocking<Unit> {
+            TODO()
+        }
+
+        @Test
+        fun `should cancel created job for subscribe when finish by timeout`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
