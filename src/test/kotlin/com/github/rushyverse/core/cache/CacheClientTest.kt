@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 import kotlin.test.*
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @Timeout(5, unit = TimeUnit.SECONDS)
@@ -498,9 +499,11 @@ class CacheClientTest {
                         2L -> {
                             assertEquals(channels[0], channel)
                         }
+
                         1L -> {
                             assertEquals(channels[1], channel)
                         }
+
                         else -> {
                             fail("Should not be called")
                         }
@@ -938,7 +941,7 @@ class CacheClientTest {
         }
 
         @Test
-        fun `should cancel created job for subscribe when finish by message`() = runTest {
+        fun `should cancel created job for subscribe when finish by message`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1108,7 +1111,7 @@ class CacheClientTest {
         }
 
         @Test
-        fun `should trigger the body only once times when several message with same id are sent`() = runTest {
+        fun `should trigger the body only once times when several message with same id are sent`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1158,8 +1161,7 @@ class CacheClientTest {
         }
 
         @Test
-        @Timeout(3, unit = TimeUnit.SECONDS)
-        fun `should let finish body execution`() = runTest {
+        fun `should let finish body execution`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1205,8 +1207,7 @@ class CacheClientTest {
         }
 
         @Test
-        @Timeout(3, unit = TimeUnit.SECONDS)
-        fun `should stop subscribe job when exception is thrown in body`() = runTest {
+        fun `should stop subscribe job when exception is thrown in body`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1251,8 +1252,7 @@ class CacheClientTest {
         }
 
         @Test
-        @Timeout(3, unit = TimeUnit.SECONDS)
-        fun `should stop subscribe job when exception is thrown by publish`() = runTest {
+        fun `should stop subscribe job when exception is thrown by publish`() = runBlocking {
             val client = spyk(CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             })
@@ -1262,7 +1262,13 @@ class CacheClientTest {
             val coroutineScope = CoroutineScope(Dispatchers.IO)
 
             val expectedException = SerializationException("Expected exception")
-            coEvery { client.publish(any(), any(), any<IdentifiableMessageSerializer<UUID>>()) } throws expectedException
+            coEvery {
+                client.publish(
+                    any(),
+                    any(),
+                    any<IdentifiableMessageSerializer<UUID>>()
+                )
+            } throws expectedException
 
             val catchException = assertThrows<SerializationException> {
                 client.publishAndWaitResponse(
@@ -1282,8 +1288,49 @@ class CacheClientTest {
         }
 
         @Test
-        @Timeout(3, unit = TimeUnit.SECONDS)
-        fun `should stop listening after timeout`() = runTest {
+        fun `should begin timeout after publish`() = runBlocking {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+            val clientSpy = spyk(client)
+
+            val channel = getRandomString()
+            val id = getRandomString()
+            val timeout = 100.milliseconds
+            val coroutineScope = CoroutineScope(Dispatchers.IO)
+
+            coEvery { clientSpy.publish(any(), any(), any<IdentifiableMessageSerializer<UUID>>()) } coAnswers {
+                delay(200.milliseconds)
+                client.publishIdentifiableMessage(
+                    channel,
+                    id,
+                    UUID.randomUUID(),
+                    UUIDSerializer
+                )
+            }
+
+            val latch = CountDownLatch(1)
+            var isCalled = false
+            clientSpy.publishAndWaitResponse(
+                channelSubscribe = channel,
+                channelPublish = getRandomString(),
+                messagePublish = getRandomString(),
+                messageSerializer = String.serializer(),
+                responseSerializer = UUIDSerializer,
+                subscribeScope = coroutineScope,
+                id = id,
+                timeout = timeout
+            ) {
+                isCalled = true
+                latch.countDown()
+            }
+
+            latch.await()
+            assertTrue(isCalled)
+        }
+
+        @Test
+        fun `should stop listening after timeout`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1308,8 +1355,56 @@ class CacheClientTest {
         }
 
         @Test
-        @Timeout(3, unit = TimeUnit.SECONDS)
-        fun `should cancel created job for subscribe when finish by timeout`() = runTest {
+        fun `should not cancel the body if message received`() = runBlocking {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+            val timeout = 200.milliseconds
+
+            client.subscribeIdentifiableMessage(
+                channel,
+                messageSerializer
+            ) { _, _ ->
+                client.publishIdentifiableMessage(
+                    channelResponse,
+                    id,
+                    expectedResponse,
+                    responseSerializer
+                )
+            }
+
+            val coroutineScope = CoroutineScope(Dispatchers.IO)
+            val latch = CountDownLatch(1)
+
+            client.publishAndWaitResponse(
+                channelSubscribe = channelResponse,
+                channelPublish = channel,
+                messagePublish = message,
+                messageSerializer = messageSerializer,
+                responseSerializer = responseSerializer,
+                id = id,
+                subscribeScope = coroutineScope,
+                timeout = timeout
+            ) {
+                delay(timeout.inWholeMilliseconds * 2)
+                latch.countDown()
+            }
+
+            latch.await()
+        }
+
+        @Test
+        fun `should cancel created job for subscribe when finish by timeout`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }

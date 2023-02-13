@@ -25,7 +25,7 @@ dependencies {
     val kotlinMojangApi = "2.2.0"
     val nettyCodecVersion = "4.1.88.Final"
     val assertJcoreVersion = "3.24.2"
-    val komapperVersion = "1.6.1"
+    val komapperVersion = "1.7.1"
 
     api(kotlin("stdlib"))
     api(kotlin("reflect"))
