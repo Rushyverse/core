@@ -262,20 +262,25 @@ public class CacheClient(
             }
         }
 
-        publishIdentifiableMessage(
-            channel = channelPublish,
-            id = id,
-            message = messagePublish,
-            messageSerializer = messageSerializer
-        )
-
         val timeoutJob = subscribeScope.launch {
             delay(timeout)
             subscribeJob.cancel()
         }
-
         subscribeJob.invokeOnCompletion { timeoutJob.cancel() }
-        joinAll(subscribeJob, timeoutJob)
+
+        try {
+            publishIdentifiableMessage(
+                channel = channelPublish,
+                id = id,
+                message = messagePublish,
+                messageSerializer = messageSerializer
+            )
+        } catch (throwable: Throwable) {
+            subscribeJob.cancel()
+            throw throwable
+        } finally {
+            joinAll(subscribeJob, timeoutJob)
+        }
 
         return result
     }
