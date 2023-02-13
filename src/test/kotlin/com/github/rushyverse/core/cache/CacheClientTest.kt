@@ -499,9 +499,11 @@ class CacheClientTest {
                         2L -> {
                             assertEquals(channels[0], channel)
                         }
+
                         1L -> {
                             assertEquals(channels[1], channel)
                         }
+
                         else -> {
                             fail("Should not be called")
                         }
@@ -1260,7 +1262,13 @@ class CacheClientTest {
             val coroutineScope = CoroutineScope(Dispatchers.IO)
 
             val expectedException = SerializationException("Expected exception")
-            coEvery { client.publish(any(), any(), any<IdentifiableMessageSerializer<UUID>>()) } throws expectedException
+            coEvery {
+                client.publish(
+                    any(),
+                    any(),
+                    any<IdentifiableMessageSerializer<UUID>>()
+                )
+            } throws expectedException
 
             val catchException = assertThrows<SerializationException> {
                 client.publishAndWaitResponse(
