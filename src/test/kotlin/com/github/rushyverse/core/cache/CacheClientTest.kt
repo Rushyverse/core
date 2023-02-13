@@ -1347,7 +1347,7 @@ class CacheClientTest {
         }
 
         @Test
-        fun `should not cancel the body if message received`() = runBlocking<Unit> {
+        fun `should not cancel the body if message received`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
