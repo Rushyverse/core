@@ -1250,36 +1250,6 @@ class CacheClientTest {
         }
 
         @Test
-        fun `should stop subscribe job when exception is thrown by publish`() = runTest {
-            val client = spyk(CacheClient {
-                uri = RedisURI.create(redisContainer.url)
-            })
-
-            val responseSerializer = UUIDSerializer
-
-            val coroutineScope = CoroutineScope(Dispatchers.IO)
-
-            val expectedException = SerializationException("Expected exception")
-            coEvery { client.publish(any(), any(), any<IdentifiableMessageSerializer<UUID>>()) } throws expectedException
-
-            val catchException = assertThrows<SerializationException> {
-                client.publishAndWaitResponse(
-                    channelSubscribe = getRandomString(),
-                    channelPublish = getRandomString(),
-                    messagePublish = getRandomString(),
-                    messageSerializer = String.serializer(),
-                    responseSerializer = responseSerializer,
-                    subscribeScope = coroutineScope
-                ) {
-                    error("Should not be called")
-                }
-            }
-
-            assertTrue { coroutineScope.coroutineContext.job.children.count() == 0 }
-            assertEquals(expectedException, catchException)
-        }
-
-        @Test
         fun `should stop subscribe job when exception is thrown by publish`() = runBlocking {
             val client = spyk(CacheClient {
                 uri = RedisURI.create(redisContainer.url)
