@@ -1347,8 +1347,52 @@ class CacheClientTest {
         }
 
         @Test
-        fun `should cancel timeout if message received`() = runBlocking<Unit> {
-            TODO()
+        fun `should not cancel the body if message received`() = runBlocking<Unit> {
+            val client = CacheClient {
+                uri = RedisURI.create(redisContainer.url)
+            }
+
+            val channel = getRandomString()
+            val channelResponse = getRandomString()
+            val message = getRandomString()
+            val expectedResponse = UUID.randomUUID()
+
+            val messageSerializer = String.serializer()
+            val responseSerializer = UUIDSerializer
+
+            val id = getRandomString()
+            val timeout = 200.milliseconds
+
+            client.subscribeIdentifiableMessage(
+                channel,
+                messageSerializer
+            ) { _, _ ->
+                client.publishIdentifiableMessage(
+                    channelResponse,
+                    id,
+                    expectedResponse,
+                    responseSerializer
+                )
+            }
+
+            val coroutineScope = CoroutineScope(Dispatchers.IO)
+            val latch = CountDownLatch(1)
+
+            client.publishAndWaitResponse(
+                channelSubscribe = channelResponse,
+                channelPublish = channel,
+                messagePublish = message,
+                messageSerializer = messageSerializer,
+                responseSerializer = responseSerializer,
+                id = id,
+                subscribeScope = coroutineScope,
+                timeout = timeout
+            ) {
+                delay(timeout.inWholeMilliseconds * 2)
+                latch.countDown()
+            }
+
+            latch.await()
         }
 
         @Test

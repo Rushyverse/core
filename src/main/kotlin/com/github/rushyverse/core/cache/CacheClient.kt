@@ -248,14 +248,18 @@ public class CacheClient(
         var result: T? = null
 
         lateinit var subscribeJob: Job
-        var timeoutJob: Job? = null
+        val timeoutJob: Job = subscribeScope.launch(start = CoroutineStart.LAZY) {
+            delay(timeout)
+            subscribeJob.cancel()
+        }
+
         subscribeJob = subscribeIdentifiableMessage(
             channel = channelSubscribe,
             messageSerializer = responseSerializer,
             scope = subscribeScope
         ) { messageId, data ->
             if (messageId == id) {
-                timeoutJob?.cancel()
+                timeoutJob.cancel()
                 try {
                     result = body(data)
                 } finally {
@@ -263,6 +267,7 @@ public class CacheClient(
                 }
             }
         }
+        subscribeJob.invokeOnCompletion { timeoutJob.cancel() }
 
         try {
             publishIdentifiableMessage(
@@ -272,17 +277,12 @@ public class CacheClient(
                 messageSerializer = messageSerializer
             )
 
-            timeoutJob = subscribeScope.launch {
-                delay(timeout)
-                subscribeJob.cancel()
-            }
-            subscribeJob.invokeOnCompletion { timeoutJob.cancel() }
+            timeoutJob.start()
         } catch (throwable: Throwable) {
             subscribeJob.cancel()
             throw throwable
         } finally {
-            subscribeJob.join()
-            timeoutJob?.join()
+            joinAll(subscribeJob, timeoutJob)
         }
 
         return result
