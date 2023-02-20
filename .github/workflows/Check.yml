@@ -22,11 +22,11 @@ jobs:
           jdk: 17
 
       - name: Build
-        uses: gradle/gradle-build-action@v2.3.3
+        uses: gradle/gradle-build-action@v2.4.0
         with:
           arguments: build -x test
 
       - name: Test
-        uses: gradle/gradle-build-action@v2.3.3
+        uses: gradle/gradle-build-action@v2.4.0
         with:
           arguments: test
