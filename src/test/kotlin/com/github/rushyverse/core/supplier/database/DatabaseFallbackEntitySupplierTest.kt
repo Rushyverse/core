@@ -1,9 +1,7 @@
 package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.utils.getRandomString
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
+import io.mockk.*
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.toList
@@ -23,6 +21,15 @@ class DatabaseFallbackEntitySupplierTest {
         getPrioritySupplier = mockk(getRandomString())
         setPrioritySupplier = mockk(getRandomString())
         fallbackEntitySupplier = DatabaseFallbackEntitySupplier(getPrioritySupplier, setPrioritySupplier)
+    }
+
+    @Test
+    fun `get configuration will get from getPriority supplier`() = runTest {
+        val configuration = mockk<DatabaseSupplierConfiguration>(getRandomString())
+        every { getPrioritySupplier.configuration } returns configuration
+
+        assertEquals(configuration, fallbackEntitySupplier.configuration)
+        verify(exactly = 1) { getPrioritySupplier.configuration }
     }
 
     @Nested

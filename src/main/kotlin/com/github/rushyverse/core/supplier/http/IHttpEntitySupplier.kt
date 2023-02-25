@@ -16,15 +16,16 @@ public interface IHttpStrategizable {
      */
     public val supplier: IHttpEntitySupplier
 
-
     /**
-     * Returns a copy of this class with a new [supplier] provided by the [strategy].
+     * Returns a copy of this class with a new [supplier] provided by the [getStrategy].
+     * @param getStrategy A function that will provide a new [IHttpEntitySupplier] based on the [HttpSupplierConfiguration] configuration.
      */
-    public fun withStrategy(strategy: IHttpEntitySupplier): IHttpStrategizable
+    public fun withStrategy(getStrategy: (HttpSupplierConfiguration) -> IHttpEntitySupplier): IHttpStrategizable
 }
 
 /**
  * An abstraction that allows for requesting entities.
+ * @property configuration The configuration used to create this supplier.
  *
  * @see HttpEntitySupplier
  * @see HttpCacheEntitySupplier
@@ -38,22 +39,22 @@ public interface IHttpEntitySupplier : IProfileSkinService, IProfileIdService {
          * A supplier providing a strategy which exclusively uses database calls to fetch entities.
          * See [HttpEntitySupplier] for more details.
          */
-        public fun rest(configuration: HttpSupplierServices): IHttpEntitySupplier =
-            HttpEntitySupplier(configuration.mojangAPI)
+        public fun rest(configuration: HttpSupplierConfiguration): IHttpEntitySupplier =
+            HttpEntitySupplier(configuration)
 
         /**
          * A supplier providing a strategy which exclusively uses cache to fetch entities.
          * See [HttpCacheEntitySupplier] for more details.
          */
-        public fun cache(configuration: HttpSupplierServices): HttpCacheEntitySupplier =
-            HttpCacheEntitySupplier(configuration.profileSkinCache, configuration.profileIdCache)
+        public fun cache(configuration: HttpSupplierConfiguration): HttpCacheEntitySupplier =
+            HttpCacheEntitySupplier(configuration)
 
         /**
          * A supplier providing a strategy which exclusively uses database calls to fetch entities.
          * fetched entities are stored in [cache].
          * See [HttpStoreEntitySupplier] for more details.
          */
-        public fun cachingRest(configuration: HttpSupplierServices): HttpStoreEntitySupplier =
+        public fun cachingRest(configuration: HttpSupplierConfiguration): HttpStoreEntitySupplier =
             HttpStoreEntitySupplier(cache(configuration), rest(configuration))
 
         /**
@@ -61,7 +62,7 @@ public interface IHttpEntitySupplier : IProfileSkinService, IProfileIdService {
          * is not present from cache it will be fetched from [rest] instead. Operations that return flows
          * will only fall back to rest when the returned flow contained no elements.
          */
-        public fun cacheWithRestFallback(configuration: HttpSupplierServices): IHttpEntitySupplier =
+        public fun cacheWithRestFallback(configuration: HttpSupplierConfiguration): IHttpEntitySupplier =
             HttpFallbackEntitySupplier(cache(configuration), rest(configuration))
 
         /**
@@ -69,8 +70,10 @@ public interface IHttpEntitySupplier : IProfileSkinService, IProfileIdService {
          * is not present from cache it will be fetched from [cachingRest] instead which will update [cache] with fetched elements.
          * Operations that return flows will only fall back to rest when the returned flow contained no elements.
          */
-        public fun cacheWithCachingRestFallback(configuration: HttpSupplierServices): IHttpEntitySupplier =
+        public fun cacheWithCachingRestFallback(configuration: HttpSupplierConfiguration): IHttpEntitySupplier =
             HttpFallbackEntitySupplier(cache(configuration), cachingRest(configuration))
     }
+
+    public val configuration: HttpSupplierConfiguration
 
 }

@@ -1,12 +1,10 @@
 package com.github.rushyverse.core.data.friend
 
 import com.github.rushyverse.core.data.FriendService
+import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.utils.getRandomString
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
-import io.mockk.slot
+import io.mockk.*
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.toList
@@ -27,12 +25,18 @@ class FriendServiceTest {
 
     @Test
     fun `should create a new instance with another strategy`() {
+        val configuration = mockk<DatabaseSupplierConfiguration>(getRandomString())
         val strategy = mockk<IDatabaseEntitySupplier>(getRandomString())
+        every { strategy.configuration } returns configuration
+
         val service = FriendService(strategy)
         assertEquals(strategy, service.supplier)
 
         val strategy2 = mockk<IDatabaseEntitySupplier>(getRandomString())
-        val service2 = service.withStrategy(strategy2)
+        val service2 = service.withStrategy {
+            assertEquals(configuration, it)
+            strategy2
+        }
         assertEquals(strategy2, service2.supplier)
 
     }

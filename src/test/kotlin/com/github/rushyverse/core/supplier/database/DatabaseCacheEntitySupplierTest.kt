@@ -23,7 +23,8 @@ class DatabaseCacheEntitySupplierTest {
     @BeforeTest
     fun onBefore() = runBlocking {
         cacheService = mockk()
-        cacheEntitySupplier = DatabaseCacheEntitySupplier(cacheService)
+        val configuration = DatabaseSupplierConfiguration(cacheService to mockk())
+        cacheEntitySupplier = DatabaseCacheEntitySupplier(configuration)
     }
 
     @Nested

@@ -4,8 +4,7 @@ import com.github.rushyverse.core.data.IFriendDatabaseService
 
 /**
  * [IDatabaseEntitySupplier] that uses database to manage entities.
- * @property service Friend database service.
  */
-public class DatabaseEntitySupplier(public val service: IFriendDatabaseService) :
+public class DatabaseEntitySupplier(public override val configuration: DatabaseSupplierConfiguration) :
     IDatabaseEntitySupplier,
-    IFriendDatabaseService by service
+    IFriendDatabaseService by configuration.friendServices.second

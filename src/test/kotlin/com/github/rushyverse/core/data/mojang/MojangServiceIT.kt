@@ -3,10 +3,11 @@ package com.github.rushyverse.core.data.mojang
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.MojangService
-import com.github.rushyverse.core.supplier.http.HttpSupplierServices
+import com.github.rushyverse.core.supplier.http.HttpSupplierConfiguration
 import com.github.rushyverse.core.supplier.http.IHttpEntitySupplier
 import io.github.universeproject.kotlinmojangapi.MojangAPIImpl
 import io.ktor.client.*
+import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
 import io.lettuce.core.RedisURI
@@ -36,21 +37,21 @@ class MojangServiceIT {
 
     private lateinit var cache: CacheClient
     private lateinit var httpClient: HttpClient
-    private lateinit var services: HttpSupplierServices
+    private lateinit var services: HttpSupplierConfiguration
 
     @BeforeTest
     fun onBefore(): Unit = runBlocking {
         cache = CacheClient {
             uri = RedisURI.create(redisContainer.url)
         }
-        httpClient = HttpClient {
+        httpClient = HttpClient(CIO) {
             install(ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = true })
             }
         }
 
         val mojangAPI = MojangAPIImpl(httpClient)
-        services = HttpSupplierServices(mojangAPI, cache)
+        services = HttpSupplierConfiguration(mojangAPI, cache)
     }
 
     @AfterTest
@@ -73,7 +74,7 @@ class MojangServiceIT {
             val serviceWeb = MojangService(supplier)
             val skinFromWeb = serviceWeb.getSkinById(id)
 
-            val serviceCache = serviceWeb.withStrategy(IHttpEntitySupplier.cache(services))
+            val serviceCache = serviceWeb.withStrategy(IHttpEntitySupplier::cache)
             val skinFromCache = serviceCache.getSkinById(id)
 
             assertEquals(skinFromWeb, skinFromCache)
@@ -92,7 +93,7 @@ class MojangServiceIT {
             val serviceWeb = MojangService(supplier)
             val skinFromWeb = serviceWeb.getSkinByName(name)
 
-            val serviceCache = serviceWeb.withStrategy(IHttpEntitySupplier.cache(services))
+            val serviceCache = serviceWeb.withStrategy(IHttpEntitySupplier::cache)
             val skinFromCache = serviceCache.getSkinByName(name)
 
             assertEquals(skinFromWeb, skinFromCache)
@@ -110,7 +111,7 @@ class MojangServiceIT {
             val serviceWeb = MojangService(supplier)
             val skinFromWeb = serviceWeb.getIdByName(name)
 
-            val serviceCache = serviceWeb.withStrategy(IHttpEntitySupplier.cache(services))
+            val serviceCache = serviceWeb.withStrategy(IHttpEntitySupplier::cache)
             val skinFromCache = serviceCache.getIdByName(name)
 
             assertEquals(skinFromWeb, skinFromCache)

@@ -34,7 +34,7 @@ class IHttpEntitySupplierStrategyTest {
 
     private lateinit var cacheClient: CacheClient
 
-    private lateinit var configuration: HttpSupplierServices
+    private lateinit var configuration: HttpSupplierConfiguration
 
     private lateinit var mojangAPI: MojangAPI
     private lateinit var cacheEntitySupplier: HttpCacheEntitySupplier
@@ -48,10 +48,14 @@ class IHttpEntitySupplierStrategyTest {
         mojangAPI = mockk(getRandomString())
 
         cacheEntitySupplier = HttpCacheEntitySupplier(
-            ProfileSkinCacheService(cacheClient),
-            ProfileIdCacheService(cacheClient)
+            HttpSupplierConfiguration(
+                mockk(),
+                ProfileSkinCacheService(cacheClient),
+                ProfileIdCacheService(cacheClient)
+            )
         )
-        configuration = HttpSupplierServices(mojangAPI, cacheClient)
+
+        configuration = HttpSupplierConfiguration(mojangAPI, cacheClient)
     }
 
     @AfterTest
@@ -61,13 +65,13 @@ class IHttpEntitySupplierStrategyTest {
 
     @Test
     fun `rest supplier corresponding to the class`() {
-        val configuration = HttpSupplierServices(mockk(), mockk())
+        val configuration = HttpSupplierConfiguration(mockk(), mockk())
         assertEquals(HttpEntitySupplier::class, IHttpEntitySupplier.rest(configuration)::class)
     }
 
     @Test
     fun `cache supplier corresponding to the class`() {
-        val configuration = HttpSupplierServices(mockk(), mockk())
+        val configuration = HttpSupplierConfiguration(mockk(), mockk())
         assertEquals(HttpCacheEntitySupplier::class, IHttpEntitySupplier.cache(configuration)::class)
     }
 

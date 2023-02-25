@@ -41,7 +41,8 @@ class HttpCacheEntitySupplierTest {
         @Test
         fun `get id use the mock method`() = runTest {
             val cacheService = mockk<ProfileIdCacheService>()
-            val supplier = HttpCacheEntitySupplier(mockk(), cacheService)
+            val configuration = HttpSupplierConfiguration(mockk(), mockk(), cacheService)
+            val supplier = HttpCacheEntitySupplier(configuration)
 
             val profile = createProfileId()
             val name = profile.name
@@ -54,7 +55,8 @@ class HttpCacheEntitySupplierTest {
         @Test
         fun `save id use the mock method`() = runTest {
             val cacheService = mockk<ProfileIdCacheService>()
-            val supplier = HttpCacheEntitySupplier(mockk(), cacheService)
+            val configuration = HttpSupplierConfiguration(mockk(), mockk(), cacheService)
+            val supplier = HttpCacheEntitySupplier(configuration)
 
             val profile = createProfileId()
             coJustRun { cacheService.save(profile) }
@@ -81,27 +83,29 @@ class HttpCacheEntitySupplierTest {
 
         @Test
         fun `get skin use the mock method`() = runTest {
-            val cacheService = mockk<ProfileSkinCacheService>()
-            val supplier = HttpCacheEntitySupplier(cacheService, mockk())
+            val profileSkinCacheService = mockk<ProfileSkinCacheService>()
+            val configuration = HttpSupplierConfiguration(mockk(), profileSkinCacheService, mockk())
+            val supplier = HttpCacheEntitySupplier(configuration)
 
             val profile = createProfileSkin()
             val uuid = profile.id
-            coEvery { cacheService.getSkinById(uuid) } returns profile
+            coEvery { profileSkinCacheService.getSkinById(uuid) } returns profile
 
             assertEquals(profile, supplier.getSkinById(uuid))
-            coVerify(exactly = 1) { cacheService.getSkinById(uuid) }
+            coVerify(exactly = 1) { profileSkinCacheService.getSkinById(uuid) }
         }
 
         @Test
         fun `save id use the mock method`() = runTest {
-            val cacheService = mockk<ProfileSkinCacheService>()
-            val supplier = HttpCacheEntitySupplier(cacheService, mockk())
+            val profileSkinCacheService = mockk<ProfileSkinCacheService>()
+            val configuration = HttpSupplierConfiguration(mockk(), profileSkinCacheService, mockk())
+            val supplier = HttpCacheEntitySupplier(configuration)
 
             val profile = createProfileSkin()
-            coJustRun { cacheService.save(profile) }
+            coJustRun { profileSkinCacheService.save(profile) }
 
             supplier.save(profile)
-            coVerify(exactly = 1) { cacheService.save(profile) }
+            coVerify(exactly = 1) { profileSkinCacheService.save(profile) }
         }
     }
 }

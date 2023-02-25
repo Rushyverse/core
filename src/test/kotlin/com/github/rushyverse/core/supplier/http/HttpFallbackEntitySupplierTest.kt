@@ -3,9 +3,7 @@ package com.github.rushyverse.core.supplier.http
 import com.github.rushyverse.core.utils.createProfileId
 import com.github.rushyverse.core.utils.createProfileSkin
 import com.github.rushyverse.core.utils.getRandomString
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
+import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -21,6 +19,17 @@ class HttpFallbackEntitySupplierTest {
     @BeforeTest
     fun onBefore() {
         fallbackEntitySupplier = HttpFallbackEntitySupplier(mockk(getRandomString()), mockk(getRandomString()))
+    }
+
+    @Test
+    fun `get configuration will get from first supplier`() = runTest {
+        val firstSupplier = fallbackEntitySupplier.first
+
+        val configuration = mockk<HttpSupplierConfiguration>(getRandomString())
+        every { firstSupplier.configuration } returns configuration
+
+        assertEquals(configuration, fallbackEntitySupplier.configuration)
+        verify(exactly = 1) { firstSupplier.configuration }
     }
 
     interface FallbackTest {
