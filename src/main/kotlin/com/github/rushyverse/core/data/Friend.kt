@@ -666,7 +666,7 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
             }
             .multiple(friends)
 
-        return (database.runQuery(query) > 0)
+        return database.runQuery(query) > 0
     }
 
     /**
