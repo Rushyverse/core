@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.*
 import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.expression.WhereDeclaration
-import org.komapper.core.dsl.query.bind
+import org.komapper.core.dsl.operator.literal
 import org.komapper.core.dsl.query.where
 import org.komapper.r2dbc.R2dbcDatabase
 import java.util.*
@@ -649,25 +649,24 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         val metaUUID = meta.uuid
         val uuid1Name = metaUUID.uuid1.name
         val uuid2Name = metaUUID.uuid2.name
-        val pendingName = meta.pending.name
+        val metaPending = meta.pending
 
-        val query = QueryDsl.executeTemplate(
-            """
-                    INSERT INTO ${meta.tableName()} ($uuid1Name, $uuid2Name, $pendingName) 
-                    VALUES ${friendIds.indices.joinToString(", ") { "(/*uuid*/'', /*uuid$it*/'', /*pending*/false)" }}
-                    ON CONFLICT (GREATEST($uuid1Name, $uuid2Name), LEAST($uuid1Name, $uuid2Name)) 
-                    DO UPDATE SET $pendingName = /*pending*/false WHERE ("${meta.tableName()}".$pendingName = true AND /*pending*/false = false)
-                    """.trimIndent()
-        )
-            .bind("uuid", uuid)
-            .let {
-                friendIds.foldIndexed(it) { index, acc, friendId ->
-                    acc.bind("uuid$index", friendId)
-                }
+        val friends = friendIds.map { friend ->
+            Friend(FriendId(uuid, friend), pending)
+        }
+
+        val query = QueryDsl.insert(meta)
+            .dangerouslyOnDuplicateKeyUpdate("(GREATEST($uuid1Name, $uuid2Name), LEAST($uuid1Name, $uuid2Name))")
+            .set {
+                metaPending eq pending
             }
-            .bind("pending", pending)
+            .where {
+                metaPending eq true
+                literal(false) eq pending
+            }
+            .multiple(friends)
 
-        return database.runQuery(query) > 0
+        return (database.runQuery(query) > 0)
     }
 
     /**
