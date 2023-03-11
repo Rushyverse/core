@@ -1,5 +1,6 @@
 package com.github.rushyverse.core.data
 
+import com.github.rushyverse.core.supplier.http.HttpSupplierConfiguration
 import com.github.rushyverse.core.supplier.http.IHttpEntitySupplier
 import com.github.rushyverse.core.supplier.http.IHttpStrategizable
 import io.github.universeproject.kotlinmojangapi.ProfileId
@@ -36,7 +37,8 @@ public class MojangService(override val supplier: IHttpEntitySupplier) : IMojang
         return supplier.getIdByName(name)
     }
 
-    override fun withStrategy(strategy: IHttpEntitySupplier): MojangService {
-        return MojangService(strategy)
+    override fun withStrategy(getStrategy: (HttpSupplierConfiguration) -> IHttpEntitySupplier): MojangService {
+        val newSupplier = getStrategy(supplier.configuration)
+        return MojangService(newSupplier)
     }
 }

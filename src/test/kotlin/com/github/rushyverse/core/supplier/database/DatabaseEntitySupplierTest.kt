@@ -1,6 +1,7 @@
 package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.data.FriendDatabaseService
+import com.github.rushyverse.core.data.IFriendCacheService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -21,7 +22,8 @@ class DatabaseEntitySupplierTest {
     @BeforeTest
     fun onBefore() {
         service = mockk()
-        databaseEntitySupplier = DatabaseEntitySupplier(service)
+        val configuration = DatabaseSupplierConfiguration(mockk<IFriendCacheService>() to service)
+        databaseEntitySupplier = DatabaseEntitySupplier(configuration)
     }
 
     @Nested

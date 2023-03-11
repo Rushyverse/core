@@ -4,8 +4,7 @@ import com.github.rushyverse.core.data.IFriendCacheService
 
 /**
  * [IDatabaseEntitySupplier] that uses cache to manage entities.
- * @property friendCacheService Friend cache service.
  */
-public class DatabaseCacheEntitySupplier(public val friendCacheService: IFriendCacheService) :
+public class DatabaseCacheEntitySupplier(public override val configuration: DatabaseSupplierConfiguration) :
     IDatabaseEntitySupplier,
-    IFriendCacheService by friendCacheService
+    IFriendCacheService by configuration.friendServices.first

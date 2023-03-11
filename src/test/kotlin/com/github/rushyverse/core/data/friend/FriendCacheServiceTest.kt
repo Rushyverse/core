@@ -7,7 +7,7 @@ import com.github.rushyverse.core.data.FriendCacheService
 import com.github.rushyverse.core.data.IFriendCacheService
 import com.github.rushyverse.core.data.IFriendDatabaseService
 import com.github.rushyverse.core.serializer.UUIDSerializer
-import com.github.rushyverse.core.supplier.database.DatabaseSupplierServices
+import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import io.lettuce.core.RedisURI
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.mockk.coEvery
@@ -67,7 +67,7 @@ class FriendCacheServiceTest {
     @Nested
     inner class UserCacheToDatabase {
 
-        private lateinit var configuration: DatabaseSupplierServices
+        private lateinit var configuration: DatabaseSupplierConfiguration
         private lateinit var cacheServiceMock: IFriendCacheService
         private lateinit var databaseService: IFriendDatabaseService
 
@@ -76,7 +76,7 @@ class FriendCacheServiceTest {
             cacheServiceMock = mockk()
             databaseService = mockk()
 
-            configuration = DatabaseSupplierServices(
+            configuration = DatabaseSupplierConfiguration(
                 cacheServiceMock to databaseService
             )
         }

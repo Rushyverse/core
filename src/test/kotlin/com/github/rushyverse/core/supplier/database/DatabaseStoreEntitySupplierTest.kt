@@ -1,9 +1,7 @@
 package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.utils.getRandomString
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
+import io.mockk.*
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.toList
@@ -23,6 +21,15 @@ class DatabaseStoreEntitySupplierTest {
         cache = mockk(getRandomString())
         supplier = mockk(getRandomString())
         entitySupplier = DatabaseStoreEntitySupplier(cache, supplier)
+    }
+
+    @Test
+    fun `get configuration will get from cache supplier`() = runTest {
+        val configuration = mockk<DatabaseSupplierConfiguration>(getRandomString())
+        every { cache.configuration } returns configuration
+
+        assertEquals(configuration, entitySupplier.configuration)
+        verify(exactly = 1) { cache.configuration }
     }
 
     @Nested

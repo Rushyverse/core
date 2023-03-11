@@ -10,6 +10,8 @@ import java.util.*
  * Each supplier is used according to a priority.
  * [getPriority] is used first when a data is retrieved. If the data is not found, [setPriority] is used.
  * [setPriority] is used first when a data is set. If the data is set, the same information is set using [getPriority].
+ * To keep consistency, it is recommended to use the same [DatabaseSupplierConfiguration] for both suppliers.
+ * The value of [configuration] depends on one of the suppliers.
  * @property getPriority Priority of the supplier used when a data is retrieved.
  * @property setPriority Priority of the supplier used when a data is set.
  */
@@ -17,6 +19,9 @@ public class DatabaseFallbackEntitySupplier(
     public val getPriority: IDatabaseEntitySupplier,
     public val setPriority: IDatabaseEntitySupplier
 ) : IDatabaseEntitySupplier {
+
+    override val configuration: DatabaseSupplierConfiguration
+        get() = getPriority.configuration
 
     override suspend fun addFriend(uuid: UUID, friend: UUID): Boolean {
         return setPriority.addFriend(uuid, friend)

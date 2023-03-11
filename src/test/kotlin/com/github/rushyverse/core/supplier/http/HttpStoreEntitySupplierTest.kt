@@ -6,9 +6,12 @@ import com.github.rushyverse.core.data.ProfileIdCacheService
 import com.github.rushyverse.core.data.ProfileSkinCacheService
 import com.github.rushyverse.core.utils.createProfileId
 import com.github.rushyverse.core.utils.createProfileSkin
+import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.RedisURI
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
@@ -47,11 +50,26 @@ class HttpStoreEntitySupplierTest {
         mockSupplier = mockk()
         // Use to verify if data is inserted
         cacheEntitySupplier = HttpCacheEntitySupplier(
-            ProfileSkinCacheService(cacheClient),
-            ProfileIdCacheService(cacheClient)
+            HttpSupplierConfiguration(
+                mockk(),
+                ProfileSkinCacheService(cacheClient),
+                ProfileIdCacheService(cacheClient)
+            )
         )
 
         storeEntitySupplier = HttpStoreEntitySupplier(cacheEntitySupplier, mockSupplier)
+    }
+
+    @Test
+    fun `get configuration will get from cache supplier`() = runTest {
+        val cacheSupplier = mockk<HttpCacheEntitySupplier>(getRandomString())
+        storeEntitySupplier = HttpStoreEntitySupplier(cacheSupplier, mockSupplier)
+
+        val configuration = mockk<HttpSupplierConfiguration>(getRandomString())
+        every { cacheSupplier.configuration } returns configuration
+
+        assertEquals(configuration, storeEntitySupplier.configuration)
+        verify(exactly = 1) { cacheSupplier.configuration }
     }
 
     interface StoreTest {

@@ -23,7 +23,8 @@ class HttpEntitySupplierTest {
     @BeforeTest
     fun onBefore() {
         mojangAPI = mockk(getRandomString())
-        restEntitySupplier = HttpEntitySupplier(mojangAPI)
+        val configuration = HttpSupplierConfiguration(mojangAPI, mockk(), mockk())
+        restEntitySupplier = HttpEntitySupplier(configuration)
     }
 
     interface RestTest {

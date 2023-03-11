@@ -1,11 +1,13 @@
 package com.github.rushyverse.core.data.mojang
 
 import com.github.rushyverse.core.data.MojangService
+import com.github.rushyverse.core.supplier.http.HttpSupplierConfiguration
 import com.github.rushyverse.core.supplier.http.IHttpEntitySupplier
 import com.github.rushyverse.core.utils.createProfileId
 import com.github.rushyverse.core.utils.createProfileSkin
 import com.github.rushyverse.core.utils.getRandomString
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
@@ -18,11 +20,21 @@ import kotlin.test.assertNull
 class MojangServiceTest {
 
     private lateinit var serviceImpl: MojangService
+    private lateinit var configuration: HttpSupplierConfiguration
     private val supplier get() = serviceImpl.supplier
 
     @BeforeTest
     fun onBefore() {
-        serviceImpl = MojangService(mockk(getRandomString()))
+        configuration = HttpSupplierConfiguration(
+            mockk(getRandomString()),
+            mockk(getRandomString()),
+            mockk(getRandomString()),
+        )
+
+        val mockSupplier = mockk<IHttpEntitySupplier>(getRandomString())
+        every { mockSupplier.configuration } returns configuration
+
+        serviceImpl = MojangService(mockSupplier)
     }
 
     interface MojangServiceTest {
@@ -35,7 +47,10 @@ class MojangServiceTest {
         val initStrategy = serviceImpl.supplier
         val newStrategy = mockk<IHttpEntitySupplier>(getRandomString())
 
-        val newService = serviceImpl.withStrategy(newStrategy)
+        val newService = serviceImpl.withStrategy {
+            assertEquals(configuration, it)
+            newStrategy
+        }
         assertEquals(newStrategy, newService.supplier)
         assertEquals(initStrategy, serviceImpl.supplier)
     }

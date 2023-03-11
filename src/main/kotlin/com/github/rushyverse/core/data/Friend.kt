@@ -4,7 +4,7 @@ import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.extension.toTypedArray
 import com.github.rushyverse.core.serializer.UUIDSerializer
-import com.github.rushyverse.core.supplier.database.DatabaseSupplierServices
+import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.supplier.database.IDatabaseStrategizable
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
@@ -239,12 +239,12 @@ public class FriendCacheService(
          * Retrieve data of the user [uuid] from cache related to [Type.ADD_FRIEND], [Type.REMOVE_FRIEND],
          * [Type.ADD_PENDING_FRIEND] and [Type.REMOVE_PENDING_FRIEND] and send them to the database.
          * @param uuid ID of the user.
-         * @param services Services to manage the friendship relationship.
+         * @param configuration Configuration to retrieve services to manage the friendship relationship.
          * @return `true` if at least one relationship was added or removed successfully, `false` otherwise.
          */
-        public suspend fun cacheToDatabase(uuid: UUID, services: DatabaseSupplierServices): Boolean {
-            val cache = IDatabaseEntitySupplier.cache(services)
-            val database = IDatabaseEntitySupplier.database(services)
+        public suspend fun cacheToDatabase(uuid: UUID, configuration: DatabaseSupplierConfiguration): Boolean {
+            val cache = IDatabaseEntitySupplier.cache(configuration)
+            val database = IDatabaseEntitySupplier.database(configuration)
 
             suspend fun saveInDatabaseIfNotEmpty(
                 flow: Flow<UUID>,
@@ -738,5 +738,8 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
  */
 public class FriendService(override val supplier: IDatabaseEntitySupplier) : IFriendService by supplier,
     IDatabaseStrategizable {
-    override fun withStrategy(strategy: IDatabaseEntitySupplier): FriendService = FriendService(strategy)
+    override fun withStrategy(getStrategy: (DatabaseSupplierConfiguration) -> IDatabaseEntitySupplier): FriendService {
+        val newStrategy = getStrategy(supplier.configuration)
+        return FriendService(newStrategy)
+    }
 }
