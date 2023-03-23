@@ -4,17 +4,15 @@ import com.github.rushyverse.core.container.createPSQLContainer
 import com.github.rushyverse.core.data.Friend
 import com.github.rushyverse.core.data.FriendDatabaseService
 import com.github.rushyverse.core.data._Friend
-import io.r2dbc.spi.ConnectionFactoryOptions
-import io.r2dbc.spi.Option
+import com.github.rushyverse.core.data.utils.DatabaseUtils
+import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Nested
 import org.komapper.core.dsl.QueryDsl
-import org.komapper.dialect.postgresql.PostgreSqlDialect
 import org.komapper.r2dbc.R2dbcDatabase
-import org.testcontainers.containers.PostgreSQLContainer.POSTGRESQL_PORT
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.*
@@ -34,17 +32,7 @@ class FriendDatabaseServiceTest {
 
     @BeforeTest
     fun onBefore() = runBlocking {
-        val options = ConnectionFactoryOptions.builder()
-            .option(ConnectionFactoryOptions.DRIVER, PostgreSqlDialect.driver)
-            .option(ConnectionFactoryOptions.USER, psqlContainer.username)
-            .option(ConnectionFactoryOptions.PASSWORD, psqlContainer.password)
-            .option(ConnectionFactoryOptions.HOST, psqlContainer.host)
-            .option(ConnectionFactoryOptions.PORT, psqlContainer.getMappedPort(POSTGRESQL_PORT))
-            .option(ConnectionFactoryOptions.DATABASE, psqlContainer.databaseName)
-            .option(Option.valueOf("DB_CLOSE_DELAY"), "-1")
-            .build()
-
-        database = R2dbcDatabase(options)
+        database = R2dbcDatabase(createConnectionOptions(psqlContainer))
 
         Friend.createTable(database)
         service = FriendDatabaseService(database)
@@ -965,7 +953,6 @@ class FriendDatabaseServiceTest {
     }
 
     private suspend fun getAll(): List<Friend> {
-        val query = QueryDsl.from(_Friend.friend)
-        return database.flowQuery(query).toList()
+        return DatabaseUtils.getAll(database, _Friend.friend)
     }
 }
