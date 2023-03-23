@@ -1,8 +1,9 @@
 package com.github.rushyverse.core.data
 
+import com.github.rushyverse.core.data.GuildMemberState.MEMBER
+import com.github.rushyverse.core.data.GuildMemberState.PENDING
 import kotlinx.coroutines.flow.*
 import org.komapper.annotation.*
-import org.komapper.core.DryRunDatabaseConfig.id
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.r2dbc.R2dbcDatabase
 import java.time.Instant
@@ -226,11 +227,11 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun addMember(guildId: Int, memberId: UUID): Boolean {
-        return addMemberWithState(guildId, memberId, GuildMemberState.MEMBER)
+        return addMemberWithState(guildId, memberId, MEMBER)
     }
 
     override suspend fun addPendingMember(guildId: Int, memberId: UUID): Boolean {
-        return addMemberWithState(guildId, memberId, GuildMemberState.PENDING)
+        return addMemberWithState(guildId, memberId, PENDING)
     }
 
     private suspend fun addMemberWithState(guildId: Int, memberId: UUID, state: GuildMemberState): Boolean {
@@ -253,7 +254,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
                 guildMeta.owner eq memberId
                 or {
                     memberIdMeta.memberId eq memberId
-                    memberMeta.state eq GuildMemberState.MEMBER
+                    memberMeta.state eq MEMBER
                 }
             }
         }
@@ -267,17 +268,17 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         val query = QueryDsl.from(meta).where {
             ids.guildId eq guildId
             ids.memberId eq memberId
-            meta.state eq GuildMemberState.PENDING
+            meta.state eq PENDING
         }
         return database.runQuery(query).firstOrNull() != null
     }
 
     override suspend fun removeMember(guildId: Int, memberId: UUID): Boolean {
-        return removeMemberWithState(guildId, memberId, GuildMemberState.MEMBER)
+        return removeMemberWithState(guildId, memberId, MEMBER)
     }
 
     override suspend fun removePendingMember(guildId: Int, memberId: UUID): Boolean {
-        return removeMemberWithState(guildId, memberId, GuildMemberState.PENDING)
+        return removeMemberWithState(guildId, memberId, PENDING)
     }
 
     private suspend fun removeMemberWithState(guildId: Int, memberId: UUID, state: GuildMemberState): Boolean {
@@ -299,12 +300,12 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
 
         return listOf(
             database.flowQuery(query).filterNotNull(),
-            getAllWithState(guildId, GuildMemberState.MEMBER)
+            getAllWithState(guildId, MEMBER)
         ).merge().distinctUntilChanged()
     }
 
     override suspend fun getPendingMembers(guildId: Int): Flow<UUID> {
-        return getAllWithState(guildId, GuildMemberState.PENDING)
+        return getAllWithState(guildId, PENDING)
     }
 
     private fun getAllWithState(guildId: Int, state: GuildMemberState): Flow<UUID> {
