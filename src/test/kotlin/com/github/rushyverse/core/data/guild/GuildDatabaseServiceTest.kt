@@ -204,8 +204,8 @@ class GuildDatabaseServiceTest {
             assertFalse { service.addMember(guild.id, member) }
 
             val members = service.getMembers(guild.id).toList()
-            assertEquals(1, members.size)
-            assertEquals(member, members[0])
+            assertEquals(2, members.size)
+            assertEquals(member, members[1])
         }
 
         @Test
@@ -226,7 +226,9 @@ class GuildDatabaseServiceTest {
 
             val members = service.getMembers(guild.id).toList()
             assertEquals(2, members.size)
-            assertEquals(member, members[0])
+            assertEquals(member, members[1])
+            val pendingMembers = service.getPendingMembers(guild.id).toList()
+            assertEquals(0, pendingMembers.size)
         }
 
         @Test

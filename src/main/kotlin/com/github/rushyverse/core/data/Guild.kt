@@ -3,6 +3,7 @@ package com.github.rushyverse.core.data
 import kotlinx.coroutines.flow.*
 import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
+import org.komapper.core.dsl.query.bind
 import org.komapper.r2dbc.R2dbcDatabase
 import java.time.Instant
 import java.util.*
@@ -38,7 +39,7 @@ public data class Guild(
  * @property guildId ID of the guild.
  * @property memberId ID of the member.
  */
-public data class GuildMemberDefId(
+public data class GuildMemberIds(
     public val guildId: Int,
     public val memberId: UUID,
 )
@@ -46,7 +47,6 @@ public data class GuildMemberDefId(
 /**
  * Database definition for guild members.
  * @property id ID of the guild and member.
- * @property state State of the member in the guild.
  * @property createdAt Timestamp of when the member was added.
  */
 @KomapperEntity
@@ -54,7 +54,7 @@ public data class GuildMemberDefId(
 @KomapperManyToOne(Guild::class, "guild")
 public data class GuildMemberDef(
     @KomapperEmbeddedId
-    val id: GuildMemberDefId,
+    val id: GuildMemberIds,
     val pending: Boolean,
     @KomapperCreatedAt
     val createdAt: Instant,
@@ -77,9 +77,7 @@ public data class GuildMemberDef(
                     REFERENCES $guildTableName (${guildMeta.id.columnName})
                     ON DELETE CASCADE
                     ON UPDATE CASCADE;
-                    """.trimIndent().apply {
-                        println(this)
-                    }
+                    """.trimIndent()
                 )
             )
         }
@@ -240,10 +238,31 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     private suspend fun addMember(guildId: Int, memberId: UUID, pending: Boolean): Boolean {
-        val guildMember = GuildMemberDef(GuildMemberDefId(guildId, memberId), pending, Instant.EPOCH)
-        val query = QueryDsl.insert(_GuildMemberDef.guildMemberDef).single(guildMember)
-        database.runQuery(query)
-        return true
+        val guildMeta = _Guild.guild
+        val guildIdColumn = guildMeta.id.columnName
+        val guildOwnerColumn = guildMeta.owner.columnName
+
+        val memberMeta = _GuildMemberDef.guildMemberDef
+        val memberIdColumn = memberMeta.id.memberId.columnName
+        val memberGuildColumn = memberMeta.id.guildId.columnName
+
+        val query = QueryDsl.executeTemplate(
+            """
+                INSERT INTO ${memberMeta.tableName()}
+                SELECT g.$guildIdColumn, /*memberId*/'', /*pending*/false, now()
+                FROM ${guildMeta.tableName()} g
+                WHERE g.$guildIdColumn = '$guildId' AND g.$guildOwnerColumn <> /*memberId*/'' AND NOT EXISTS
+                (
+                    SELECT 1
+                    FROM ${memberMeta.tableName()}
+                    WHERE $memberGuildColumn = g.$guildIdColumn AND $memberIdColumn = /*memberId*/''
+                );
+            """.trimIndent()
+        )
+            .bind("memberId", memberId)
+            .bind("pending", pending)
+
+        return database.runQuery(query) > 0
     }
 
     override suspend fun isMember(guildId: Int, memberId: UUID): Boolean {
