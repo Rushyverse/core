@@ -1,7 +1,5 @@
 package com.github.rushyverse.core.data
 
-import com.github.rushyverse.core.data.GuildMemberState.MEMBER
-import com.github.rushyverse.core.data.GuildMemberState.PENDING
 import kotlinx.coroutines.flow.*
 import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
@@ -18,7 +16,6 @@ import java.util.*
  */
 @KomapperEntity
 @KomapperTable("guild")
-// TODO Define explicit KomapperLink
 @KomapperOneToMany(GuildMemberDef::class, "members")
 public data class Guild(
     @KomapperId
@@ -47,16 +44,6 @@ public data class GuildMemberDefId(
 )
 
 /**
- * State of a guild member in a guild.
- * If a member has accepted the invite, they are in the [MEMBER] state.
- * If a member has been invited to a guild, but has not accepted the invite, they are in the [PENDING] state.
- */
-public enum class GuildMemberState {
-    MEMBER,
-    PENDING,
-}
-
-/**
  * Database definition for guild members.
  * @property id ID of the guild and member.
  * @property state State of the member in the guild.
@@ -64,19 +51,37 @@ public enum class GuildMemberState {
  */
 @KomapperEntity
 @KomapperTable("guild_member")
-// TODO Define explicit KomapperLink
 @KomapperManyToOne(Guild::class, "guild")
 public data class GuildMemberDef(
     @KomapperEmbeddedId
     val id: GuildMemberDefId,
-    @KomapperEnum(EnumType.NAME)
-    val state: GuildMemberState,
+    val pending: Boolean,
     @KomapperCreatedAt
     val createdAt: Instant,
 ) {
     public companion object {
         public suspend fun createTable(database: R2dbcDatabase) {
+            val guildMeta = _Guild.guild
+            val guildTableName = guildMeta.tableName()
+
+            val meta = _GuildMemberDef.guildMemberDef
+            val tableName = meta.tableName()
+
             database.runQuery(QueryDsl.create(_GuildMemberDef.guildMemberDef))
+            database.runQuery(
+                QueryDsl.executeScript(
+                    """
+                    ALTER TABLE $tableName
+                    ADD CONSTRAINT FK_${tableName}_${guildTableName}
+                    FOREIGN KEY (${meta.id.guildId.columnName})
+                    REFERENCES $guildTableName (${guildMeta.id.columnName})
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE;
+                    """.trimIndent().apply {
+                        println(this)
+                    }
+                )
+            )
         }
     }
 }
@@ -227,15 +232,15 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun addMember(guildId: Int, memberId: UUID): Boolean {
-        return addMemberWithState(guildId, memberId, MEMBER)
+        return addMember(guildId, memberId, false)
     }
 
     override suspend fun addPendingMember(guildId: Int, memberId: UUID): Boolean {
-        return addMemberWithState(guildId, memberId, PENDING)
+        return addMember(guildId, memberId, true)
     }
 
-    private suspend fun addMemberWithState(guildId: Int, memberId: UUID, state: GuildMemberState): Boolean {
-        val guildMember = GuildMemberDef(GuildMemberDefId(guildId, memberId), state, Instant.EPOCH)
+    private suspend fun addMember(guildId: Int, memberId: UUID, pending: Boolean): Boolean {
+        val guildMember = GuildMemberDef(GuildMemberDefId(guildId, memberId), pending, Instant.EPOCH)
         val query = QueryDsl.insert(_GuildMemberDef.guildMemberDef).single(guildMember)
         database.runQuery(query)
         return true
@@ -254,7 +259,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
                 guildMeta.owner eq memberId
                 or {
                     memberIdMeta.memberId eq memberId
-                    memberMeta.state eq MEMBER
+                    memberMeta.pending eq false
                 }
             }
         }
@@ -268,26 +273,26 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         val query = QueryDsl.from(meta).where {
             ids.guildId eq guildId
             ids.memberId eq memberId
-            meta.state eq PENDING
+            meta.pending eq true
         }
         return database.runQuery(query).firstOrNull() != null
     }
 
     override suspend fun removeMember(guildId: Int, memberId: UUID): Boolean {
-        return removeMemberWithState(guildId, memberId, MEMBER)
+        return removeMember(guildId, memberId, false)
     }
 
     override suspend fun removePendingMember(guildId: Int, memberId: UUID): Boolean {
-        return removeMemberWithState(guildId, memberId, PENDING)
+        return removeMember(guildId, memberId, true)
     }
 
-    private suspend fun removeMemberWithState(guildId: Int, memberId: UUID, state: GuildMemberState): Boolean {
+    private suspend fun removeMember(guildId: Int, memberId: UUID, pending: Boolean): Boolean {
         val meta = _GuildMemberDef.guildMemberDef
         val ids = meta.id
         val query = QueryDsl.delete(meta).where {
             ids.guildId eq guildId
             ids.memberId eq memberId
-            meta.state eq state
+            meta.pending eq pending
         }
         return database.runQuery(query) > 0
     }
@@ -300,20 +305,20 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
 
         return listOf(
             database.flowQuery(query).filterNotNull(),
-            getAllWithState(guildId, MEMBER)
+            getAllMembers(guildId, false)
         ).merge().distinctUntilChanged()
     }
 
     override suspend fun getPendingMembers(guildId: Int): Flow<UUID> {
-        return getAllWithState(guildId, PENDING)
+        return getAllMembers(guildId, true)
     }
 
-    private fun getAllWithState(guildId: Int, state: GuildMemberState): Flow<UUID> {
+    private fun getAllMembers(guildId: Int, pending: Boolean): Flow<UUID> {
         val meta = _GuildMemberDef.guildMemberDef
         val ids = meta.id
         val query = QueryDsl.from(meta).where {
             ids.guildId eq guildId
-            meta.state eq state
+            meta.pending eq pending
         }.select(ids.memberId)
         return database.flowQuery(query).filterNotNull()
     }

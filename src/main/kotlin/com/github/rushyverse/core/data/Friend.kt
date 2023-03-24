@@ -187,8 +187,8 @@ public data class Friend(
             val meta = _Friend.friend
             val uuid = meta.uuid
             val tableName = meta.tableName()
-            val uuid1Name = uuid.uuid1.name
-            val uuid2Name = uuid.uuid2.name
+            val uuid1Name = uuid.uuid1.columnName
+            val uuid2Name = uuid.uuid2.columnName
 
             database.withTransaction {
                 database.runQuery(QueryDsl.create(meta))
