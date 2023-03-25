@@ -30,15 +30,15 @@ class GuildDatabaseServiceTest {
     private lateinit var database: R2dbcDatabase
 
     @BeforeTest
-    fun onBefore() = runBlocking {
+    fun onBefore() {
         database = R2dbcDatabase(createConnectionOptions(psqlContainer))
-        Guild.createTable(database)
-        GuildMemberDef.createTable(database)
         service = GuildDatabaseService(database)
+        // Create tables from guild schema
     }
 
     @AfterEach
     fun onAfter() = runBlocking {
+        database.runQuery(QueryDsl.drop(_GuildInvite.guildInvite))
         database.runQuery(QueryDsl.drop(_GuildMemberDef.guildMemberDef))
         database.runQuery(QueryDsl.drop(_Guild.guild))
     }
