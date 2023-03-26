@@ -11,8 +11,7 @@ import java.util.*
 /**
  * Exception thrown when an entity is invited to a guild, but is already a member.
  */
-public class GuildAlreadyMemberException(guildId: Int, memberId: UUID) :
-    R2dbcException("Guild $guildId already has member $memberId")
+public class GuildInvitedIsAlreadyMemberException(reason: String?) : R2dbcException(reason)
 
 /**
  * Data class for guilds.
@@ -177,6 +176,10 @@ public interface IGuildService {
 
 public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildService {
 
+    public companion object {
+        private const val EXCEPTION_INVITED_IS_ALREADY_MEMBER_CODE = "P1000"
+    }
+
     override suspend fun createGuild(name: String, owner: UUID): Guild {
         val guild = Guild(0, name, owner, Instant.EPOCH)
         val query = QueryDsl.insert(_Guild.guild).single(guild)
@@ -243,12 +246,9 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         return try {
             database.runQuery(query) > 0
         } catch (e: R2dbcException) {
-            when (e.message) {
-                "Entity cannot be invited to guild because he is already a member of the guild" -> throw GuildAlreadyMemberException(
-                    guildId,
-                    memberId
-                )
-                else -> throw e
+            throw when (e.sqlState) {
+                EXCEPTION_INVITED_IS_ALREADY_MEMBER_CODE -> GuildInvitedIsAlreadyMemberException(e.message)
+                else -> e
             }
         }
     }

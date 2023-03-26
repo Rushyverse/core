@@ -421,7 +421,7 @@ class GuildDatabaseServiceTest {
             val guild = service.createGuild(getRandomString(), UUID.randomUUID())
             val member = UUID.randomUUID()
             assertTrue { service.addMember(guild.id, member) }
-            assertThrows<GuildAlreadyMemberException> {
+            assertThrows<GuildInvitedIsAlreadyMemberException> {
                 service.addInvite(guild.id, member, null)
             }
 
@@ -432,7 +432,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `when member is owner of a guild`() = runTest {
             val guild = service.createGuild(getRandomString(), UUID.randomUUID())
-            assertThrows<GuildAlreadyMemberException> {
+            assertThrows<GuildInvitedIsAlreadyMemberException> {
                 service.addInvite(guild.id, guild.owner, null)
             }
 
