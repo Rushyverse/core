@@ -6,6 +6,7 @@ import com.github.rushyverse.core.data.utils.DatabaseUtils
 import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
 import com.github.rushyverse.core.data.utils.MicroClockProvider
 import com.github.rushyverse.core.utils.getRandomString
+import io.r2dbc.spi.R2dbcDataIntegrityViolationException
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -304,7 +305,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `when guild does not exist`() = runTest {
-            assertThrows<GuildDoesNotExistException> {
+            assertThrows<R2dbcDataIntegrityViolationException> {
                 service.addMember(0, UUID.randomUUID())
             }
 
@@ -420,7 +421,9 @@ class GuildDatabaseServiceTest {
             val guild = service.createGuild(getRandomString(), UUID.randomUUID())
             val member = UUID.randomUUID()
             assertTrue { service.addMember(guild.id, member) }
-            assertFalse { service.addInvite(guild.id, member, null) }
+            assertThrows<GuildAlreadyMemberException> {
+                service.addInvite(guild.id, member, null)
+            }
 
             val pendingMembers = service.getInvited(guild.id).toList()
             assertEquals(0, pendingMembers.size)
@@ -429,7 +432,9 @@ class GuildDatabaseServiceTest {
         @Test
         fun `when member is owner of a guild`() = runTest {
             val guild = service.createGuild(getRandomString(), UUID.randomUUID())
-            assertFalse { service.addInvite(guild.id, guild.owner, null) }
+            assertThrows<GuildAlreadyMemberException> {
+                service.addInvite(guild.id, guild.owner, null)
+            }
 
             val pendingMembers = service.getInvited(guild.id).toList()
             assertEquals(0, pendingMembers.size)
@@ -449,7 +454,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `when guild does not exist`() = runTest {
-            assertThrows<GuildDoesNotExistException> {
+            assertThrows<R2dbcDataIntegrityViolationException> {
                 service.addInvite(0, UUID.randomUUID(), null)
             }
 

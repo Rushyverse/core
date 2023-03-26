@@ -79,7 +79,7 @@ CREATE OR REPLACE FUNCTION check_existing_member() RETURNS TRIGGER AS
 $$
 BEGIN
     IF EXISTS(SELECT 1 FROM guild_member WHERE guild_id = NEW.guild_id AND member_id = NEW.member_id) THEN
-        RETURN NULL;
+        RAISE EXCEPTION 'Entity cannot be invited to guild because he is already a member of the guild';
     ELSE
         RETURN NEW;
     END IF;

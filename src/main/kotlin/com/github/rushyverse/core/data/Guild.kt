@@ -1,6 +1,6 @@
 package com.github.rushyverse.core.data
 
-import io.r2dbc.spi.R2dbcDataIntegrityViolationException
+import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.flow.*
 import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
@@ -9,12 +9,10 @@ import java.time.Instant
 import java.util.*
 
 /**
- * Exception thrown when a guild does not exist.
+ * Exception thrown when an entity is invited to a guild, but is already a member.
  */
-public class GuildDoesNotExistException(guildId: Int, ex: R2dbcDataIntegrityViolationException?) : R2dbcDataIntegrityViolationException(
-    "Guild with ID $guildId does not exist.",
-    ex
-)
+public class GuildAlreadyMemberException(guildId: Int, memberId: UUID) :
+    R2dbcException("Guild $guildId already has member $memberId")
 
 /**
  * Data class for guilds.
@@ -228,11 +226,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
             .onDuplicateKeyIgnore()
             .single(member)
 
-        return try {
-            database.runQuery(query) > 0
-        } catch (ex: R2dbcDataIntegrityViolationException) {
-            throw GuildDoesNotExistException(guildId, ex)
-        }
+        return database.runQuery(query) > 0
     }
 
     override suspend fun addInvite(guildId: Int, memberId: UUID, expiredAt: Instant?): Boolean {
@@ -248,8 +242,14 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
 
         return try {
             database.runQuery(query) > 0
-        } catch (ex: R2dbcDataIntegrityViolationException) {
-            throw GuildDoesNotExistException(guildId, ex)
+        } catch (e: R2dbcException) {
+            when (e.message) {
+                "Entity cannot be invited to guild because he is already a member of the guild" -> throw GuildAlreadyMemberException(
+                    guildId,
+                    memberId
+                )
+                else -> throw e
+            }
         }
     }
 
