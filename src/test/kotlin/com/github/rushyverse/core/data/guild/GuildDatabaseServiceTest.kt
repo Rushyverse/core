@@ -11,12 +11,16 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.r2dbc.R2dbcDatabase
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.MountableFile
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.util.*
 import kotlin.test.*
@@ -225,6 +229,30 @@ class GuildDatabaseServiceTest {
                 assertEquals(memberId, member.id.memberId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), member.createdAt.truncatedTo(ChronoUnit.MINUTES))
             }
+
+            @ParameterizedTest
+            @EnumSource(value = ChronoUnit::class, names = ["DAYS", "HOURS", "MINUTES"])
+            fun `should use clock provider of database`(chronoUnit: ChronoUnit) = runTest {
+                database = R2dbcDatabase(createConnectionOptions(psqlContainer), clockProvider = {
+                    val instant = Instant.now().truncatedTo(chronoUnit)
+                    Clock.fixed(instant, ZoneId.systemDefault())
+                })
+                service = GuildDatabaseService(database)
+
+                val guild = service.createGuild(getRandomString(), UUID.randomUUID())
+                val memberId = UUID.randomUUID()
+                val now = Instant.now()
+                assertTrue { service.addMember(guild.id, memberId) }
+
+                val members = getAllMembers()
+                assertEquals(2, members.size)
+
+                val member = members[1]
+                assertEquals(guild.id, member.id.guildId)
+                assertEquals(memberId, member.id.memberId)
+
+                assertEquals(now.truncatedTo(chronoUnit), member.createdAt)
+            }
         }
 
         @Test
@@ -302,6 +330,30 @@ class GuildDatabaseServiceTest {
                 assertEquals(guild.id, invite.id.guildId)
                 assertEquals(member, invite.id.memberId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), invite.createdAt.truncatedTo(ChronoUnit.MINUTES))
+            }
+
+            @ParameterizedTest
+            @EnumSource(value = ChronoUnit::class, names = ["DAYS", "HOURS", "MINUTES"])
+            fun `should use clock provider of database`(chronoUnit: ChronoUnit) = runTest {
+                database = R2dbcDatabase(createConnectionOptions(psqlContainer), clockProvider = {
+                    val instant = Instant.now().truncatedTo(chronoUnit)
+                    Clock.fixed(instant, ZoneId.systemDefault())
+                })
+                service = GuildDatabaseService(database)
+
+                val guild = service.createGuild(getRandomString(), UUID.randomUUID())
+                val memberId = UUID.randomUUID()
+                val now = Instant.now()
+                assertTrue { service.addInvite(guild.id, memberId, null) }
+
+                val invites = getAllInvites()
+                assertEquals(1, invites.size)
+
+                val invite = invites.single()
+                assertEquals(guild.id, invite.id.guildId)
+                assertEquals(memberId, invite.id.memberId)
+
+                assertEquals(now.truncatedTo(chronoUnit), invite.createdAt)
             }
         }
 
