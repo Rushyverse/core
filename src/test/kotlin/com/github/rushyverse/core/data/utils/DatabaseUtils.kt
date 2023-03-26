@@ -3,11 +3,23 @@ package com.github.rushyverse.core.data.utils
 import io.r2dbc.spi.ConnectionFactoryOptions
 import io.r2dbc.spi.Option
 import kotlinx.coroutines.flow.toList
+import org.komapper.core.ClockProvider
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.metamodel.EntityMetamodel
 import org.komapper.dialect.postgresql.PostgreSqlDialect
 import org.komapper.r2dbc.R2dbcDatabase
 import org.testcontainers.containers.PostgreSQLContainer
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+
+class MicroClockProvider(private val zoneId: ZoneId = ZoneId.systemDefault()) : ClockProvider {
+    override fun now(): Clock {
+        val instant = Instant.now().truncatedTo(ChronoUnit.MICROS)
+        return Clock.fixed(instant, zoneId)
+    }
+}
 
 object DatabaseUtils {
 

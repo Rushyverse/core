@@ -4,6 +4,7 @@ import com.github.rushyverse.core.container.createPSQLContainer
 import com.github.rushyverse.core.data.*
 import com.github.rushyverse.core.data.utils.DatabaseUtils
 import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
+import com.github.rushyverse.core.data.utils.MicroClockProvider
 import com.github.rushyverse.core.utils.getRandomString
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -14,6 +15,7 @@ import org.komapper.core.dsl.QueryDsl
 import org.komapper.r2dbc.R2dbcDatabase
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import org.testcontainers.utility.MountableFile
 import java.util.*
 import kotlin.test.*
 
@@ -24,6 +26,10 @@ class GuildDatabaseServiceTest {
         @JvmStatic
         @Container
         private val psqlContainer = createPSQLContainer()
+            .withCopyToContainer(
+                MountableFile.forClasspathResource("sql/guild.sql"),
+                "/docker-entrypoint-initdb.d/init.sql"
+            )
     }
 
     private lateinit var service: GuildDatabaseService
@@ -31,16 +37,15 @@ class GuildDatabaseServiceTest {
 
     @BeforeTest
     fun onBefore() {
-        database = R2dbcDatabase(createConnectionOptions(psqlContainer))
+        database = R2dbcDatabase(createConnectionOptions(psqlContainer), clockProvider = MicroClockProvider())
         service = GuildDatabaseService(database)
-        // Create tables from guild schema
     }
 
     @AfterEach
-    fun onAfter() = runBlocking {
-        database.runQuery(QueryDsl.drop(_GuildInvite.guildInvite))
-        database.runQuery(QueryDsl.drop(_GuildMemberDef.guildMemberDef))
-        database.runQuery(QueryDsl.drop(_Guild.guild))
+    fun onAfter() = runBlocking<Unit> {
+        database.runQuery(QueryDsl.delete(_GuildInvite.guildInvite).all().options { it.copy(allowMissingWhereClause = true) })
+        database.runQuery(QueryDsl.delete(_GuildMember.guildMember).all().options { it.copy(allowMissingWhereClause = true) })
+        database.runQuery(QueryDsl.delete(_Guild.guild).all().options { it.copy(allowMissingWhereClause = true) })
     }
 
     @Nested
@@ -146,14 +151,27 @@ class GuildDatabaseServiceTest {
             val guilds = getAll()
             assertEquals(1, guilds.size)
             val guild = guilds[0]
-            val retrievedGuild = service.getGuild(name)
+            val (retrievedGuild) = service.getGuild(name).toList()
             assertEquals(guild, retrievedGuild)
         }
 
         @Test
+        fun `when several guild with the same name exist`() = runTest {
+            val name = getRandomString()
+            service.createGuild(name, UUID.randomUUID())
+            service.createGuild(name, UUID.randomUUID())
+
+            val guilds = getAll()
+            assertEquals(2, guilds.size)
+
+            val retrievedGuilds = service.getGuild(name).toList()
+            assertEquals(guilds, retrievedGuilds)
+        }
+
+        @Test
         fun `when guild does not exist`() = runTest {
-            val guild = service.getGuild(getRandomString())
-            assertNull(guild)
+            val guild = service.getGuild(getRandomString()).toList()
+            assertEquals(0, guild.size)
         }
 
     }
@@ -221,13 +239,13 @@ class GuildDatabaseServiceTest {
         fun `when member was a pending member`() = runTest {
             val guild = service.createGuild(getRandomString(), UUID.randomUUID())
             val member = UUID.randomUUID()
-            assertTrue { service.addPendingMember(guild.id, member) }
+            assertTrue { service.addInvite(guild.id, member) }
             assertTrue { service.addMember(guild.id, member) }
 
             val members = service.getMembers(guild.id).toList()
             assertEquals(2, members.size)
             assertEquals(member, members[1])
-            val pendingMembers = service.getPendingMembers(guild.id).toList()
+            val pendingMembers = service.getInvited(guild.id).toList()
             assertEquals(0, pendingMembers.size)
         }
 
@@ -238,6 +256,60 @@ class GuildDatabaseServiceTest {
             assertEquals(0, guilds.size)
         }
 
+    }
+
+    @Nested
+    inner class AddInvite {
+
+        @Test
+        fun `when member is not in a guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), UUID.randomUUID())
+            val member = UUID.randomUUID()
+            assertTrue { service.addInvite(guild.id, member) }
+
+            val pendingMembers = service.getInvited(guild.id).toList()
+            assertEquals(1, pendingMembers.size)
+            assertEquals(member, pendingMembers[0])
+        }
+
+        @Test
+        fun `when member is already in a guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), UUID.randomUUID())
+            val member = UUID.randomUUID()
+            assertTrue { service.addMember(guild.id, member) }
+            assertFalse { service.addInvite(guild.id, member) }
+
+            val pendingMembers = service.getInvited(guild.id).toList()
+            assertEquals(0, pendingMembers.size)
+        }
+
+        @Test
+        fun `when member is owner of a guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), UUID.randomUUID())
+            assertFalse { service.addInvite(guild.id, guild.owner) }
+
+            val pendingMembers = service.getInvited(guild.id).toList()
+            assertEquals(0, pendingMembers.size)
+        }
+
+        @Test
+        fun `when member was a pending member`() = runTest {
+            val guild = service.createGuild(getRandomString(), UUID.randomUUID())
+            val member = UUID.randomUUID()
+            assertTrue { service.addInvite(guild.id, member) }
+            assertFalse { service.addInvite(guild.id, member) }
+
+            val pendingMembers = service.getInvited(guild.id).toList()
+            assertEquals(1, pendingMembers.size)
+            assertEquals(member, pendingMembers[0])
+        }
+
+        @Test
+        fun `when guild does not exist`() = runTest {
+            assertFalse { service.addInvite(0, UUID.randomUUID()) }
+            val guilds = getAll()
+            assertEquals(0, guilds.size)
+        }
     }
 
     private suspend fun getAll(): List<Guild> {
