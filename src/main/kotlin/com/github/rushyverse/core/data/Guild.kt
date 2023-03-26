@@ -213,26 +213,21 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     override suspend fun addMember(guildId: Int, memberId: UUID): Boolean {
         val guildMeta = _Guild.guild
         val guildIdColumn = guildMeta.id.columnName
-
         val memberMeta = _GuildMember.guildMember
-        val memberIdColumn = memberMeta.id.memberId.columnName
-        val memberGuildColumn = memberMeta.id.guildId.columnName
+        val memberIds = memberMeta.id
 
         val query = QueryDsl.executeTemplate(
             """
-                INSERT INTO ${memberMeta.tableName()}
-                SELECT g.$guildIdColumn, /*member_id*/'', now()
+                INSERT INTO ${memberMeta.tableName()} (${memberIds.guildId.columnName}, ${memberIds.memberId.columnName}, ${memberMeta.createdAt.columnName})
+                SELECT g.$guildIdColumn, /*member_id*/'', /*created_at*/''
                 FROM ${guildMeta.tableName()} g
-                WHERE g.$guildIdColumn = /*guild_id*/0 AND NOT EXISTS
-                (
-                    SELECT 1
-                    FROM ${memberMeta.tableName()}
-                    WHERE $memberGuildColumn = g.$guildIdColumn AND $memberIdColumn = /*member_id*/''
-                );
+                WHERE g.$guildIdColumn = /*guild_id*/0
+                ON CONFLICT DO NOTHING;
             """.trimIndent()
         )
             .bind("member_id", memberId)
             .bind("guild_id", guildId)
+            .bind("created_at", database.config.clockProvider.now().instant())
 
         return database.runQuery(query) > 0
     }
@@ -240,26 +235,21 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     override suspend fun addInvite(guildId: Int, memberId: UUID, expiredAt: Instant?): Boolean {
         val guildMeta = _Guild.guild
         val guildIdColumn = guildMeta.id.columnName
-
         val inviteMeta = _GuildInvite.guildInvite
-        val inviteIdColumn = inviteMeta.id.memberId.columnName
-        val inviteGuildColumn = inviteMeta.id.guildId.columnName
+        val inviteMetaIds = inviteMeta.id
 
         val query = QueryDsl.executeTemplate(
             """
-                INSERT INTO ${inviteMeta.tableName()}
-                SELECT g.$guildIdColumn, /*member_id*/'', now(), /*expired_at*/''
+                INSERT INTO ${inviteMeta.tableName()} (${inviteMetaIds.guildId.columnName}, ${inviteMetaIds.memberId.columnName}, ${inviteMeta.createdAt.columnName}, ${inviteMeta.expiredAt.columnName})
+                SELECT g.$guildIdColumn, /*member_id*/'', /*created_at*/'', /*expired_at*/''
                 FROM ${guildMeta.tableName()} g
-                WHERE g.$guildIdColumn = /*guild_id*/0 AND NOT EXISTS
-                (
-                    SELECT 1
-                    FROM ${inviteMeta.tableName()}
-                    WHERE $inviteGuildColumn = g.$guildIdColumn AND $inviteIdColumn = /*member_id*/''
-                );
+                WHERE g.$guildIdColumn = /*guild_id*/0
+                ON CONFLICT DO NOTHING;
             """.trimIndent()
         )
             .bind("member_id", memberId)
             .bind("guild_id", guildId)
+            .bind("created_at", database.config.clockProvider.now().instant())
             .bind("expired_at", expiredAt)
 
         return database.runQuery(query) > 0
