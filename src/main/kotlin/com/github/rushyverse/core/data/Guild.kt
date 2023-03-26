@@ -220,17 +220,18 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         val query = QueryDsl.executeTemplate(
             """
                 INSERT INTO ${memberMeta.tableName()}
-                SELECT g.$guildIdColumn, /*memberId*/'', now()
+                SELECT g.$guildIdColumn, /*member_id*/'', now()
                 FROM ${guildMeta.tableName()} g
-                WHERE g.$guildIdColumn = '$guildId' AND NOT EXISTS
+                WHERE g.$guildIdColumn = /*guild_id*/0 AND NOT EXISTS
                 (
                     SELECT 1
                     FROM ${memberMeta.tableName()}
-                    WHERE $memberGuildColumn = g.$guildIdColumn AND $memberIdColumn = /*memberId*/''
+                    WHERE $memberGuildColumn = g.$guildIdColumn AND $memberIdColumn = /*member_id*/''
                 );
             """.trimIndent()
         )
-            .bind("memberId", memberId)
+            .bind("member_id", memberId)
+            .bind("guild_id", guildId)
 
         return database.runQuery(query) > 0
     }
@@ -246,17 +247,18 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         val query = QueryDsl.executeTemplate(
             """
                 INSERT INTO ${inviteMeta.tableName()}
-                SELECT g.$guildIdColumn, /*memberId*/'', now()
+                SELECT g.$guildIdColumn, /*member_id*/'', now()
                 FROM ${guildMeta.tableName()} g
-                WHERE g.$guildIdColumn = '$guildId' AND NOT EXISTS
+                WHERE g.$guildIdColumn = /*guild_id*/0 AND NOT EXISTS
                 (
                     SELECT 1
                     FROM ${inviteMeta.tableName()}
-                    WHERE $inviteGuildColumn = g.$guildIdColumn AND $inviteIdColumn = /*memberId*/''
+                    WHERE $inviteGuildColumn = g.$guildIdColumn AND $inviteIdColumn = /*member_id*/''
                 );
             """.trimIndent()
         )
-            .bind("memberId", memberId)
+            .bind("member_id", memberId)
+            .bind("guild_id", guildId)
 
         return database.runQuery(query) > 0
     }
