@@ -17,7 +17,7 @@ import java.util.*
  */
 @KomapperEntity
 @KomapperTable("guild")
-@KomapperOneToMany(GuildMemberDef::class, "members")
+@KomapperOneToMany(GuildMember::class, "members")
 public data class Guild(
     @KomapperId
     @KomapperAutoIncrement
@@ -57,7 +57,7 @@ public data class GuildInvite(
 @KomapperEntity
 @KomapperTable("guild_member")
 @KomapperManyToOne(Guild::class, "guild")
-public data class GuildMemberDef(
+public data class GuildMember(
     @KomapperEmbeddedId
     val id: GuildMemberIds,
     @KomapperCreatedAt
@@ -93,7 +93,7 @@ public interface IGuildService {
      * @param name Name of the guild.
      * @return The guild, or `null` if it does not exist.
      */
-    public suspend fun getGuild(name: String): Guild?
+    public suspend fun getGuild(name: String): Flow<Guild>
 
     /**
      * Check if a member is the owner of a guild.
@@ -102,6 +102,22 @@ public interface IGuildService {
      * @return `true` if the member is the owner, `false` otherwise.
      */
     public suspend fun isOwner(guildId: Int, memberId: UUID): Boolean
+
+    /**
+     * Check if a member is a member of a guild.
+     * @param guildId ID of the guild.
+     * @param memberId ID of the member.
+     * @return `true` if the member is a member, `false` otherwise.
+     */
+    public suspend fun isMember(guildId: Int, memberId: UUID): Boolean
+
+    /**
+     * Check if a member is a pending member of a guild.
+     * @param guildId ID of the guild.
+     * @param memberId ID of the member.
+     * @return `true` if the member is a pending member, `false` otherwise.
+     */
+    public suspend fun isInvite(guildId: Int, memberId: UUID): Boolean
 
     /**
      * Add a member to a guild.
@@ -118,23 +134,7 @@ public interface IGuildService {
      * @param memberId ID of the member.
      * @return `true` if the member was added as pending member, `false` the member was already a pending member or a member.
      */
-    public suspend fun addPendingMember(guildId: Int, memberId: UUID): Boolean
-
-    /**
-     * Check if a member is a member of a guild.
-     * @param guildId ID of the guild.
-     * @param memberId ID of the member.
-     * @return `true` if the member is a member, `false` otherwise.
-     */
-    public suspend fun isMember(guildId: Int, memberId: UUID): Boolean
-
-    /**
-     * Check if a member is a pending member of a guild.
-     * @param guildId ID of the guild.
-     * @param memberId ID of the member.
-     * @return `true` if the member is a pending member, `false` otherwise.
-     */
-    public suspend fun isPendingMember(guildId: Int, memberId: UUID): Boolean
+    public suspend fun addInvite(guildId: Int, memberId: UUID): Boolean
 
     /**
      * Remove a member from a guild.
@@ -150,7 +150,7 @@ public interface IGuildService {
      * @param memberId ID of the member.
      * @return `true` if the member was removed, `false` if they were not a pending member.
      */
-    public suspend fun removePendingMember(guildId: Int, memberId: UUID): Boolean
+    public suspend fun removeInvite(guildId: Int, memberId: UUID): Boolean
 
     /**
      * Get all members of a guild.
@@ -165,7 +165,7 @@ public interface IGuildService {
      * @param guildId ID of the guild.
      * @return A flow of all pending members.
      */
-    public suspend fun getPendingMembers(guildId: Int): Flow<UUID>
+    public suspend fun getInvited(guildId: Int): Flow<UUID>
 }
 
 public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildService {
@@ -192,12 +192,12 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         return database.runQuery(query).firstOrNull()
     }
 
-    override suspend fun getGuild(name: String): Guild? {
+    override suspend fun getGuild(name: String): Flow<Guild> {
         val meta = _Guild.guild
         val query = QueryDsl.from(meta).where {
             meta.name eq name
         }
-        return database.runQuery(query).firstOrNull()
+        return database.flowQuery(query)
     }
 
     override suspend fun isOwner(guildId: Int, memberId: UUID): Boolean {
@@ -212,9 +212,8 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     override suspend fun addMember(guildId: Int, memberId: UUID): Boolean {
         val guildMeta = _Guild.guild
         val guildIdColumn = guildMeta.id.columnName
-        val guildOwnerColumn = guildMeta.owner.columnName
 
-        val memberMeta = _GuildMemberDef.guildMemberDef
+        val memberMeta = _GuildMember.guildMember
         val memberIdColumn = memberMeta.id.memberId.columnName
         val memberGuildColumn = memberMeta.id.guildId.columnName
 
@@ -223,7 +222,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
                 INSERT INTO ${memberMeta.tableName()}
                 SELECT g.$guildIdColumn, /*memberId*/'', now()
                 FROM ${guildMeta.tableName()} g
-                WHERE g.$guildIdColumn = '$guildId' AND g.$guildOwnerColumn <> /*memberId*/'' AND NOT EXISTS
+                WHERE g.$guildIdColumn = '$guildId' AND NOT EXISTS
                 (
                     SELECT 1
                     FROM ${memberMeta.tableName()}
@@ -236,25 +235,24 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         return database.runQuery(query) > 0
     }
 
-    override suspend fun addPendingMember(guildId: Int, memberId: UUID): Boolean {
+    override suspend fun addInvite(guildId: Int, memberId: UUID): Boolean {
         val guildMeta = _Guild.guild
         val guildIdColumn = guildMeta.id.columnName
-        val guildOwnerColumn = guildMeta.owner.columnName
 
-        val memberMeta = _GuildInvite.guildInvite
-        val memberIdColumn = memberMeta.id.memberId.columnName
-        val memberGuildColumn = memberMeta.id.guildId.columnName
+        val inviteMeta = _GuildInvite.guildInvite
+        val inviteIdColumn = inviteMeta.id.memberId.columnName
+        val inviteGuildColumn = inviteMeta.id.guildId.columnName
 
         val query = QueryDsl.executeTemplate(
             """
-                INSERT INTO ${memberMeta.tableName()}
+                INSERT INTO ${inviteMeta.tableName()}
                 SELECT g.$guildIdColumn, /*memberId*/'', now()
                 FROM ${guildMeta.tableName()} g
-                WHERE g.$guildIdColumn = '$guildId' AND g.$guildOwnerColumn <> /*memberId*/'' AND NOT EXISTS
+                WHERE g.$guildIdColumn = '$guildId' AND NOT EXISTS
                 (
                     SELECT 1
-                    FROM ${memberMeta.tableName()}
-                    WHERE $memberGuildColumn = g.$guildIdColumn AND $memberIdColumn = /*memberId*/''
+                    FROM ${inviteMeta.tableName()}
+                    WHERE $inviteGuildColumn = g.$guildIdColumn AND $inviteIdColumn = /*memberId*/''
                 );
             """.trimIndent()
         )
@@ -264,26 +262,16 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun isMember(guildId: Int, memberId: UUID): Boolean {
-        val guildMeta = _Guild.guild
-        val memberMeta = _GuildMemberDef.guildMemberDef
+        val memberMeta = _GuildMember.guildMember
         val memberIdMeta = memberMeta.id
-
-        val query = QueryDsl.from(memberMeta).innerJoin(guildMeta) {
-            memberIdMeta.guildId eq guildMeta.id
-        }.where {
-            guildMeta.id eq guildId
-            and {
-                guildMeta.owner eq memberId
-                or {
-                    memberIdMeta.memberId eq memberId
-                }
-            }
+        val query = QueryDsl.from(memberMeta).where {
+            memberIdMeta.guildId eq guildId
+            memberIdMeta.memberId eq memberId
         }
-
         return database.runQuery(query).firstOrNull() != null
     }
 
-    override suspend fun isPendingMember(guildId: Int, memberId: UUID): Boolean {
+    override suspend fun isInvite(guildId: Int, memberId: UUID): Boolean {
         val meta = _GuildInvite.guildInvite
         val ids = meta.id
         val query = QueryDsl.from(meta).where {
@@ -294,7 +282,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun removeMember(guildId: Int, memberId: UUID): Boolean {
-        val meta = _GuildMemberDef.guildMemberDef
+        val meta = _GuildMember.guildMember
         val ids = meta.id
         val query = QueryDsl.delete(meta).where {
             ids.guildId eq guildId
@@ -303,7 +291,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         return database.runQuery(query) > 0
     }
 
-    override suspend fun removePendingMember(guildId: Int, memberId: UUID): Boolean {
+    override suspend fun removeInvite(guildId: Int, memberId: UUID): Boolean {
         val meta = _GuildInvite.guildInvite
         val ids = meta.id
         val query = QueryDsl.delete(meta).where {
@@ -314,7 +302,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun getMembers(guildId: Int): Flow<UUID> {
-        val meta = _GuildMemberDef.guildMemberDef
+        val meta = _GuildMember.guildMember
         val ids = meta.id
         val query = QueryDsl.from(meta).where {
             ids.guildId eq guildId
@@ -322,7 +310,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         return database.flowQuery(query).filterNotNull()
     }
 
-    override suspend fun getPendingMembers(guildId: Int): Flow<UUID> {
+    override suspend fun getInvited(guildId: Int): Flow<UUID> {
         val meta = _GuildInvite.guildInvite
         val ids = meta.id
         val query = QueryDsl.from(meta).where {
