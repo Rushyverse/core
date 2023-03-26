@@ -2,6 +2,7 @@ package com.github.rushyverse.core.data.guild
 
 import com.github.rushyverse.core.container.createPSQLContainer
 import com.github.rushyverse.core.data.*
+import com.github.rushyverse.core.data.guild.exception.GuildDoesNotExistException
 import com.github.rushyverse.core.data.utils.DatabaseUtils
 import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
 import com.github.rushyverse.core.data.utils.MicroClockProvider
@@ -11,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 import org.komapper.core.dsl.QueryDsl
@@ -303,7 +305,10 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `when guild does not exist`() = runTest {
-            assertFalse { service.addMember(0, UUID.randomUUID()) }
+            assertThrows<GuildDoesNotExistException> {
+                service.addMember(0, UUID.randomUUID())
+            }
+
             val guilds = getAllGuilds()
             assertEquals(0, guilds.size)
         }
@@ -445,7 +450,10 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `when guild does not exist`() = runTest {
-            assertFalse { service.addInvite(0, UUID.randomUUID(), null) }
+            assertThrows<GuildDoesNotExistException> {
+                service.addInvite(0, UUID.randomUUID(), null)
+            }
+
             val guilds = getAllGuilds()
             assertEquals(0, guilds.size)
         }

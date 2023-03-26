@@ -1,9 +1,10 @@
 package com.github.rushyverse.core.data
 
+import com.github.rushyverse.core.data.guild.exception.GuildDoesNotExistException
+import io.r2dbc.spi.R2dbcDataIntegrityViolationException
 import kotlinx.coroutines.flow.*
 import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
-import org.komapper.core.dsl.query.bind
 import org.komapper.r2dbc.R2dbcDatabase
 import java.time.Instant
 import java.util.*
@@ -211,48 +212,38 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun addMember(guildId: Int, memberId: UUID): Boolean {
-        val guildMeta = _Guild.guild
-        val guildIdColumn = guildMeta.id.columnName
-        val memberMeta = _GuildMember.guildMember
-        val memberIds = memberMeta.id
-
-        val query = QueryDsl.executeTemplate(
-            """
-                INSERT INTO ${memberMeta.tableName()} (${memberIds.guildId.columnName}, ${memberIds.memberId.columnName}, ${memberMeta.createdAt.columnName})
-                SELECT g.$guildIdColumn, /*member_id*/'', /*created_at*/''
-                FROM ${guildMeta.tableName()} g
-                WHERE g.$guildIdColumn = /*guild_id*/0
-                ON CONFLICT DO NOTHING;
-            """.trimIndent()
+        val member = GuildMember(
+            GuildMemberIds(guildId, memberId),
+            database.config.clockProvider.now().instant()
         )
-            .bind("member_id", memberId)
-            .bind("guild_id", guildId)
-            .bind("created_at", database.config.clockProvider.now().instant())
 
-        return database.runQuery(query) > 0
+        val query = QueryDsl.insert(_GuildMember.guildMember)
+            .onDuplicateKeyIgnore()
+            .single(member)
+
+        return try {
+            database.runQuery(query) > 0
+        } catch (ex: R2dbcDataIntegrityViolationException) {
+            throw GuildDoesNotExistException(guildId, ex)
+        }
     }
 
     override suspend fun addInvite(guildId: Int, memberId: UUID, expiredAt: Instant?): Boolean {
-        val guildMeta = _Guild.guild
-        val guildIdColumn = guildMeta.id.columnName
-        val inviteMeta = _GuildInvite.guildInvite
-        val inviteMetaIds = inviteMeta.id
-
-        val query = QueryDsl.executeTemplate(
-            """
-                INSERT INTO ${inviteMeta.tableName()} (${inviteMetaIds.guildId.columnName}, ${inviteMetaIds.memberId.columnName}, ${inviteMeta.createdAt.columnName}, ${inviteMeta.expiredAt.columnName})
-                SELECT g.$guildIdColumn, /*member_id*/'', /*created_at*/'', /*expired_at*/''
-                FROM ${guildMeta.tableName()} g
-                WHERE g.$guildIdColumn = /*guild_id*/0
-                ON CONFLICT DO NOTHING;
-            """.trimIndent()
+        val invite = GuildInvite(
+            GuildMemberIds(guildId, memberId),
+            database.config.clockProvider.now().instant(),
+            expiredAt
         )
-            .bind("member_id", memberId)
-            .bind("guild_id", guildId)
-            .bind("created_at", database.config.clockProvider.now().instant())
-            .bind("expired_at", expiredAt)
 
-        return database.runQuery(query) > 0
+        val query = QueryDsl.insert(_GuildInvite.guildInvite)
+            .onDuplicateKeyIgnore()
+            .single(invite)
+
+        return try {
+            database.runQuery(query) > 0
+        } catch (ex: R2dbcDataIntegrityViolationException) {
+            throw GuildDoesNotExistException(guildId, ex)
+        }
     }
 
     override suspend fun isMember(guildId: Int, memberId: UUID): Boolean {
