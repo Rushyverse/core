@@ -2,7 +2,6 @@ package com.github.rushyverse.core.data.guild
 
 import com.github.rushyverse.core.container.createPSQLContainer
 import com.github.rushyverse.core.data.*
-import com.github.rushyverse.core.data.guild.exception.GuildDoesNotExistException
 import com.github.rushyverse.core.data.utils.DatabaseUtils
 import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
 import com.github.rushyverse.core.data.utils.MicroClockProvider

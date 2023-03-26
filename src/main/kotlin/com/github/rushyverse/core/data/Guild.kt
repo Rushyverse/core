@@ -1,6 +1,5 @@
 package com.github.rushyverse.core.data
 
-import com.github.rushyverse.core.data.guild.exception.GuildDoesNotExistException
 import io.r2dbc.spi.R2dbcDataIntegrityViolationException
 import kotlinx.coroutines.flow.*
 import org.komapper.annotation.*
@@ -8,6 +7,14 @@ import org.komapper.core.dsl.QueryDsl
 import org.komapper.r2dbc.R2dbcDatabase
 import java.time.Instant
 import java.util.*
+
+/**
+ * Exception thrown when a guild does not exist.
+ */
+public class GuildDoesNotExistException(guildId: Int, ex: R2dbcDataIntegrityViolationException?) : R2dbcDataIntegrityViolationException(
+    "Guild with ID $guildId does not exist.",
+    ex
+)
 
 /**
  * Data class for guilds.
