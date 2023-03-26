@@ -5,7 +5,7 @@ CREATE TABLE guild
     name       VARCHAR(50)              NOT NULL,
     owner      UUID                     NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    CONSTRAINT pk_guild PRIMARY KEY (id)
+    PRIMARY KEY (id)
 );
 
 -- Add index on name to be able to search guilds by name
@@ -21,7 +21,8 @@ CREATE TABLE guild_member
     FOREIGN KEY (guild_id) REFERENCES guild (id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS guild_invite
+-- Create table to store guild invites
+CREATE TABLE guild_invite
 (
     guild_id   INTEGER                  NOT NULL,
     member_id  UUID                     NOT NULL,
@@ -33,7 +34,7 @@ CREATE TABLE IF NOT EXISTS guild_invite
 );
 
 -- Add index on expired_at to be able to delete expired invites
-CREATE INDEX IF NOT EXISTS idx_guild_invite_expired_at ON guild_invite (expired_at);
+CREATE INDEX idx_guild_invite_expired_at ON guild_invite (expired_at);
 
 -- Function to insert guild owner as member
 CREATE OR REPLACE FUNCTION insert_owner_as_member() RETURNS TRIGGER AS
@@ -42,11 +43,11 @@ BEGIN
     INSERT INTO guild_member(guild_id, member_id, created_at)
     VALUES (NEW.id, NEW.owner, NEW.created_at);
     RETURN NEW;
-END;
+END
 $$ LANGUAGE plpgsql;
 
 -- Trigger to insert guild owner as member on guild creation
-CREATE TRIGGER insert_owner_trigger
+CREATE TRIGGER insert_owner_as_member_trigger
     AFTER INSERT
     ON guild
     FOR EACH ROW
@@ -61,7 +62,7 @@ BEGIN
     WHERE guild_id = NEW.guild_id
       AND member_id = NEW.member_id;
     RETURN NEW;
-END;
+END
 $$ LANGUAGE plpgsql;
 
 -- Trigger to delete invite if member joins guild
@@ -82,7 +83,7 @@ BEGIN
     ELSE
         RETURN NEW;
     END IF;
-END;
+END
 $$ LANGUAGE plpgsql;
 
 -- Trigger to check if member is already in guild
@@ -102,12 +103,13 @@ BEGIN
     WHERE expired_at IS NOT NULL
       AND expired_at < now();
     RETURN NEW;
-END;
+END
 $$ LANGUAGE plpgsql;
 
 -- Trigger to delete expired invites
 -- Will be executed after a transaction is committed
 CREATE TRIGGER delete_expired_invite_trigger
-    AFTER INSERT OR UPDATE ON guild_invite
+    AFTER INSERT OR UPDATE
+    ON guild_invite
     FOR EACH STATEMENT
 EXECUTE PROCEDURE delete_expired_invite();
