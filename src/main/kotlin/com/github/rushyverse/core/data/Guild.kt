@@ -132,9 +132,10 @@ public interface IGuildService {
      * A pending member is a member that has been invited to the guild, but has not accepted the invite.
      * @param guildId ID of the guild.
      * @param memberId ID of the member.
+     * @param expiredAt Timestamp of when the invite expires.
      * @return `true` if the member was added as pending member, `false` the member was already a pending member or a member.
      */
-    public suspend fun addInvite(guildId: Int, memberId: UUID): Boolean
+    public suspend fun addInvite(guildId: Int, memberId: UUID, expiredAt: Instant?): Boolean
 
     /**
      * Remove a member from a guild.
@@ -236,7 +237,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         return database.runQuery(query) > 0
     }
 
-    override suspend fun addInvite(guildId: Int, memberId: UUID): Boolean {
+    override suspend fun addInvite(guildId: Int, memberId: UUID, expiredAt: Instant?): Boolean {
         val guildMeta = _Guild.guild
         val guildIdColumn = guildMeta.id.columnName
 
@@ -247,7 +248,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         val query = QueryDsl.executeTemplate(
             """
                 INSERT INTO ${inviteMeta.tableName()}
-                SELECT g.$guildIdColumn, /*member_id*/'', now()
+                SELECT g.$guildIdColumn, /*member_id*/'', now(), /*expired_at*/''
                 FROM ${guildMeta.tableName()} g
                 WHERE g.$guildIdColumn = /*guild_id*/0 AND NOT EXISTS
                 (
@@ -259,6 +260,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         )
             .bind("member_id", memberId)
             .bind("guild_id", guildId)
+            .bind("expired_at", expiredAt)
 
         return database.runQuery(query) > 0
     }
