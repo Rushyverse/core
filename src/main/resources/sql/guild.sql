@@ -101,7 +101,7 @@ BEGIN
     DELETE
     FROM guild_invite
     WHERE expired_at IS NOT NULL
-      AND expired_at < now();
+      AND expired_at < NOW();
     RETURN NEW;
 END
 $$ LANGUAGE plpgsql;
