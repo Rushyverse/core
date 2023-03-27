@@ -3,6 +3,7 @@ package com.github.rushyverse.core.data
 import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.serializer.InstantSerializer
+import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.Serializable
@@ -328,9 +329,9 @@ public class GuildCacheService(
 ) : AbstractCacheService(client, prefixKey), IGuildService {
 
     public enum class Type(public val key: String) {
-        GUILD("guild"),
-        ADD_GUILD("guild:add"),
-        REMOVE_GUILD("guild:remove"),
+        GUILD("store"),
+        ADD_GUILD("add"),
+        REMOVE_GUILD("remove"),
 
         MEMBERS("members"),
         ADD_MEMBER("members:add"),
@@ -387,17 +388,12 @@ public class GuildCacheService(
     }
 
     override suspend fun getGuild(name: String): Flow<Guild> {
-        return cacheClient.connect { connection ->
-            val deleted = connection.keys(encodeFormatKey(Type.REMOVE_GUILD.key, "*")).toSet()
-
-            listOf(
-                connection.keys(encodeFormatKey(Type.ADD_GUILD.key, "*")),
-                connection.keys(encodeFormatKey(Type.GUILD.key, "*"))
-            ).merge()
-                .distinctUntilChanged()
-                .filter { it !in deleted }
-
-        }.map { decodeFromByteArray(Guild.serializer(), it) }.filter { it.name == name }
+        return mergeStoredAndAddedWithoutRemoved(
+            Type.GUILD,
+            Type.ADD_GUILD,
+            Type.REMOVE_GUILD,
+            this::getAllKeys
+        ).map { decodeFromByteArray(Guild.serializer(), it) }.filter { it.name == name }
     }
 
     override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
@@ -406,108 +402,131 @@ public class GuildCacheService(
 
     override suspend fun isMember(guildId: Int, entityId: String): Boolean {
         return cacheClient.connect { connection ->
-            connection.sismember(
-                encodeFormatKey(Type.MEMBERS.key, guildId.toString()),
-                encodeToByteArray(String.serializer(), entityId)
-            )?.or(
-                connection.sismember(
-                    encodeFormatKey(Type.ADD_MEMBER.key, guildId.toString()),
-                    encodeToByteArray(String.serializer(), entityId)
-                ) ?: false
-            )?.and(
-                connection.sismember(
-                    encodeFormatKey(Type.REMOVE_MEMBER.key, guildId.toString()),
-                    encodeToByteArray(String.serializer(), entityId)
-                )?.not() ?: true
+            isStoredOrAddedAndNotDeleted(
+                connection,
+                guildId,
+                entityId,
+                Type.MEMBERS,
+                Type.ADD_MEMBER,
+                Type.REMOVE_MEMBER
             )
-        } ?: false
+        }
     }
 
     override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
         return cacheClient.connect { connection ->
-            connection.sismember(
-                encodeFormatKey(Type.INVITATIONS.key, guildId.toString()),
-                encodeToByteArray(String.serializer(), entityId)
-            )?.or(
-                connection.sismember(
-                    encodeFormatKey(Type.ADD_INVITATION.key, guildId.toString()),
-                    encodeToByteArray(String.serializer(), entityId)
-                ) ?: false
-            )?.and(
-                connection.sismember(
-                    encodeFormatKey(Type.REMOVE_INVITATION.key, guildId.toString()),
-                    encodeToByteArray(String.serializer(), entityId)
-                )?.not() ?: true
+            isStoredOrAddedAndNotDeleted(
+                connection,
+                guildId,
+                entityId,
+                Type.INVITATIONS,
+                Type.ADD_INVITATION,
+                Type.REMOVE_INVITATION
             )
-        } ?: false
+        }
     }
 
     override suspend fun addMember(guildId: Int, entityId: String): Boolean {
-        val key = encodeFormatKey(Type.ADD_MEMBER.key, guildId.toString())
-
-        val result = cacheClient.connect { connection ->
-            connection.sadd(key, encodeToByteArray(String.serializer(), entityId))
-        }
-
-        return result != null && result > 0
+        return addEntity(guildId, entityId, Type.ADD_MEMBER)
     }
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
-        val key = encodeFormatKey(Type.ADD_INVITATION.key, guildId.toString())
-
-        val result = cacheClient.connect { connection ->
-            connection.sadd(key, encodeToByteArray(String.serializer(), entityId))
-        }
-
-        return result != null && result > 0
+        return addEntity(guildId, entityId, Type.ADD_INVITATION)
     }
 
     override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
-        val key = encodeFormatKey(Type.REMOVE_MEMBER.key, guildId.toString())
-
-        val result = cacheClient.connect { connection ->
-            connection.sadd(key, encodeToByteArray(String.serializer(), entityId))
-        }
-
-        return result != null && result > 0
+        return addEntity(guildId, entityId, Type.REMOVE_MEMBER)
     }
 
     override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
-        val key = encodeFormatKey(Type.REMOVE_INVITATION.key, guildId.toString())
-
-        val result = cacheClient.connect { connection ->
-            connection.sadd(key, encodeToByteArray(String.serializer(), entityId))
-        }
-
-        return result != null && result > 0
+        return addEntity(guildId, entityId, Type.REMOVE_INVITATION)
     }
 
     override suspend fun getMembers(guildId: Int): Flow<String> {
         val idString = guildId.toString()
-        return cacheClient.connect { connection ->
-            val removed = connection.smembers(encodeFormatKey(Type.REMOVE_MEMBER.key, idString)).toSet()
-
-            listOf(
-                connection.smembers(encodeFormatKey(Type.MEMBERS.key, idString)),
-                connection.smembers(encodeFormatKey(Type.ADD_MEMBER.key, idString))
-            ).merge()
-                .distinctUntilChanged()
-                .filter { it !in removed }
+        return mergeStoredAndAddedWithoutRemoved(
+            Type.MEMBERS,
+            Type.ADD_MEMBER,
+            Type.REMOVE_MEMBER
+        ) { connection, type ->
+            getAllMembers(connection, type, idString)
         }.map { decodeFromByteArray(String.serializer(), it) }
     }
 
     override suspend fun getInvited(guildId: Int): Flow<String> {
         val idString = guildId.toString()
-        return cacheClient.connect { connection ->
-            val removed = connection.smembers(encodeFormatKey(Type.REMOVE_INVITATION.key, idString)).toSet()
-
-            listOf(
-                connection.smembers(encodeFormatKey(Type.INVITATIONS.key, idString)),
-                connection.smembers(encodeFormatKey(Type.ADD_INVITATION.key, idString))
-            ).merge()
-                .distinctUntilChanged()
-                .filter { it !in removed }
+        return mergeStoredAndAddedWithoutRemoved(
+            Type.INVITATIONS,
+            Type.ADD_INVITATION,
+            Type.REMOVE_INVITATION,
+        ) { connection, type ->
+            getAllMembers(connection, type, idString)
         }.map { decodeFromByteArray(String.serializer(), it) }
+    }
+
+    private suspend fun isStoredOrAddedAndNotDeleted(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        guildId: Int,
+        entityId: String,
+        stored: Type,
+        added: Type,
+        removed: Type
+    ): Boolean {
+        val guildIdString = guildId.toString()
+        val entityIdEncoded = encodeToByteArray(String.serializer(), entityId)
+        return isMember(connection, stored, guildIdString, entityIdEncoded)
+                || isMember(connection, added, guildIdString, entityIdEncoded)
+                && !isMember(connection, removed, guildIdString, entityIdEncoded)
+    }
+
+    private suspend fun isMember(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        type: Type,
+        guildId: String,
+        entityIdEncoded: ByteArray
+    ): Boolean {
+        return connection.sismember(encodeFormatKey(type.key, guildId), entityIdEncoded) ?: false
+    }
+
+    private suspend inline fun mergeStoredAndAddedWithoutRemoved(
+        stored: Type,
+        added: Type,
+        removed: Type,
+        getValues: (RedisCoroutinesCommands<ByteArray, ByteArray>, Type) -> Flow<ByteArray>
+    ): Flow<ByteArray> {
+        return cacheClient.connect { connection ->
+            val removedEntities = getValues(connection, removed).toSet()
+
+            listOf(getValues(connection, stored), getValues(connection, added))
+                .merge()
+                .distinctUntilChanged()
+                .filter { it !in removedEntities }
+        }
+    }
+
+    private fun getAllMembers(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        type: Type,
+        id: String
+    ): Flow<ByteArray> = connection.smembers(encodeFormatKey(type.key, id))
+
+    private fun getAllKeys(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        type: Type
+    ): Flow<ByteArray> = connection.keys(encodeFormatKey(type.key, "*"))
+
+    private suspend fun addEntity(
+        guildId: Int,
+        entityId: String,
+        type: Type
+    ): Boolean {
+        val key = encodeFormatKey(type.key, guildId.toString())
+
+        val result = cacheClient.connect { connection ->
+            connection.sadd(key, encodeToByteArray(String.serializer(), entityId))
+        }
+
+        return result != null && result > 0
     }
 
 }
