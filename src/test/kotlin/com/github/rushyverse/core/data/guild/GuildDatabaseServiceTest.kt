@@ -416,7 +416,7 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
-        fun `when entity is already invited in a guild`() = runTest {
+        fun `when entity is already a member of the guild`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
             val entityId = getRandomString()
             assertTrue { service.addMember(guild.id, entityId) }
@@ -426,6 +426,19 @@ class GuildDatabaseServiceTest {
 
             val invited = service.getInvited(guild.id).toList()
             assertEquals(0, invited.size)
+        }
+
+        @Test
+        fun `when entity is invited in another guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val guild2 = service.createGuild(getRandomString(), getRandomString())
+
+            val entityId = getRandomString()
+            assertTrue { service.addInvitation(guild.id, entityId, null) }
+            assertTrue { service.addInvitation(guild2.id, entityId, null) }
+
+            assertEquals(entityId, service.getInvited(guild.id).toList().single())
+            assertEquals(entityId, service.getInvited(guild2.id).toList().single())
         }
 
         @Test
