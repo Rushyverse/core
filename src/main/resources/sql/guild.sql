@@ -2,8 +2,8 @@
 CREATE TABLE guild
 (
     id         SERIAL                   NOT NULL,
-    name       VARCHAR(50)              NOT NULL,
-    owner_id   VARCHAR(50)              NOT NULL,
+    name       VARCHAR(50)              NOT NULL CONSTRAINT ck_guild_name_not_empty CHECK (name <> ''),
+    owner_id   VARCHAR(50)              NOT NULL CONSTRAINT ck_guild_owner_id_not_empty CHECK (owner_id <> ''), -- TODO Replace by foreign key to entity table
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     PRIMARY KEY (id)
 );
@@ -15,7 +15,7 @@ CREATE INDEX idx_guild_name ON guild (name);
 CREATE TABLE guild_member
 (
     guild_id   INTEGER                  NOT NULL,
-    entity_id  VARCHAR(50)              NOT NULL,
+    entity_id  VARCHAR(50)              NOT NULL CONSTRAINT ck_guild_member_entity_id_not_empty CHECK (entity_id <> ''), -- TODO Replace by foreign key to entity table
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     PRIMARY KEY (guild_id, entity_id),
     FOREIGN KEY (guild_id) REFERENCES guild (id) ON DELETE CASCADE ON UPDATE CASCADE
@@ -25,7 +25,7 @@ CREATE TABLE guild_member
 CREATE TABLE guild_invite
 (
     guild_id   INTEGER                  NOT NULL,
-    entity_id  VARCHAR(50)              NOT NULL,
+    entity_id  VARCHAR(50)              NOT NULL CONSTRAINT ck_guild_invite_entity_id_not_empty CHECK (entity_id <> ''), -- TODO Replace by foreign key to entity table
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     expired_at TIMESTAMP WITH TIME ZONE
         constraint ck_guild_invite_expired_at CHECK (expired_at IS NULL OR expired_at > NOW()),
