@@ -1,7 +1,13 @@
 package com.github.rushyverse.core.data
 
+import com.github.rushyverse.core.cache.AbstractCacheService
+import com.github.rushyverse.core.cache.CacheClient
+import com.github.rushyverse.core.serializer.InstantSerializer
 import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.flow.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.protobuf.ProtoBuf.Default.decodeFromByteArray
 import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.r2dbc.R2dbcDatabase
@@ -23,6 +29,7 @@ public class GuildInvitedIsAlreadyMemberException(reason: String?) : R2dbcExcept
 @KomapperEntity
 @KomapperTable("guild")
 @KomapperOneToMany(GuildMember::class, "members")
+@Serializable
 public data class Guild(
     @KomapperId
     @KomapperAutoIncrement
@@ -30,6 +37,7 @@ public data class Guild(
     val name: String,
     val ownerId: String,
     @KomapperCreatedAt
+    @Serializable(with = InstantSerializer::class)
     val createdAt: Instant,
 )
 
@@ -307,6 +315,199 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
             ids.guildId eq guildId
         }.select(ids.entityId)
         return database.flowQuery(query).filterNotNull()
+    }
+
+}
+
+/**
+ * Implementation of [IGuildService] that uses [CacheClient] to manage data in cache.
+ */
+public class GuildCacheService(
+    client: CacheClient,
+    prefixKey: String = "guild:%s:"
+) : AbstractCacheService(client, prefixKey), IGuildService {
+
+    public enum class Type(public val key: String) {
+        GUILD("guild"),
+        ADD_GUILD("guild:add"),
+        REMOVE_GUILD("guild:remove"),
+
+        MEMBERS("members"),
+        ADD_MEMBER("members:add"),
+        REMOVE_MEMBER("members:remove"),
+
+        INVITATIONS("invitations"),
+        ADD_INVITATION("invitations:add"),
+        REMOVE_INVITATION("invitations:remove"),
+    }
+
+    override suspend fun createGuild(name: String, ownerId: String): Guild {
+        val now = Instant.now()
+        val id = now.epochSecond.toInt()
+        val guild = Guild(id, name, ownerId, now)
+
+        val key = encodeFormatKey(Type.ADD_GUILD.key, id.toString())
+
+        val result = cacheClient.connect { connection ->
+            connection.set(key, encodeToByteArray(Guild.serializer(), guild))
+        }
+
+        return when (result) {
+            "OK" -> guild
+            else -> throw IllegalStateException("Unable to create guild $name with owner $ownerId")
+        }
+    }
+
+    override suspend fun deleteGuild(id: Int): Boolean {
+        val key = encodeFormatKey(Type.REMOVE_GUILD.key, id.toString())
+
+        val result = cacheClient.connect { connection ->
+            connection.set(key, encodeToByteArray(Boolean.serializer(), true))
+        }
+
+        return when (result) {
+            "OK" -> true
+            else -> throw IllegalStateException("Unable to delete guild $id")
+        }
+    }
+
+    override suspend fun getGuild(id: Int): Guild? {
+        val idString = id.toString()
+        return cacheClient.connect { connection ->
+            val guild =
+                connection.get(encodeFormatKey(Type.GUILD.key, idString))
+                    ?: connection.get(encodeFormatKey(Type.ADD_GUILD.key, idString))
+                    ?: return@connect null
+
+            val resultDeleted = connection.exists(encodeFormatKey(Type.REMOVE_GUILD.key, idString))
+            val hasBeenDeleted = resultDeleted != null && resultDeleted > 0
+            if (hasBeenDeleted) null else guild
+
+        }?.let { decodeFromByteArray(Guild.serializer(), it) }
+    }
+
+    override suspend fun getGuild(name: String): Flow<Guild> {
+        return cacheClient.connect { connection ->
+            val deleted = connection.keys(encodeFormatKey(Type.REMOVE_GUILD.key, "*")).toSet()
+
+            listOf(
+                connection.keys(encodeFormatKey(Type.ADD_GUILD.key, "*")),
+                connection.keys(encodeFormatKey(Type.GUILD.key, "*"))
+            ).merge()
+                .distinctUntilChanged()
+                .filter { it !in deleted }
+
+        }.map { decodeFromByteArray(Guild.serializer(), it) }.filter { it.name == name }
+    }
+
+    override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
+        return getGuild(guildId)?.ownerId == entityId
+    }
+
+    override suspend fun isMember(guildId: Int, entityId: String): Boolean {
+        return cacheClient.connect { connection ->
+            connection.sismember(
+                encodeFormatKey(Type.MEMBERS.key, guildId.toString()),
+                encodeToByteArray(String.serializer(), entityId)
+            )?.or(
+                connection.sismember(
+                    encodeFormatKey(Type.ADD_MEMBER.key, guildId.toString()),
+                    encodeToByteArray(String.serializer(), entityId)
+                ) ?: false
+            )?.and(
+                connection.sismember(
+                    encodeFormatKey(Type.REMOVE_MEMBER.key, guildId.toString()),
+                    encodeToByteArray(String.serializer(), entityId)
+                )?.not() ?: true
+            )
+        } ?: false
+    }
+
+    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+        return cacheClient.connect { connection ->
+            connection.sismember(
+                encodeFormatKey(Type.INVITATIONS.key, guildId.toString()),
+                encodeToByteArray(String.serializer(), entityId)
+            )?.or(
+                connection.sismember(
+                    encodeFormatKey(Type.ADD_INVITATION.key, guildId.toString()),
+                    encodeToByteArray(String.serializer(), entityId)
+                ) ?: false
+            )?.and(
+                connection.sismember(
+                    encodeFormatKey(Type.REMOVE_INVITATION.key, guildId.toString()),
+                    encodeToByteArray(String.serializer(), entityId)
+                )?.not() ?: true
+            )
+        } ?: false
+    }
+
+    override suspend fun addMember(guildId: Int, entityId: String): Boolean {
+        val key = encodeFormatKey(Type.ADD_MEMBER.key, guildId.toString())
+
+        val result = cacheClient.connect { connection ->
+            connection.sadd(key, encodeToByteArray(String.serializer(), entityId))
+        }
+
+        return result != null && result > 0
+    }
+
+    override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
+        val key = encodeFormatKey(Type.ADD_INVITATION.key, guildId.toString())
+
+        val result = cacheClient.connect { connection ->
+            connection.sadd(key, encodeToByteArray(String.serializer(), entityId))
+        }
+
+        return result != null && result > 0
+    }
+
+    override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
+        val key = encodeFormatKey(Type.REMOVE_MEMBER.key, guildId.toString())
+
+        val result = cacheClient.connect { connection ->
+            connection.sadd(key, encodeToByteArray(String.serializer(), entityId))
+        }
+
+        return result != null && result > 0
+    }
+
+    override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
+        val key = encodeFormatKey(Type.REMOVE_INVITATION.key, guildId.toString())
+
+        val result = cacheClient.connect { connection ->
+            connection.sadd(key, encodeToByteArray(String.serializer(), entityId))
+        }
+
+        return result != null && result > 0
+    }
+
+    override suspend fun getMembers(guildId: Int): Flow<String> {
+        val idString = guildId.toString()
+        return cacheClient.connect { connection ->
+            val removed = connection.smembers(encodeFormatKey(Type.REMOVE_MEMBER.key, idString)).toSet()
+
+            listOf(
+                connection.smembers(encodeFormatKey(Type.MEMBERS.key, idString)),
+                connection.smembers(encodeFormatKey(Type.ADD_MEMBER.key, idString))
+            ).merge()
+                .distinctUntilChanged()
+                .filter { it !in removed }
+        }.map { decodeFromByteArray(String.serializer(), it) }
+    }
+
+    override suspend fun getInvited(guildId: Int): Flow<String> {
+        val idString = guildId.toString()
+        return cacheClient.connect { connection ->
+            val removed = connection.smembers(encodeFormatKey(Type.REMOVE_INVITATION.key, idString)).toSet()
+
+            listOf(
+                connection.smembers(encodeFormatKey(Type.INVITATIONS.key, idString)),
+                connection.smembers(encodeFormatKey(Type.ADD_INVITATION.key, idString))
+            ).merge()
+                .distinctUntilChanged()
+                .filter { it !in removed }
+        }.map { decodeFromByteArray(String.serializer(), it) }
     }
 
 }
