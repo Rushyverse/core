@@ -252,11 +252,11 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun isMember(guildId: Int, entityId: String): Boolean {
-        val memberMeta = _GuildMember.guildMember
-        val memberIdMeta = memberMeta.id
-        val query = QueryDsl.from(memberMeta).where {
-            memberIdMeta.guildId eq guildId
-            memberIdMeta.entityId eq entityId
+        val meta = _GuildMember.guildMember
+        val ids = meta.id
+        val query = QueryDsl.from(meta).where {
+            ids.guildId eq guildId
+            ids.entityId eq entityId
         }
         return database.runQuery(query).firstOrNull() != null
     }
