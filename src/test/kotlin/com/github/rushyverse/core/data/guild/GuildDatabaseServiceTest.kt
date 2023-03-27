@@ -61,44 +61,66 @@ class GuildDatabaseServiceTest {
     @Nested
     inner class CreateGuild {
 
-        @Test
-        fun `when owner is not owner of a guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val guilds = getAllGuilds()
-            assertContentEquals(listOf(guild), guilds)
+        @Nested
+        inner class Owner {
+
+            @Test
+            fun `when owner is not owner of a guild`() = runTest {
+                val guild = service.createGuild(getRandomString(), getRandomString())
+                val guilds = getAllGuilds()
+                assertContentEquals(listOf(guild), guilds)
+            }
+
+            @Test
+            fun `when owner is always in a guild`() = runTest {
+                val guild = service.createGuild(getRandomString(), getRandomString())
+                val guild2 = service.createGuild(getRandomString(), guild.ownerId)
+                assertNotEquals(guild.id, guild2.id)
+
+                val guilds = getAllGuilds()
+                assertContentEquals(listOf(guild, guild2), guilds)
+            }
+
+            @Test
+            fun `when owner is a member of another guild`() = runTest {
+                val entity = getRandomString()
+                val guild = service.createGuild(getRandomString(), getRandomString())
+                service.addMember(guild.id, entity)
+
+                val guild2 = service.createGuild(getRandomString(), entity)
+
+                val guilds = getAllGuilds()
+                assertContentEquals(listOf(guild, guild2), guilds)
+            }
+
+            @Test
+            fun `when owner is empty`() = runTest {
+                assertThrows<R2dbcDataIntegrityViolationException> {
+                    service.createGuild(getRandomString(), "")
+                }
+            }
         }
 
-        @Test
-        fun `when owner is always in a guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val guild2 = service.createGuild(getRandomString(), guild.ownerId)
-            assertNotEquals(guild.id, guild2.id)
+        @Nested
+        inner class Name {
 
-            val guilds = getAllGuilds()
-            assertContentEquals(listOf(guild, guild2), guilds)
-        }
+            @Test
+            fun `with a name that is already taken`() = runTest {
+                val name = getRandomString()
+                val guild = service.createGuild(name, getRandomString())
+                val guild2 = service.createGuild(name, getRandomString())
+                assertNotEquals(guild.id, guild2.id)
 
-        @Test
-        fun `when entity is a member of another guild`() = runTest {
-            val entity = getRandomString()
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            service.addMember(guild.id, entity)
+                val guilds = getAllGuilds()
+                assertContentEquals(listOf(guild, guild2), guilds)
+            }
 
-            val guild2 = service.createGuild(getRandomString(), entity)
-
-            val guilds = getAllGuilds()
-            assertContentEquals(listOf(guild, guild2), guilds)
-        }
-
-        @Test
-        fun `with a name that is already taken`() = runTest {
-            val name = getRandomString()
-            val guild = service.createGuild(name, getRandomString())
-            val guild2 = service.createGuild(name, getRandomString())
-            assertNotEquals(guild.id, guild2.id)
-
-            val guilds = getAllGuilds()
-            assertContentEquals(listOf(guild, guild2), guilds)
+            @Test
+            fun `when name is empty`() = runTest {
+                assertThrows<R2dbcDataIntegrityViolationException> {
+                    service.createGuild("", getRandomString())
+                }
+            }
         }
 
     }
@@ -182,6 +204,12 @@ class GuildDatabaseServiceTest {
             assertEquals(0, guild.size)
         }
 
+        @Test
+        fun `when name is empty`() = runTest {
+            val guild = service.getGuild("").toList()
+            assertEquals(0, guild.size)
+        }
+
     }
 
     @Nested
@@ -204,6 +232,12 @@ class GuildDatabaseServiceTest {
         @Test
         fun `when guild does not exist`() = runTest {
             assertFalse { service.isOwner(0, getRandomString()) }
+        }
+
+        @Test
+        fun `when entity id is empty`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            assertFalse { service.isOwner(guild.id, "") }
         }
 
     }
@@ -311,6 +345,14 @@ class GuildDatabaseServiceTest {
 
             val guilds = getAllGuilds()
             assertEquals(0, guilds.size)
+        }
+
+        @Test
+        fun `when entity id is empty`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            assertThrows<R2dbcDataIntegrityViolationException> {
+                service.addMember(guild.id, "")
+            }
         }
 
     }
@@ -483,6 +525,14 @@ class GuildDatabaseServiceTest {
             val guilds = getAllGuilds()
             assertEquals(0, guilds.size)
         }
+
+        @Test
+        fun `when entity id is empty`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            assertThrows<R2dbcDataIntegrityViolationException> {
+                service.addInvitation(guild.id, "", null)
+            }
+        }
     }
 
     @Nested
@@ -533,6 +583,12 @@ class GuildDatabaseServiceTest {
         fun `when guild does not exist`() = runTest {
             assertFalse { service.isMember(0, getRandomString()) }
         }
+
+        @Test
+        fun `when entity id is empty`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            assertFalse { service.isMember(guild.id, "") }
+        }
     }
 
     @Nested
@@ -575,6 +631,12 @@ class GuildDatabaseServiceTest {
         @Test
         fun `when guild does not exist`() = runTest {
             assertFalse { service.hasInvitation(0, getRandomString()) }
+        }
+
+        @Test
+        fun `when entity id is empty`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            assertFalse { service.hasInvitation(guild.id, "") }
         }
     }
 
@@ -621,6 +683,12 @@ class GuildDatabaseServiceTest {
         fun `when guild does not exist`() = runTest {
             assertFalse { service.removeMember(0, getRandomString()) }
         }
+
+        @Test
+        fun `when entity id is empty`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            assertFalse { service.removeMember(guild.id, "") }
+        }
     }
 
     @Nested
@@ -662,6 +730,12 @@ class GuildDatabaseServiceTest {
         @Test
         fun `when guild does not exist`() = runTest {
             assertFalse { service.removeInvitation(0, getRandomString()) }
+        }
+
+        @Test
+        fun `when entity id is empty`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            assertFalse { service.removeInvitation(guild.id, "") }
         }
     }
 
