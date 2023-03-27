@@ -459,11 +459,20 @@ public class GuildCacheService(
             Type.INVITATIONS,
             Type.ADD_INVITATION,
             Type.REMOVE_INVITATION,
-        ) { connection, type ->
-            getAllMembers(connection, type, idString)
-        }.map { decodeFromByteArray(String.serializer(), it) }
+        ) { connection, type -> getAllMembers(connection, type, idString) }
+            .map { decodeFromByteArray(String.serializer(), it) }
     }
 
+    /**
+     * Check if an entity is present in the stored set or in the added set and not in the removed set.
+     * @param connection Redis connection.
+     * @param guildId ID of the guild.
+     * @param entityId ID of the entity.
+     * @param stored Type where the entity can be stored.
+     * @param added Type where the entity can be added.
+     * @param removed Type where the entity can be removed.
+     * @return `true` if the entity is present, `false` otherwise.
+     */
     private suspend fun isStoredOrAddedAndNotDeleted(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         guildId: Int,
@@ -474,20 +483,37 @@ public class GuildCacheService(
     ): Boolean {
         val guildIdString = guildId.toString()
         val entityIdEncoded = encodeToByteArray(String.serializer(), entityId)
-        return isMember(connection, stored, guildIdString, entityIdEncoded)
-                || isMember(connection, added, guildIdString, entityIdEncoded)
-                && !isMember(connection, removed, guildIdString, entityIdEncoded)
+        return isMember(connection, guildIdString, stored, entityIdEncoded)
+                || isMember(connection, guildIdString, added, entityIdEncoded)
+                && !isMember(connection, guildIdString, removed, entityIdEncoded)
     }
 
+    /**
+     * Check if an entity is present in the set linked to the given type and id.
+     * @param connection Redis connection.
+     * @param guildId ID of the guild.
+     * @param type Type of the data where the entity can be present.
+     * @param entityIdEncoded Encoded ID of the entity.
+     * @return `true` if the entity is present, `false` otherwise.
+     */
     private suspend fun isMember(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        type: Type,
         guildId: String,
+        type: Type,
         entityIdEncoded: ByteArray
     ): Boolean {
         return connection.sismember(encodeFormatKey(type.key, guildId), entityIdEncoded) ?: false
     }
 
+    /**
+     * Returns a flow of all members of the set linked to the given type and id.
+     * Will merge the stored and added values and filter out the removed values.
+     * @param stored Type where the values can be stored.
+     * @param added Type where the values can be added.
+     * @param removed Type where the values can be removed.
+     * @param getValues Function to get the values of the given type.
+     * @return Flow of all data filtered and distinct.
+     */
     private suspend inline fun mergeStoredAndAddedWithoutRemoved(
         stored: Type,
         added: Type,
@@ -504,17 +530,38 @@ public class GuildCacheService(
         }
     }
 
+    /**
+     * Returns all members of the set linked to the given type and id.
+     * @param connection Redis connection.
+     * @param type Type of the data to get the members of.
+     * @param id ID of the set.
+     * @return Flow of all members of the set.
+     */
     private fun getAllMembers(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         type: Type,
         id: String
     ): Flow<ByteArray> = connection.smembers(encodeFormatKey(type.key, id))
 
+    /**
+     * Returns all keys of the given type.
+     * @param connection Redis connection.
+     * @param type Type of the keys.
+     * @return Flow of all keys of the given type.
+     */
     private fun getAllKeys(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         type: Type
     ): Flow<ByteArray> = connection.keys(encodeFormatKey(type.key, "*"))
 
+    /**
+     * Adds an entity to the cache for the given guild and type.
+     * The entity will be added to the set linked of the type.
+     * @param guildId ID of the guild.
+     * @param entityId ID of the entity.
+     * @param type Category to register the entity in.
+     * @return `true` if the entity was added, `false` otherwise.
+     */
     private suspend fun addEntity(
         guildId: Int,
         entityId: String,
