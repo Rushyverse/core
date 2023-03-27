@@ -315,7 +315,7 @@ class GuildDatabaseServiceTest {
     }
 
     @Nested
-    inner class AddInvite {
+    inner class AddInvitation {
 
         @Nested
         inner class CreateDate {
@@ -472,6 +472,51 @@ class GuildDatabaseServiceTest {
 
             val guilds = getAllGuilds()
             assertEquals(0, guilds.size)
+        }
+    }
+
+    @Nested
+    inner class IsMember {
+
+        @Test
+        fun `when entity is a member of the guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            service.addMember(guild.id, entityId)
+            assertTrue { service.isMember(guild.id, entityId) }
+        }
+
+        @Test
+        fun `when entity is not a member of the guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            assertFalse { service.isMember(guild.id, entityId) }
+        }
+
+        @Test
+        fun `when entity is invited in the guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            service.addInvitation(guild.id, entityId, null)
+            assertFalse { service.isMember(guild.id, entityId) }
+        }
+
+        @Test
+        fun `when entity is member of another guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val guild2 = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            service.addMember(guild.id, entityId)
+            assertFalse { service.isMember(guild2.id, entityId) }
+        }
+
+        @Test
+        fun `when another entity is member of the guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            val entity2Id = getRandomString()
+            service.addMember(guild.id, entity2Id)
+            assertFalse { service.isMember(guild.id, entityId) }
         }
     }
 
