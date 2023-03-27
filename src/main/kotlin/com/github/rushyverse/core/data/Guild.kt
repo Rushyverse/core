@@ -17,7 +17,7 @@ public class GuildInvitedIsAlreadyMemberException(reason: String?) : R2dbcExcept
  * Data class for guilds.
  * @property id Unique identifier.
  * @property name Name.
- * @property owner UUID of the owner.
+ * @property ownerId ID of the owner.
  * @property createdAt Timestamp of when the guild was created.
  */
 @KomapperEntity
@@ -28,7 +28,7 @@ public data class Guild(
     @KomapperAutoIncrement
     val id: Int,
     val name: String,
-    val owner: UUID,
+    val ownerId: String,
     @KomapperCreatedAt
     val createdAt: Instant,
 )
@@ -36,11 +36,11 @@ public data class Guild(
 /**
  * ID class for guild members.
  * @property guildId ID of the guild.
- * @property memberId ID of the member.
+ * @property entityId ID of the member.
  */
 public data class GuildMemberIds(
     public val guildId: Int,
-    public val memberId: UUID,
+    public val entityId: String,
 )
 
 @KomapperEntity
@@ -74,10 +74,10 @@ public interface IGuildService {
     /**
      * Create a guild with a name and define someone as the owner.
      * @param name Name of the guild.
-     * @param owner Identifier of the owner.
+     * @param ownerId ID of the owner.
      * @return The created guild.
      */
-    public suspend fun createGuild(name: String, owner: UUID): Guild
+    public suspend fun createGuild(name: String, ownerId: String): Guild
 
     /**
      * Delete a guild by its ID.
@@ -101,87 +101,85 @@ public interface IGuildService {
     public suspend fun getGuild(name: String): Flow<Guild>
 
     /**
-     * Check if a member is the owner of a guild.
+     * Check if an entity is the owner of a guild.
      * @param guildId ID of the guild.
-     * @param memberId ID of the member.
-     * @return `true` if the member is the owner, `false` otherwise.
+     * @param entityId ID of the entity.
+     * @return `true` if the entity is the owner, `false` otherwise.
      */
-    public suspend fun isOwner(guildId: Int, memberId: UUID): Boolean
+    public suspend fun isOwner(guildId: Int, entityId: String): Boolean
 
     /**
-     * Check if a member is a member of a guild.
+     * Check if an entity is a member of a guild.
      * @param guildId ID of the guild.
-     * @param memberId ID of the member.
-     * @return `true` if the member is a member, `false` otherwise.
+     * @param entityId ID of the entity.
+     * @return `true` if an entity is a member, `false` otherwise.
      */
-    public suspend fun isMember(guildId: Int, memberId: UUID): Boolean
+    public suspend fun isMember(guildId: Int, entityId: String): Boolean
 
     /**
-     * Check if a member is a pending member of a guild.
+     * Check if an entity has been invited to a guild.
      * @param guildId ID of the guild.
-     * @param memberId ID of the member.
-     * @return `true` if the member is a pending member, `false` otherwise.
+     * @param entityId ID of the entity.
+     * @return `true` if the entity has been invited, `false` otherwise.
      */
-    public suspend fun isInvite(guildId: Int, memberId: UUID): Boolean
+    public suspend fun hasInvitation(guildId: Int, entityId: String): Boolean
 
     /**
      * Add a member to a guild.
      * @param guildId ID of the guild.
-     * @param memberId ID of the member.
-     * @return `true` if the member was added, `false` if they were already a member.
+     * @param entityId ID of the member.
+     * @return `true` if the entity was added, `false` if they were already a member.
      */
-    public suspend fun addMember(guildId: Int, memberId: UUID): Boolean
+    public suspend fun addMember(guildId: Int, entityId: String): Boolean
 
     /**
-     * Add a pending member to a guild.
-     * A pending member is a member that has been invited to the guild, but has not accepted the invite.
+     * Send an invitation to join the guild to an entity.
      * @param guildId ID of the guild.
-     * @param memberId ID of the member.
+     * @param entityId ID of the entity.
      * @param expiredAt Timestamp of when the invite expires.
-     * @return `true` if the member was added as pending member, `false` the member was already a pending member or a member.
+     * @return `true` if the entity was invited, `false` if the entity has already been invited.
      */
-    public suspend fun addInvite(guildId: Int, memberId: UUID, expiredAt: Instant?): Boolean
+    public suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean
 
     /**
      * Remove a member from a guild.
      * @param guildId ID of the guild.
-     * @param memberId ID of the member.
-     * @return `true` if the member was removed, `false` if they were not a member.
+     * @param entityId ID of the member.
+     * @return `true` if the entity was removed, `false` if they were not a member.
      */
-    public suspend fun removeMember(guildId: Int, memberId: UUID): Boolean
+    public suspend fun removeMember(guildId: Int, entityId: String): Boolean
 
     /**
-     * Remove a pending member from a guild.
+     * Remove an invitation to join a guild.
      * @param guildId ID of the guild.
-     * @param memberId ID of the member.
-     * @return `true` if the member was removed, `false` if they were not a pending member.
+     * @param entityId ID of the entity.
+     * @return `true` if the invitation was removed, `false` if it did not exist.
      */
-    public suspend fun removeInvite(guildId: Int, memberId: UUID): Boolean
+    public suspend fun removeInvitation(guildId: Int, entityId: String): Boolean
 
     /**
      * Get all members of a guild.
-     * This includes members and owner.
      * @param guildId ID of the guild.
      * @return A flow of all members.
      */
-    public suspend fun getMembers(guildId: Int): Flow<UUID>
+    public suspend fun getMembers(guildId: Int): Flow<String>
 
     /**
-     * Get all pending members of a guild.
+     * Get all ids of entities that have been invited to a guild.
      * @param guildId ID of the guild.
-     * @return A flow of all pending members.
+     * @return A flow of all ids.
      */
-    public suspend fun getInvited(guildId: Int): Flow<UUID>
+    public suspend fun getInvited(guildId: Int): Flow<String>
 }
 
 public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildService {
 
     public companion object {
-        private const val EXCEPTION_INVITED_IS_ALREADY_MEMBER_CODE = "P1000"
+        private const val INVITED_IS_ALREADY_MEMBER_EXCEPTION_CODE = "P1000"
     }
 
-    override suspend fun createGuild(name: String, owner: UUID): Guild {
-        val guild = Guild(0, name, owner, Instant.EPOCH)
+    override suspend fun createGuild(name: String, ownerId: String): Guild {
+        val guild = Guild(0, name, ownerId, Instant.EPOCH)
         val query = QueryDsl.insert(_Guild.guild).single(guild)
         return database.runQuery(query)
     }
@@ -210,18 +208,18 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         return database.flowQuery(query)
     }
 
-    override suspend fun isOwner(guildId: Int, memberId: UUID): Boolean {
+    override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
         val meta = _Guild.guild
         val query = QueryDsl.from(meta).where {
             meta.id eq guildId
-            meta.owner eq memberId
+            meta.ownerId eq entityId
         }
         return database.runQuery(query).firstOrNull() != null
     }
 
-    override suspend fun addMember(guildId: Int, memberId: UUID): Boolean {
+    override suspend fun addMember(guildId: Int, entityId: String): Boolean {
         val member = GuildMember(
-            GuildMemberIds(guildId, memberId),
+            GuildMemberIds(guildId, entityId),
             database.config.clockProvider.now().instant()
         )
 
@@ -232,9 +230,9 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         return database.runQuery(query) > 0
     }
 
-    override suspend fun addInvite(guildId: Int, memberId: UUID, expiredAt: Instant?): Boolean {
+    override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
         val invite = GuildInvite(
-            GuildMemberIds(guildId, memberId),
+            GuildMemberIds(guildId, entityId),
             database.config.clockProvider.now().instant(),
             expiredAt
         )
@@ -247,67 +245,67 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
             database.runQuery(query) > 0
         } catch (e: R2dbcException) {
             throw when (e.sqlState) {
-                EXCEPTION_INVITED_IS_ALREADY_MEMBER_CODE -> GuildInvitedIsAlreadyMemberException(e.message)
+                INVITED_IS_ALREADY_MEMBER_EXCEPTION_CODE -> GuildInvitedIsAlreadyMemberException(e.message)
                 else -> e
             }
         }
     }
 
-    override suspend fun isMember(guildId: Int, memberId: UUID): Boolean {
+    override suspend fun isMember(guildId: Int, entityId: String): Boolean {
         val memberMeta = _GuildMember.guildMember
         val memberIdMeta = memberMeta.id
         val query = QueryDsl.from(memberMeta).where {
             memberIdMeta.guildId eq guildId
-            memberIdMeta.memberId eq memberId
+            memberIdMeta.entityId eq entityId
         }
         return database.runQuery(query).firstOrNull() != null
     }
 
-    override suspend fun isInvite(guildId: Int, memberId: UUID): Boolean {
+    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
         val meta = _GuildInvite.guildInvite
         val ids = meta.id
         val query = QueryDsl.from(meta).where {
             ids.guildId eq guildId
-            ids.memberId eq memberId
+            ids.entityId eq entityId
         }
         return database.runQuery(query).firstOrNull() != null
     }
 
-    override suspend fun removeMember(guildId: Int, memberId: UUID): Boolean {
+    override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
         val meta = _GuildMember.guildMember
         val ids = meta.id
         val query = QueryDsl.delete(meta).where {
             ids.guildId eq guildId
-            ids.memberId eq memberId
+            ids.entityId eq entityId
         }
         return database.runQuery(query) > 0
     }
 
-    override suspend fun removeInvite(guildId: Int, memberId: UUID): Boolean {
+    override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
         val meta = _GuildInvite.guildInvite
         val ids = meta.id
         val query = QueryDsl.delete(meta).where {
             ids.guildId eq guildId
-            ids.memberId eq memberId
+            ids.entityId eq entityId
         }
         return database.runQuery(query) > 0
     }
 
-    override suspend fun getMembers(guildId: Int): Flow<UUID> {
+    override suspend fun getMembers(guildId: Int): Flow<String> {
         val meta = _GuildMember.guildMember
         val ids = meta.id
         val query = QueryDsl.from(meta).where {
             ids.guildId eq guildId
-        }.select(ids.memberId)
+        }.select(ids.entityId)
         return database.flowQuery(query).filterNotNull()
     }
 
-    override suspend fun getInvited(guildId: Int): Flow<UUID> {
+    override suspend fun getInvited(guildId: Int): Flow<String> {
         val meta = _GuildInvite.guildInvite
         val ids = meta.id
         val query = QueryDsl.from(meta).where {
             ids.guildId eq guildId
-        }.select(ids.memberId)
+        }.select(ids.entityId)
         return database.flowQuery(query).filterNotNull()
     }
 

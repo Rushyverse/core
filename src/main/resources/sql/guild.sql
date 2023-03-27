@@ -3,7 +3,7 @@ CREATE TABLE guild
 (
     id         SERIAL                   NOT NULL,
     name       VARCHAR(50)              NOT NULL,
-    owner      UUID                     NOT NULL,
+    owner_id   VARCHAR(50)              NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     PRIMARY KEY (id)
 );
@@ -15,9 +15,9 @@ CREATE INDEX idx_guild_name ON guild (name);
 CREATE TABLE guild_member
 (
     guild_id   INTEGER                  NOT NULL,
-    member_id  UUID                     NOT NULL,
+    entity_id  VARCHAR(50)              NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    PRIMARY KEY (guild_id, member_id),
+    PRIMARY KEY (guild_id, entity_id),
     FOREIGN KEY (guild_id) REFERENCES guild (id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -25,11 +25,11 @@ CREATE TABLE guild_member
 CREATE TABLE guild_invite
 (
     guild_id   INTEGER                  NOT NULL,
-    member_id  UUID                     NOT NULL,
+    entity_id  VARCHAR(50)              NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     expired_at TIMESTAMP WITH TIME ZONE
         constraint ck_guild_invite_expired_at CHECK (expired_at IS NULL OR expired_at > NOW()),
-    PRIMARY KEY (guild_id, member_id),
+    PRIMARY KEY (guild_id, entity_id),
     FOREIGN KEY (guild_id) REFERENCES guild (id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -40,8 +40,8 @@ CREATE INDEX idx_guild_invite_expired_at ON guild_invite (expired_at);
 CREATE OR REPLACE FUNCTION insert_owner_as_member() RETURNS TRIGGER AS
 $$
 BEGIN
-    INSERT INTO guild_member(guild_id, member_id, created_at)
-    VALUES (NEW.id, NEW.owner, NEW.created_at);
+    INSERT INTO guild_member(guild_id, entity_id, created_at)
+    VALUES (NEW.id, NEW.owner_id, NEW.created_at);
     RETURN NEW;
 END
 $$ LANGUAGE plpgsql;
@@ -60,7 +60,7 @@ BEGIN
     DELETE
     FROM guild_invite
     WHERE guild_id = NEW.guild_id
-      AND member_id = NEW.member_id;
+      AND entity_id = NEW.entity_id;
     RETURN NEW;
 END
 $$ LANGUAGE plpgsql;
@@ -78,7 +78,7 @@ EXECUTE PROCEDURE delete_invite();
 CREATE OR REPLACE FUNCTION check_existing_member() RETURNS TRIGGER AS
 $$
 BEGIN
-    IF EXISTS(SELECT 1 FROM guild_member WHERE guild_id = NEW.guild_id AND member_id = NEW.member_id) THEN
+    IF EXISTS(SELECT 1 FROM guild_member WHERE guild_id = NEW.guild_id AND entity_id = NEW.entity_id) THEN
         RAISE EXCEPTION USING
             ERRCODE = 'P1000',
             MESSAGE = 'The entity cannot be invited to the guild because he is already a member of it';
