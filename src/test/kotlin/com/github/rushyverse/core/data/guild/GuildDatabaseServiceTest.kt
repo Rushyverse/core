@@ -24,7 +24,6 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import java.util.*
 import kotlin.test.*
 
 @Testcontainers
@@ -82,12 +81,12 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
-        fun `when member of another guild`() = runTest {
-            val member = getRandomString()
+        fun `when entity is a member of another guild`() = runTest {
+            val entity = getRandomString()
             val guild = service.createGuild(getRandomString(), getRandomString())
-            service.addMember(guild.id, member)
+            service.addMember(guild.id, entity)
 
-            val guild2 = service.createGuild(getRandomString(), member)
+            val guild2 = service.createGuild(getRandomString(), entity)
 
             val guilds = getAllGuilds()
             assertEquals(2, guilds.size)
@@ -219,16 +218,16 @@ class GuildDatabaseServiceTest {
             @Test
             fun `define using current time`() = runTest {
                 val guild = service.createGuild(getRandomString(), getRandomString())
-                val memberId = getRandomString()
+                val entityId = getRandomString()
                 val now = Instant.now()
-                assertTrue { service.addMember(guild.id, memberId) }
+                assertTrue { service.addMember(guild.id, entityId) }
 
                 val members = getAllMembers()
                 assertEquals(2, members.size)
 
                 val member = members[1]
                 assertEquals(guild.id, member.id.guildId)
-                assertEquals(memberId, member.id.entityId)
+                assertEquals(entityId, member.id.entityId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), member.createdAt.truncatedTo(ChronoUnit.MINUTES))
             }
 
@@ -242,46 +241,46 @@ class GuildDatabaseServiceTest {
                 service = GuildDatabaseService(database)
 
                 val guild = service.createGuild(getRandomString(), getRandomString())
-                val memberId = getRandomString()
+                val entityId = getRandomString()
                 val now = Instant.now()
-                assertTrue { service.addMember(guild.id, memberId) }
+                assertTrue { service.addMember(guild.id, entityId) }
 
                 val members = getAllMembers()
                 assertEquals(2, members.size)
 
                 val member = members[1]
                 assertEquals(guild.id, member.id.guildId)
-                assertEquals(memberId, member.id.entityId)
+                assertEquals(entityId, member.id.entityId)
 
                 assertEquals(now.truncatedTo(chronoUnit), member.createdAt)
             }
         }
 
         @Test
-        fun `when member is not in a guild`() = runTest {
+        fun `when entity is not a member of the guild`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
-            val member = getRandomString()
-            assertTrue { service.addMember(guild.id, member) }
+            val entityId = getRandomString()
+            assertTrue { service.addMember(guild.id, entityId) }
 
             val members = service.getMembers(guild.id).toList()
             assertEquals(2, members.size)
-            assertEquals(member, members[1])
+            assertEquals(entityId, members[1])
         }
 
         @Test
-        fun `when member is already in a guild`() = runTest {
+        fun `when entity is already in the guild`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
-            val member = getRandomString()
-            assertTrue { service.addMember(guild.id, member) }
-            assertFalse { service.addMember(guild.id, member) }
+            val entityId = getRandomString()
+            assertTrue { service.addMember(guild.id, entityId) }
+            assertFalse { service.addMember(guild.id, entityId) }
 
             val members = service.getMembers(guild.id).toList()
             assertEquals(2, members.size)
-            assertEquals(member, members[1])
+            assertEquals(entityId, members[1])
         }
 
         @Test
-        fun `when member is owner of a guild`() = runTest {
+        fun `when entity is owner of the guild`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
             assertFalse { service.addMember(guild.id, guild.ownerId) }
 
@@ -290,15 +289,15 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
-        fun `when member was a pending member`() = runTest {
+        fun `when entity has invitation to join the guild`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
-            val member = getRandomString()
-            assertTrue { service.addInvitation(guild.id, member, null) }
-            assertTrue { service.addMember(guild.id, member) }
+            val entityId = getRandomString()
+            assertTrue { service.addInvitation(guild.id, entityId, null) }
+            assertTrue { service.addMember(guild.id, entityId) }
 
             val members = service.getMembers(guild.id).toList()
             assertEquals(2, members.size)
-            assertEquals(member, members[1])
+            assertEquals(entityId, members[1])
             val pendingMembers = service.getInvited(guild.id).toList()
             assertEquals(0, pendingMembers.size)
         }
@@ -324,16 +323,16 @@ class GuildDatabaseServiceTest {
             @Test
             fun `define using current time`() = runTest {
                 val guild = service.createGuild(getRandomString(), getRandomString())
-                val member = getRandomString()
+                val entityId = getRandomString()
                 val now = Instant.now()
-                assertTrue { service.addInvitation(guild.id, member, null) }
+                assertTrue { service.addInvitation(guild.id, entityId, null) }
 
                 val invites = getAllInvites()
                 assertEquals(1, invites.size)
 
                 val invite = invites.single()
                 assertEquals(guild.id, invite.id.guildId)
-                assertEquals(member, invite.id.entityId)
+                assertEquals(entityId, invite.id.entityId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), invite.createdAt.truncatedTo(ChronoUnit.MINUTES))
             }
 
@@ -347,16 +346,16 @@ class GuildDatabaseServiceTest {
                 service = GuildDatabaseService(database)
 
                 val guild = service.createGuild(getRandomString(), getRandomString())
-                val memberId = getRandomString()
+                val entityId = getRandomString()
                 val now = Instant.now()
-                assertTrue { service.addInvitation(guild.id, memberId, null) }
+                assertTrue { service.addInvitation(guild.id, entityId, null) }
 
                 val invites = getAllInvites()
                 assertEquals(1, invites.size)
 
                 val invite = invites.single()
                 assertEquals(guild.id, invite.id.guildId)
-                assertEquals(memberId, invite.id.entityId)
+                assertEquals(entityId, invite.id.entityId)
 
                 assertEquals(now.truncatedTo(chronoUnit), invite.createdAt)
             }
@@ -368,17 +367,17 @@ class GuildDatabaseServiceTest {
             @Test
             fun `with field`() = runTest {
                 val guild = service.createGuild(getRandomString(), getRandomString())
-                val member = getRandomString()
+                val entityId = getRandomString()
                 val now = Instant.now()
                 val expirationDate = now.plusSeconds(10)
-                assertTrue { service.addInvitation(guild.id, member, expirationDate) }
+                assertTrue { service.addInvitation(guild.id, entityId, expirationDate) }
 
                 val invites = getAllInvites()
                 assertEquals(1, invites.size)
 
                 val invite = invites.single()
                 assertEquals(guild.id, invite.id.guildId)
-                assertEquals(member, invite.id.entityId)
+                assertEquals(entityId, invite.id.entityId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), invite.createdAt.truncatedTo(ChronoUnit.MINUTES))
                 assertEquals(
                     expirationDate.truncatedTo(ChronoUnit.SECONDS),
@@ -389,16 +388,16 @@ class GuildDatabaseServiceTest {
             @Test
             fun `without field`() = runTest {
                 val guild = service.createGuild(getRandomString(), getRandomString())
-                val member = getRandomString()
+                val entityId = getRandomString()
                 val now = Instant.now()
-                assertTrue { service.addInvitation(guild.id, member, null) }
+                assertTrue { service.addInvitation(guild.id, entityId, null) }
 
                 val invites = getAllInvites()
                 assertEquals(1, invites.size)
 
                 val invite = invites.single()
                 assertEquals(guild.id, invite.id.guildId)
-                assertEquals(member, invite.id.entityId)
+                assertEquals(entityId, invite.id.entityId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), invite.createdAt.truncatedTo(ChronoUnit.MINUTES))
                 assertNull(invite.expiredAt)
             }
@@ -406,50 +405,50 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
-        fun `when member is not in a guild`() = runTest {
+        fun `when entity is not invited in a guild`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
-            val member = getRandomString()
-            assertTrue { service.addInvitation(guild.id, member, null) }
+            val entityId = getRandomString()
+            assertTrue { service.addInvitation(guild.id, entityId, null) }
 
-            val pendingMembers = service.getInvited(guild.id).toList()
-            assertEquals(1, pendingMembers.size)
-            assertEquals(member, pendingMembers[0])
+            val invited = service.getInvited(guild.id).toList()
+            assertEquals(1, invited.size)
+            assertEquals(entityId, invited[0])
         }
 
         @Test
-        fun `when member is already in a guild`() = runTest {
+        fun `when entity is already invited in a guild`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
-            val member = getRandomString()
-            assertTrue { service.addMember(guild.id, member) }
+            val entityId = getRandomString()
+            assertTrue { service.addMember(guild.id, entityId) }
             assertThrows<GuildInvitedIsAlreadyMemberException> {
-                service.addInvitation(guild.id, member, null)
+                service.addInvitation(guild.id, entityId, null)
             }
 
-            val pendingMembers = service.getInvited(guild.id).toList()
-            assertEquals(0, pendingMembers.size)
+            val invited = service.getInvited(guild.id).toList()
+            assertEquals(0, invited.size)
         }
 
         @Test
-        fun `when member is owner of a guild`() = runTest {
+        fun `when entity is owner of a guild`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
             assertThrows<GuildInvitedIsAlreadyMemberException> {
                 service.addInvitation(guild.id, guild.ownerId, null)
             }
 
-            val pendingMembers = service.getInvited(guild.id).toList()
-            assertEquals(0, pendingMembers.size)
+            val invited = service.getInvited(guild.id).toList()
+            assertEquals(0, invited.size)
         }
 
         @Test
-        fun `when member was a pending member`() = runTest {
+        fun `when entity is already invited`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
-            val member = getRandomString()
-            assertTrue { service.addInvitation(guild.id, member, null) }
-            assertFalse { service.addInvitation(guild.id, member, null) }
+            val entityId = getRandomString()
+            assertTrue { service.addInvitation(guild.id, entityId, null) }
+            assertFalse { service.addInvitation(guild.id, entityId, null) }
 
-            val pendingMembers = service.getInvited(guild.id).toList()
-            assertEquals(1, pendingMembers.size)
-            assertEquals(member, pendingMembers[0])
+            val invited = service.getInvited(guild.id).toList()
+            assertEquals(1, invited.size)
+            assertEquals(entityId, invited[0])
         }
 
         @Test
