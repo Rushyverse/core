@@ -3,7 +3,6 @@ package com.github.rushyverse.core.cache
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerializationStrategy
-import kotlinx.serialization.builtins.serializer
 import kotlin.time.Duration
 
 /**
@@ -31,10 +30,7 @@ public abstract class AbstractCacheService(
      * @return [ByteArray] corresponding to the key using the [prefixKey] and [key].
      */
     protected open fun encodeFormatKey(key: String, vararg args: String): ByteArray {
-        return encodeToByteArray(
-            String.serializer(),
-            prefixKey.format(*args) + key
-        )
+        return (prefixKey.format(*args) + key).encodeToByteArray()
     }
 
     /**
@@ -42,10 +38,9 @@ public abstract class AbstractCacheService(
      * @param key Value using to create key.
      * @return [ByteArray] corresponding to the key using the [prefixKey] and [key].
      */
-    protected open fun encodeKey(key: String): ByteArray = encodeToByteArray(
-        String.serializer(),
-        prefixKey + key
-    )
+    protected open fun encodeKey(key: String): ByteArray {
+        return (prefixKey + key).encodeToByteArray()
+    }
 
     /**
      * Transform an instance to a [ByteArray] by encoding data using [binaryFormat][CacheClient.binaryFormat].
