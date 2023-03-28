@@ -190,6 +190,9 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
+        requireGuildNameNotBlank(name)
+        requireOwnerIdNotBlank(ownerId)
+
         val guild = Guild(0, name, ownerId, Instant.EPOCH)
         val query = QueryDsl.insert(_Guild.guild).single(guild)
         return database.runQuery(query)
@@ -212,6 +215,8 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun getGuild(name: String): Flow<Guild> {
+        requireGuildNameNotBlank(name)
+
         val meta = _Guild.guild
         val query = QueryDsl.from(meta).where {
             meta.name eq name
@@ -220,6 +225,8 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
+
         val meta = _Guild.guild
         val query = QueryDsl.from(meta).where {
             meta.id eq guildId
@@ -229,6 +236,8 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun addMember(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
+
         val member = GuildMember(
             GuildMemberIds(guildId, entityId),
             database.config.clockProvider.now().instant()
@@ -242,6 +251,8 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
+        requireEntityIdNotBlank(entityId)
+
         val invite = GuildInvite(
             GuildMemberIds(guildId, entityId),
             database.config.clockProvider.now().instant(),
@@ -263,6 +274,8 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun isMember(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
+
         val meta = _GuildMember.guildMember
         val ids = meta.id
         val query = QueryDsl.from(meta).where {
@@ -273,6 +286,8 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
+
         val meta = _GuildInvite.guildInvite
         val ids = meta.id
         val query = QueryDsl.from(meta).where {
@@ -283,6 +298,8 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
+
         val meta = _GuildMember.guildMember
         val ids = meta.id
         val query = QueryDsl.delete(meta).where {
@@ -293,6 +310,8 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
+
         val meta = _GuildInvite.guildInvite
         val ids = meta.id
         val query = QueryDsl.delete(meta).where {
@@ -345,8 +364,8 @@ public class GuildCacheService(
     }
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
-        require(name.isNotBlank()) { "Guild name cannot be blank" }
-        require(ownerId.isNotBlank()) { "Guild owner ID cannot be blank" }
+        requireGuildNameNotBlank(name)
+        requireOwnerIdNotBlank(ownerId)
 
         val now = Instant.now().truncatedTo(ChronoUnit.MILLIS)
         var guild: Guild
@@ -391,7 +410,7 @@ public class GuildCacheService(
     }
 
     override suspend fun getGuild(name: String): Flow<Guild> {
-        require(name.isNotBlank()) { "Guild name cannot be blank" }
+        requireGuildNameNotBlank(name)
 
         return mergeStoredAndAddedWithoutRemoved(
             Type.GUILD,
@@ -456,10 +475,6 @@ public class GuildCacheService(
     override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
         return addEntity(guildId, entityId, Type.REMOVE_INVITATION)
-    }
-
-    private fun requireEntityIdNotBlank(entityId: String) {
-        require(entityId.isNotBlank()) { "Entity ID cannot be blank" }
     }
 
     override suspend fun getMembers(guildId: Int): Flow<String> {
@@ -602,4 +617,28 @@ public class GuildCacheService(
         return result != null && result > 0
     }
 
+}
+
+/**
+ * Check if the entity ID is not blank.
+ * @param entityId ID of the entity.
+ */
+private fun requireEntityIdNotBlank(entityId: String) {
+    require(entityId.isNotBlank()) { "Entity ID cannot be blank" }
+}
+
+/**
+ * Check if the guild name is not blank.
+ * @param guildName Name of the guild.
+ */
+private fun requireGuildNameNotBlank(guildName: String) {
+    require(guildName.isNotBlank()) { "Guild name cannot be blank" }
+}
+
+/**
+ * Check if the owner ID is not blank.
+ * @param ownerId ID of the owner.
+ */
+private fun requireOwnerIdNotBlank(ownerId: String) {
+    require(ownerId.isNotBlank()) { "Owner ID cannot be blank" }
 }

@@ -17,6 +17,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.concurrent.TimeUnit
@@ -97,10 +99,11 @@ class GuildCacheServiceTest {
                 assertThat(guilds).containsExactlyInAnyOrder(guild, guild2)
             }
 
-            @Test
-            fun `when owner is empty`() = runTest {
+            @ParameterizedTest
+            @ValueSource(strings = ["", " ", "  ", "   "])
+            fun `when owner is blank`(id: String) = runTest {
                 assertThrows<IllegalArgumentException> {
-                    service.createGuild(getRandomString(), "")
+                    service.createGuild(getRandomString(), id)
                 }
             }
         }
@@ -119,16 +122,17 @@ class GuildCacheServiceTest {
                 assertThat(guilds).containsExactlyInAnyOrder(guild, guild2)
             }
 
-            @Test
-            fun `when name is empty`() = runTest {
+            @ParameterizedTest
+            @ValueSource(strings = ["", " ", "  ", "   "])
+            fun `when name is blank`(name: String) = runTest {
                 assertThrows<IllegalArgumentException> {
-                    service.createGuild("", getRandomString())
+                    service.createGuild(name, getRandomString())
                 }
             }
         }
 
         @Test
-        fun `create always a non used id`() = runTest {
+        fun `create always an unused id`() = runTest {
             val expectedSize = 1000
 
             val idsCreated = List(expectedSize) {

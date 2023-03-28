@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
+import org.junit.jupiter.params.provider.ValueSource
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.r2dbc.R2dbcDatabase
 import org.testcontainers.junit.jupiter.Container
@@ -93,10 +94,11 @@ class GuildDatabaseServiceTest {
                 assertContentEquals(listOf(guild, guild2), guilds)
             }
 
-            @Test
-            fun `when owner is empty`() = runTest {
-                assertThrows<R2dbcDataIntegrityViolationException> {
-                    service.createGuild(getRandomString(), "")
+            @ParameterizedTest
+            @ValueSource(strings = ["", " ", "  ", "   "])
+            fun `when owner is blank`(owner: String) = runTest {
+                assertThrows<IllegalArgumentException> {
+                    service.createGuild(getRandomString(), owner)
                 }
             }
         }
@@ -115,10 +117,11 @@ class GuildDatabaseServiceTest {
                 assertContentEquals(listOf(guild, guild2), guilds)
             }
 
-            @Test
-            fun `when name is empty`() = runTest {
-                assertThrows<R2dbcDataIntegrityViolationException> {
-                    service.createGuild("", getRandomString())
+            @ParameterizedTest
+            @ValueSource(strings = ["", " ", "  ", "   "])
+            fun `when name is blank`(name: String) = runTest {
+                assertThrows<IllegalArgumentException> {
+                    service.createGuild(name, getRandomString())
                 }
             }
         }
@@ -204,10 +207,12 @@ class GuildDatabaseServiceTest {
             assertEquals(0, guild.size)
         }
 
-        @Test
-        fun `when name is empty`() = runTest {
-            val guild = service.getGuild("").toList()
-            assertEquals(0, guild.size)
+        @ParameterizedTest
+        @ValueSource(strings = ["", " ", "  ", "   "])
+        fun `when name is blank`(name: String) = runTest {
+            assertThrows<IllegalArgumentException> {
+                service.getGuild(name)
+            }
         }
 
     }
@@ -236,8 +241,9 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `when entity id is empty`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            assertFalse { service.isOwner(guild.id, "") }
+            assertThrows<IllegalArgumentException> {
+                service.isOwner(0, "")
+            }
         }
 
     }
@@ -347,11 +353,11 @@ class GuildDatabaseServiceTest {
             assertEquals(0, guilds.size)
         }
 
-        @Test
-        fun `when entity id is empty`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            assertThrows<R2dbcDataIntegrityViolationException> {
-                service.addMember(guild.id, "")
+        @ParameterizedTest
+        @ValueSource(strings = ["", " ", "  ", "   "])
+        fun `when entity id is blank`(id: String) = runTest {
+            assertThrows<IllegalArgumentException> {
+                service.addMember(0, id)
             }
         }
 
@@ -526,11 +532,11 @@ class GuildDatabaseServiceTest {
             assertEquals(0, guilds.size)
         }
 
-        @Test
-        fun `when entity id is empty`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            assertThrows<R2dbcDataIntegrityViolationException> {
-                service.addInvitation(guild.id, "", null)
+        @ParameterizedTest
+        @ValueSource(strings = ["", " ", "  ", "   "])
+        fun `when entity id is blank`(id: String) = runTest {
+            assertThrows<IllegalArgumentException> {
+                service.addInvitation(0, id, null)
             }
         }
     }
@@ -584,10 +590,12 @@ class GuildDatabaseServiceTest {
             assertFalse { service.isMember(0, getRandomString()) }
         }
 
-        @Test
-        fun `when entity id is empty`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            assertFalse { service.isMember(guild.id, "") }
+        @ParameterizedTest
+        @ValueSource(strings = ["", " ", "  ", "   "])
+        fun `when entity id is blank`(id: String) = runTest {
+            assertThrows<IllegalArgumentException> {
+                service.isMember(0, id)
+            }
         }
     }
 
@@ -633,10 +641,12 @@ class GuildDatabaseServiceTest {
             assertFalse { service.hasInvitation(0, getRandomString()) }
         }
 
-        @Test
-        fun `when entity id is empty`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            assertFalse { service.hasInvitation(guild.id, "") }
+        @ParameterizedTest
+        @ValueSource(strings = ["", " ", "  ", "   "])
+        fun `when entity id is blank`(id: String) = runTest {
+            assertThrows<IllegalArgumentException> {
+                service.hasInvitation(0, id)
+            }
         }
     }
 
@@ -684,10 +694,12 @@ class GuildDatabaseServiceTest {
             assertFalse { service.removeMember(0, getRandomString()) }
         }
 
-        @Test
-        fun `when entity id is empty`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            assertFalse { service.removeMember(guild.id, "") }
+        @ParameterizedTest
+        @ValueSource(strings = ["", " ", "  ", "   "])
+        fun `when entity id is blank`(id: String) = runTest {
+            assertThrows<IllegalArgumentException> {
+                service.removeMember(0, id)
+            }
         }
     }
 
@@ -732,10 +744,12 @@ class GuildDatabaseServiceTest {
             assertFalse { service.removeInvitation(0, getRandomString()) }
         }
 
-        @Test
-        fun `when entity id is empty`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            assertFalse { service.removeInvitation(guild.id, "") }
+        @ParameterizedTest
+        @ValueSource(strings = ["", " ", "  ", "   "])
+        fun `when entity id is blank`(id: String) = runTest {
+            assertThrows<IllegalArgumentException> {
+                service.removeInvitation(0, id)
+            }
         }
     }
 
