@@ -6,6 +6,7 @@ import com.github.rushyverse.core.data.Guild
 import com.github.rushyverse.core.data.GuildCacheService
 import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.FlushMode
+import io.lettuce.core.KeyScanArgs
 import io.lettuce.core.RedisURI
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
@@ -71,12 +72,6 @@ class GuildCacheServiceTest {
             fun `when owner is not owner of a guild`() = runTest {
                 val guild = service.createGuild(getRandomString(), getRandomString())
                 val guilds = getAllAddedGuilds()
-                println(
-                    """
-                    |Expected: $guild
-                    |Actual: $guilds
-                """.trimIndent()
-                )
                 assertContentEquals(listOf(guild), guilds)
             }
 
@@ -132,24 +127,35 @@ class GuildCacheServiceTest {
             }
         }
 
+        @Test
+        fun `create always a non used id`() = runTest {
+            val expectedSize = 1000
+
+            val idsCreated = List(expectedSize) {
+                service.createGuild(getRandomString(), getRandomString())
+            }.map { it.id }
+            assertEquals(expectedSize, idsCreated.toSet().size)
+
+            val addedIds: List<Int> = getAllAddedGuilds().map { it.id }
+            assertThat(idsCreated).containsExactlyInAnyOrderElementsOf(addedIds)
+        }
+
     }
 
-    private suspend fun getAllStoredGuilds(): List<Guild> {
-        val searchKey = (service.prefixKey.format("*") + GuildCacheService.Type.GUILD.key).encodeToByteArray()
-        return cacheClient.connect {
-            it.keys(searchKey).map { key ->
-                val value = it.get(key)!!
-                cacheClient.binaryFormat.decodeFromByteArray(Guild.serializer(), value)
-            }
-        }.toList()
+    private suspend fun getAllStoredGuilds(limit: Long = 1000L): List<Guild> {
+        return getAllDataFromKey(GuildCacheService.Type.GUILD, limit)
     }
 
-    private suspend fun getAllAddedGuilds(): List<Guild> {
-        val searchKey = (service.prefixKey.format("*") + GuildCacheService.Type.ADD_GUILD.key).encodeToByteArray()
+    private suspend fun getAllAddedGuilds(limit: Long = 1000L): List<Guild> {
+        return getAllDataFromKey(GuildCacheService.Type.ADD_GUILD, limit)
+    }
+
+    private suspend fun getAllDataFromKey(type:  GuildCacheService.Type, limit: Long): List<Guild> {
+        val searchKey = service.prefixKey.format("*") + type.key
         return cacheClient.connect {
-            it.keys(searchKey).map { key ->
-                val value = it.get(key)!!
-                cacheClient.binaryFormat.decodeFromByteArray(Guild.serializer(), value)
+            val scanner = it.scan(KeyScanArgs.Builder.limit(limit).match(searchKey))
+            it.mget(*scanner!!.keys.toTypedArray()).map { keyValue ->
+                cacheClient.binaryFormat.decodeFromByteArray(Guild.serializer(), keyValue.value)
             }
         }.toList()
     }
