@@ -3,6 +3,7 @@ package com.github.rushyverse.core.data
 import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.serializer.InstantSerializer
+import io.lettuce.core.KeyScanArgs
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.flow.*
@@ -395,9 +396,10 @@ public class GuildCacheService(
         return mergeStoredAndAddedWithoutRemoved(
             Type.GUILD,
             Type.ADD_GUILD,
-            Type.REMOVE_GUILD,
-            this::getAllKeys
-        ).mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }.filter { it.name == name }
+            Type.REMOVE_GUILD
+        ) { connection, type ->
+            getAllKeyValues(connection, type, Long.MAX_VALUE)
+        }.mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }.filter { it.name == name }
     }
 
     override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
@@ -501,6 +503,7 @@ public class GuildCacheService(
     ): Boolean {
         val guildIdString = guildId.toString()
         val entityIdEncoded = encodeToByteArray(String.serializer(), entityId)
+        // TODO : Optimize with a single query using EVAL
         return isMember(connection, guildIdString, stored, entityIdEncoded)
                 || isMember(connection, guildIdString, added, entityIdEncoded)
                 && !isMember(connection, guildIdString, removed, entityIdEncoded)
@@ -567,10 +570,15 @@ public class GuildCacheService(
      * @param type Type of the keys.
      * @return Flow of all keys of the given type.
      */
-    private fun getAllKeys(
+    private suspend fun getAllKeyValues(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        type: Type
-    ): Flow<ByteArray> = connection.keys(encodeFormatKey(type.key, "*"))
+        type: Type,
+        limit: Long
+    ): Flow<ByteArray> {
+        val searchKey = prefixKey.format("*") + type.key
+        val scanner = connection.scan(KeyScanArgs.Builder.limit(limit).match(searchKey)) ?: return emptyFlow()
+        return connection.mget(*scanner.keys.toTypedArray()).map { it.value }
+    }
 
     /**
      * Adds an entity to the cache for the given guild and type.
