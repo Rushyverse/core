@@ -72,7 +72,7 @@ class GuildDatabaseServiceTest {
             }
 
             @Test
-            fun `when owner is always in a guild`() = runTest {
+            fun `when owner is already in a guild`() = runTest {
                 val guild = service.createGuild(getRandomString(), getRandomString())
                 val guild2 = service.createGuild(getRandomString(), guild.ownerId)
                 assertNotEquals(guild.id, guild2.id)
