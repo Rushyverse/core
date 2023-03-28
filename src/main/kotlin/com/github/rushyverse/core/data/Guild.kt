@@ -8,12 +8,13 @@ import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.protobuf.ProtoBuf.Default.decodeFromByteArray
 import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.r2dbc.R2dbcDatabase
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.*
+import kotlin.random.Random
 
 /**
  * Exception thrown when an entity is invited to a guild, but is already a member.
@@ -343,20 +344,21 @@ public class GuildCacheService(
     }
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
-        val now = Instant.now()
-        val id = now.epochSecond.toInt()
-        val guild = Guild(id, name, ownerId, now)
+        require(name.isNotBlank()) { "Guild name cannot be blank" }
+        require(ownerId.isNotBlank()) { "Guild owner ID cannot be blank" }
 
-        val key = encodeFormatKey(Type.ADD_GUILD.key, id.toString())
-
-        val result = cacheClient.connect { connection ->
-            connection.set(key, encodeToByteArray(Guild.serializer(), guild))
+        val now = Instant.now().truncatedTo(ChronoUnit.MILLIS)
+        var guild: Guild
+        cacheClient.connect { connection ->
+            do {
+                // Negative ID to avoid conflict with database ID generator
+                val id = Random.nextInt(Int.MIN_VALUE, 0)
+                guild = Guild(id, name, ownerId, now)
+                val key = encodeFormatKey(Type.ADD_GUILD.key, id.toString())
+            } while (connection.setnx(key, encodeToByteArray(Guild.serializer(), guild)) == false)
         }
 
-        return when (result) {
-            "OK" -> guild
-            else -> throw IllegalStateException("Unable to create guild $name with owner $ownerId")
-        }
+        return guild
     }
 
     override suspend fun deleteGuild(id: Int): Boolean {
@@ -384,23 +386,29 @@ public class GuildCacheService(
             val hasBeenDeleted = resultDeleted != null && resultDeleted > 0
             if (hasBeenDeleted) null else guild
 
-        }?.let { decodeFromByteArray(Guild.serializer(), it) }
+        }?.let { decodeFromByteArrayOrNull(Guild.serializer(), it) }
     }
 
     override suspend fun getGuild(name: String): Flow<Guild> {
+        require(name.isNotBlank()) { "Guild name cannot be blank" }
+
         return mergeStoredAndAddedWithoutRemoved(
             Type.GUILD,
             Type.ADD_GUILD,
             Type.REMOVE_GUILD,
             this::getAllKeys
-        ).map { decodeFromByteArray(Guild.serializer(), it) }.filter { it.name == name }
+        ).mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }.filter { it.name == name }
     }
 
     override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
+
         return getGuild(guildId)?.ownerId == entityId
     }
 
     override suspend fun isMember(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
+
         return cacheClient.connect { connection ->
             isStoredOrAddedAndNotDeleted(
                 connection,
@@ -414,6 +422,8 @@ public class GuildCacheService(
     }
 
     override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
+
         return cacheClient.connect { connection ->
             isStoredOrAddedAndNotDeleted(
                 connection,
@@ -427,19 +437,27 @@ public class GuildCacheService(
     }
 
     override suspend fun addMember(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
         return addEntity(guildId, entityId, Type.ADD_MEMBER)
     }
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
+        requireEntityIdNotBlank(entityId)
         return addEntity(guildId, entityId, Type.ADD_INVITATION)
     }
 
     override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
         return addEntity(guildId, entityId, Type.REMOVE_MEMBER)
     }
 
     override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
         return addEntity(guildId, entityId, Type.REMOVE_INVITATION)
+    }
+
+    private fun requireEntityIdNotBlank(entityId: String) {
+        require(entityId.isNotBlank()) { "Entity ID cannot be blank" }
     }
 
     override suspend fun getMembers(guildId: Int): Flow<String> {
@@ -450,7 +468,7 @@ public class GuildCacheService(
             Type.REMOVE_MEMBER
         ) { connection, type ->
             getAllMembers(connection, type, idString)
-        }.map { decodeFromByteArray(String.serializer(), it) }
+        }.mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
     }
 
     override suspend fun getInvited(guildId: Int): Flow<String> {
@@ -460,7 +478,7 @@ public class GuildCacheService(
             Type.ADD_INVITATION,
             Type.REMOVE_INVITATION,
         ) { connection, type -> getAllMembers(connection, type, idString) }
-            .map { decodeFromByteArray(String.serializer(), it) }
+            .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
     }
 
     /**
