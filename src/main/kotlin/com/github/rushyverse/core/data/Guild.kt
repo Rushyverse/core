@@ -16,6 +16,7 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.*
 import kotlin.random.Random
+import kotlin.random.nextInt
 
 /**
  * Exception thrown when an entity is invited to a guild, but is already a member.
@@ -183,6 +184,12 @@ public interface IGuildService {
     public suspend fun getInvited(guildId: Int): Flow<String>
 }
 
+public interface IGuildCacheService : IGuildService {
+
+    public suspend fun saveGuild(guild: Guild): Boolean
+
+}
+
 public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildService {
 
     public companion object {
@@ -343,11 +350,22 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
 
 /**
  * Implementation of [IGuildService] that uses [CacheClient] to manage data in cache.
+ * @property prefixCommonKey Prefix key for common guild data.
+ * This key allows to define data without targeting specific guild.
+ * Useful to store a set of guild's IDs.
  */
 public class GuildCacheService(
     client: CacheClient,
-    prefixKey: String = "guild:%s:"
-) : AbstractCacheService(client, prefixKey), IGuildService {
+    public val prefixCommonKey: String = "guild:",
+    prefixKey: String = "$prefixCommonKey%s:"
+) : AbstractCacheService(client, prefixKey), IGuildCacheService {
+
+    private companion object {
+        /**
+         * Range of possible ID to generate new guild.
+         */
+        val RANGE_GUILD_ID: IntRange = Int.MIN_VALUE until 0
+    }
 
     public enum class Type(public val key: String) {
         GUILD("store"),
@@ -363,62 +381,89 @@ public class GuildCacheService(
         REMOVE_INVITATION("invitations:remove"),
     }
 
+    override suspend fun saveGuild(guild: Guild): Boolean {
+        val result = cacheClient.connect {
+            val key = encodeFormattedKeyUsingPrefix(Type.GUILD.key, guild.id.toString())
+            it.set(key, encodeToByteArray(Guild.serializer(), guild))
+        }
+
+        return result == "OK"
+    }
+
     override suspend fun createGuild(name: String, ownerId: String): Guild {
         requireGuildNameNotBlank(name)
         requireOwnerIdNotBlank(ownerId)
 
+        /**
+         * Truncate to milliseconds to avoid precision loss with serialization.
+         */
         val now = Instant.now().truncatedTo(ChronoUnit.MILLIS)
         var guild: Guild
         cacheClient.connect { connection ->
             do {
                 // Negative ID to avoid conflict with database ID generator
-                val id = Random.nextInt(Int.MIN_VALUE, 0)
+                val id = Random.nextInt(RANGE_GUILD_ID)
                 guild = Guild(id, name, ownerId, now)
-                val key = encodeFormatKey(Type.ADD_GUILD.key, id.toString())
-            } while (connection.setnx(key, encodeToByteArray(Guild.serializer(), guild)) == false)
+                val key = encodeFormattedKeyUsingPrefix(Type.ADD_GUILD.key, id.toString())
+            } while (connection.setnx(key, encodeToByteArray(Guild.serializer(), guild)) != true)
         }
 
         return guild
     }
 
     override suspend fun deleteGuild(id: Int): Boolean {
-        val key = encodeFormatKey(Type.REMOVE_GUILD.key, id.toString())
+        val key = encodeKeyUsingPrefixCommon(Type.REMOVE_GUILD)
 
         val result = cacheClient.connect { connection ->
-            connection.set(key, encodeToByteArray(Boolean.serializer(), true))
+            connection.sadd(key, encodeToByteArray(Int.serializer(), id))
         }
 
-        return when (result) {
-            "OK" -> true
-            else -> throw IllegalStateException("Unable to delete guild $id")
-        }
+        return result != null && result > 0
+    }
+
+    /**
+     * Check if guild is marked as deleted.
+     * @param connection Redis connection.
+     * @param guildId Guild ID.
+     * @return `true` if guild is marked as deleted, `false` otherwise.
+     */
+    private suspend fun isGuildDeleted(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        guildId: Int
+    ): Boolean {
+        val key = encodeKeyUsingPrefixCommon(Type.REMOVE_GUILD)
+        return connection.sismember(key, encodeToByteArray(Int.serializer(), guildId)) == true
     }
 
     override suspend fun getGuild(id: Int): Guild? {
         val idString = id.toString()
         return cacheClient.connect { connection ->
+            // TODO use transaction https://github.com/lettuce-io/lettuce-core/issues/2371
             val guild =
-                connection.get(encodeFormatKey(Type.GUILD.key, idString))
-                    ?: connection.get(encodeFormatKey(Type.ADD_GUILD.key, idString))
+                connection.get(encodeFormattedKeyUsingPrefix(Type.GUILD.key, idString))
+                    ?: connection.get(encodeFormattedKeyUsingPrefix(Type.ADD_GUILD.key, idString))
                     ?: return@connect null
 
-            val resultDeleted = connection.exists(encodeFormatKey(Type.REMOVE_GUILD.key, idString))
-            val hasBeenDeleted = resultDeleted != null && resultDeleted > 0
-            if (hasBeenDeleted) null else guild
-
+            if (isGuildDeleted(connection, id)) null else guild
         }?.let { decodeFromByteArrayOrNull(Guild.serializer(), it) }
     }
 
     override suspend fun getGuild(name: String): Flow<Guild> {
         requireGuildNameNotBlank(name)
 
-        return mergeStoredAndAddedWithoutRemoved(
-            Type.GUILD,
-            Type.ADD_GUILD,
-            Type.REMOVE_GUILD
-        ) { connection, type ->
-            getAllKeyValues(connection, type, Long.MAX_VALUE)
-        }.mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }.filter { it.name == name }
+        return cacheClient.connect { connection ->
+            val removedGuilds = connection.smembers(encodeKeyUsingPrefixCommon(Type.REMOVE_GUILD))
+                .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
+                .toSet()
+
+            listOf(
+                getAllKeyValues(connection, Type.GUILD, Long.MAX_VALUE),
+                getAllKeyValues(connection, Type.ADD_GUILD, Long.MAX_VALUE)
+            ).merge()
+                .distinctUntilChanged()
+                .mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }
+                .filter { it.name == name && it.id !in removedGuilds }
+        }
     }
 
     override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
@@ -538,7 +583,7 @@ public class GuildCacheService(
         type: Type,
         entityIdEncoded: ByteArray
     ): Boolean {
-        return connection.sismember(encodeFormatKey(type.key, guildId), entityIdEncoded) ?: false
+        return connection.sismember(encodeFormattedKeyUsingPrefix(type.key, guildId), entityIdEncoded) ?: false
     }
 
     /**
@@ -577,7 +622,7 @@ public class GuildCacheService(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         type: Type,
         id: String
-    ): Flow<ByteArray> = connection.smembers(encodeFormatKey(type.key, id))
+    ): Flow<ByteArray> = connection.smembers(encodeFormattedKeyUsingPrefix(type.key, id))
 
     /**
      * Returns all keys of the given type.
@@ -592,7 +637,10 @@ public class GuildCacheService(
     ): Flow<ByteArray> {
         val searchKey = prefixKey.format("*") + type.key
         val scanner = connection.scan(KeyScanArgs.Builder.limit(limit).match(searchKey)) ?: return emptyFlow()
-        return connection.mget(*scanner.keys.toTypedArray()).map { it.value }
+        val keys = scanner.keys
+        if (keys.isEmpty()) return emptyFlow()
+
+        return connection.mget(*keys.toTypedArray()).map { it.value }
     }
 
     /**
@@ -608,7 +656,7 @@ public class GuildCacheService(
         entityId: String,
         type: Type
     ): Boolean {
-        val key = encodeFormatKey(type.key, guildId.toString())
+        val key = encodeFormattedKeyUsingPrefix(type.key, guildId.toString())
 
         val result = cacheClient.connect { connection ->
             connection.sadd(key, encodeToByteArray(String.serializer(), entityId))
@@ -616,6 +664,13 @@ public class GuildCacheService(
 
         return result != null && result > 0
     }
+
+    /**
+     * Create a key using [commonPrefixWith] and the type.
+     * @param type Type of the data.
+     * @return Key using the common prefix and the type.
+     */
+    private fun encodeKeyUsingPrefixCommon(type: Type): ByteArray = encodeKey(prefixCommonKey + type.key)
 
 }
 
