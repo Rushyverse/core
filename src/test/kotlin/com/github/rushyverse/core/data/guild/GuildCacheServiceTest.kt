@@ -341,6 +341,14 @@ class GuildCacheServiceTest {
             assertThat(service.getGuild(getRandomString()).toList()).isEmpty()
         }
 
+        @ParameterizedTest
+        @ValueSource(strings = ["", " ", "  ", "   "])
+        fun `when name is blank`(name: String) = runTest {
+            assertThrows<IllegalArgumentException> {
+                service.getGuild(name)
+            }
+        }
+
         @Test
         fun `with lot of guilds`() = runTest {
             val numberOfGuilds = 1000
@@ -365,6 +373,14 @@ class GuildCacheServiceTest {
 
             val expectedGuild = createdGuild.take(numberOfGuilds / 2) + savedGuild.take(numberOfGuilds / 2)
             assertThat(service.getGuild(name).toList()).containsExactlyInAnyOrderElementsOf(expectedGuild)
+        }
+
+        @Test
+        fun `should return distinct guilds`() = runTest {
+            val name = getRandomString()
+            val guild = service.createGuild(name, getRandomString())
+            service.saveGuild(guild)
+            assertThat(service.getGuild(name).toList()).containsExactlyInAnyOrder(guild)
         }
     }
 
