@@ -359,11 +359,19 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override fun getMembers(guildId: Int): Flow<String> {
-        val meta = _GuildMember.guildMember
-        val ids = meta.id
-        val query = QueryDsl.from(meta).where {
-            ids.guildId eq guildId
-        }.select(ids.entityId)
+        val guildMeta = _Guild.guild
+        val memberMeta = _GuildMember.guildMember
+        val ids = memberMeta.id
+
+        val query = QueryDsl.from(guildMeta).where {
+            guildMeta.id eq guildId
+        }.select(guildMeta.ownerId)
+            .union(
+                QueryDsl.from(memberMeta).where {
+                    ids.guildId eq guildId
+                }.select(ids.entityId)
+            )
+
         return database.flowQuery(query).filterNotNull()
     }
 
