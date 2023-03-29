@@ -228,6 +228,15 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
+        fun  `when owner of several guilds`() = runTest {
+            val owner = getRandomString()
+            val guild = service.createGuild(getRandomString(), owner)
+            val guild2 = service.createGuild(getRandomString(), owner)
+            assertTrue { service.isOwner(guild.id, owner) }
+            assertTrue { service.isOwner(guild2.id, owner) }
+        }
+
+        @Test
         fun `when not owner of guild`() = runTest {
             val owner = getRandomString()
             val guild = service.createGuild(getRandomString(), owner)
@@ -239,13 +248,72 @@ class GuildDatabaseServiceTest {
             assertFalse { service.isOwner(0, getRandomString()) }
         }
 
-        @Test
-        fun `when entity id is empty`() = runTest {
+        @ParameterizedTest
+        @ValueSource(strings = ["", " ", "  ", "   "])
+        fun `when entity id is blank`(id: String) = runTest {
             assertThrows<IllegalArgumentException> {
-                service.isOwner(0, "")
+                service.isOwner(0, id)
             }
         }
 
+    }
+
+    @Nested
+    inner class IsMember {
+
+        @Test
+        fun `when entity is a member of the guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            service.addMember(guild.id, entityId)
+            assertTrue { service.isMember(guild.id, entityId) }
+        }
+
+        @Test
+        fun `when entity is not a member of the guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            assertFalse { service.isMember(guild.id, entityId) }
+        }
+
+        @Test
+        fun `when entity is invited in the guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            service.addInvitation(guild.id, entityId, null)
+            assertFalse { service.isMember(guild.id, entityId) }
+        }
+
+        @Test
+        fun `when entity is member of another guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val guild2 = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            service.addMember(guild.id, entityId)
+            assertFalse { service.isMember(guild2.id, entityId) }
+        }
+
+        @Test
+        fun `when another entity is member of the guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            val entity2Id = getRandomString()
+            service.addMember(guild.id, entity2Id)
+            assertFalse { service.isMember(guild.id, entityId) }
+        }
+
+        @Test
+        fun `when guild does not exist`() = runTest {
+            assertFalse { service.isMember(0, getRandomString()) }
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = ["", " ", "  ", "   "])
+        fun `when entity id is blank`(id: String) = runTest {
+            assertThrows<IllegalArgumentException> {
+                service.isMember(0, id)
+            }
+        }
     }
 
     @Nested
@@ -366,6 +434,7 @@ class GuildDatabaseServiceTest {
     @Nested
     inner class AddInvitation {
 
+
         @Nested
         inner class CreateDate {
 
@@ -384,7 +453,6 @@ class GuildDatabaseServiceTest {
                 assertEquals(entityId, invite.id.entityId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), invite.createdAt.truncatedTo(ChronoUnit.MINUTES))
             }
-
             @ParameterizedTest
             @EnumSource(value = ChronoUnit::class, names = ["DAYS", "HOURS", "MINUTES"])
             fun `should use clock provider of database`(chronoUnit: ChronoUnit) = runTest {
@@ -409,6 +477,7 @@ class GuildDatabaseServiceTest {
                 assertEquals(now.truncatedTo(chronoUnit), invite.createdAt)
             }
         }
+
 
         @Nested
         inner class ExpirationDate {
@@ -461,7 +530,6 @@ class GuildDatabaseServiceTest {
                     service.addInvitation(guild.id, entityId, expiredAt)
                 }
             }
-
         }
 
         @Test
@@ -531,70 +599,11 @@ class GuildDatabaseServiceTest {
             val guilds = getAllGuilds()
             assertEquals(0, guilds.size)
         }
-
         @ParameterizedTest
         @ValueSource(strings = ["", " ", "  ", "   "])
         fun `when entity id is blank`(id: String) = runTest {
             assertThrows<IllegalArgumentException> {
                 service.addInvitation(0, id, null)
-            }
-        }
-    }
-
-    @Nested
-    inner class IsMember {
-
-        @Test
-        fun `when entity is a member of the guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val entityId = getRandomString()
-            service.addMember(guild.id, entityId)
-            assertTrue { service.isMember(guild.id, entityId) }
-        }
-
-        @Test
-        fun `when entity is not a member of the guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val entityId = getRandomString()
-            assertFalse { service.isMember(guild.id, entityId) }
-        }
-
-        @Test
-        fun `when entity is invited in the guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val entityId = getRandomString()
-            service.addInvitation(guild.id, entityId, null)
-            assertFalse { service.isMember(guild.id, entityId) }
-        }
-
-        @Test
-        fun `when entity is member of another guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val guild2 = service.createGuild(getRandomString(), getRandomString())
-            val entityId = getRandomString()
-            service.addMember(guild.id, entityId)
-            assertFalse { service.isMember(guild2.id, entityId) }
-        }
-
-        @Test
-        fun `when another entity is member of the guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val entityId = getRandomString()
-            val entity2Id = getRandomString()
-            service.addMember(guild.id, entity2Id)
-            assertFalse { service.isMember(guild.id, entityId) }
-        }
-
-        @Test
-        fun `when guild does not exist`() = runTest {
-            assertFalse { service.isMember(0, getRandomString()) }
-        }
-
-        @ParameterizedTest
-        @ValueSource(strings = ["", " ", "  ", "   "])
-        fun `when entity id is blank`(id: String) = runTest {
-            assertThrows<IllegalArgumentException> {
-                service.isMember(0, id)
             }
         }
     }
@@ -700,6 +709,16 @@ class GuildDatabaseServiceTest {
             assertThrows<IllegalArgumentException> {
                 service.removeMember(0, id)
             }
+        }
+
+        @Test
+        fun `when entity is owner of the guild`() = runTest {
+            val owner = getRandomString()
+            val guild = service.createGuild(getRandomString(), owner)
+            assertFalse { service.removeMember(guild.id, owner) }
+
+            val members = service.getMembers(guild.id).toList()
+            assertContentEquals(listOf(owner), members)
         }
     }
 
