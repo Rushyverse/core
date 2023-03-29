@@ -543,6 +543,7 @@ public class GuildCacheService(
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
         requireEntityIdNotBlank(entityId)
+        expiredAt?.let { requireExpiredAtAfterNow(it) }
 
         val key = encodeFormattedKeyUsingPrefix(Type.ADD_INVITATION.key, guildId.toString())
 
@@ -575,15 +576,21 @@ public class GuildCacheService(
             .distinctUntilChanged()
     }
 
-    override fun getInvited(guildId: Int): Flow<String> {
+    override fun getInvited(guildId: Int): Flow<String> = flow {
         val idString = guildId.toString()
-        return mergeStoredAndAddedWithoutRemoved(
-            Type.INVITATIONS,
-            Type.ADD_INVITATION,
-            Type.REMOVE_INVITATION,
-        ) { type -> getAllMembers(type, idString) }
-            .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
+        val removedEntities = getAllMembers(Type.REMOVE_INVITATION, idString).mapNotNull {
+            decodeFromByteArrayOrNull(String.serializer(), it)
+        }.toSet()
+
+        val now = Instant.now()
+        listOf(getAllMembers(Type.INVITATIONS, idString), getAllMembers(Type.ADD_INVITATION, idString))
+            .merge()
+            .mapNotNull { decodeFromByteArrayOrNull(CacheGuildInvite.serializer(), it) }
+            .filter { it.expiredAt == null || it.expiredAt.isAfter(now) }
+            .map { it.entityId }
+            .filter { it !in removedEntities }
             .distinctUntilChanged()
+            .let { emitAll(it) }
     }
 
     /**
@@ -744,4 +751,12 @@ private fun requireGuildNameNotBlank(guildName: String) {
  */
 private fun requireOwnerIdNotBlank(ownerId: String) {
     require(ownerId.isNotBlank()) { "Owner ID cannot be blank" }
+}
+
+/**
+ * Check if the expired at is after now.
+ * @param expiredAt Instant when the entity expires.
+ */
+private fun requireExpiredAtAfterNow(expiredAt: Instant) {
+    require(expiredAt.isAfter(Instant.now())) { "Expired at must be after now" }
 }
