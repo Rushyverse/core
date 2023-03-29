@@ -456,6 +456,7 @@ public class GuildCacheService(
                 .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
                 .toSet()
 
+            // TODO : Use better scan including GUILD and ADD_GUILD keys
             listOf(
                 getAllKeyValues(connection, Type.GUILD, Long.MAX_VALUE),
                 getAllKeyValues(connection, Type.ADD_GUILD, Long.MAX_VALUE)
