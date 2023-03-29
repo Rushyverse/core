@@ -12,7 +12,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import org.komapper.annotation.*
+import org.komapper.annotation.KomapperEmbeddedId
+import org.komapper.annotation.KomapperEntity
+import org.komapper.annotation.KomapperTable
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.expression.WhereDeclaration
 import org.komapper.core.dsl.operator.literal
@@ -62,14 +64,14 @@ public interface IFriendService {
      * @param uuid ID of the entity.
      * @return Set of IDs of the friends.
      */
-    public suspend fun getFriends(uuid: UUID): Flow<UUID>
+    public fun getFriends(uuid: UUID): Flow<UUID>
 
     /**
      * Get all the pending requests of an entity.
      * @param uuid ID of the entity.
      * @return Set of IDs of the pending requests.
      */
-    public suspend fun getPendingFriends(uuid: UUID): Flow<UUID>
+    public fun getPendingFriends(uuid: UUID): Flow<UUID>
 
     /**
      * Check if two entities are friends.
@@ -115,7 +117,7 @@ public interface IFriendCacheService : IFriendService {
      * @param type Type of data to retrieve.
      * @return Map of IDs to data.
      */
-    public suspend fun getAll(uuid: UUID, type: FriendCacheService.Type): Flow<UUID>
+    public fun getAll(uuid: UUID, type: FriendCacheService.Type): Flow<UUID>
 
 }
 
@@ -294,11 +296,11 @@ public class FriendCacheService(
         return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.REMOVE_PENDING_FRIEND, Type.ADD_PENDING_FRIEND)
     }
 
-    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
+    override fun getFriends(uuid: UUID): Flow<UUID> {
         return mergeFirstAndSecondThenRemoveThirdRelation(uuid, Type.FRIENDS, Type.ADD_FRIEND, Type.REMOVE_FRIEND)
     }
 
-    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
+    override fun getPendingFriends(uuid: UUID): Flow<UUID> {
         return mergeFirstAndSecondThenRemoveThirdRelation(
             uuid,
             Type.PENDING_FRIENDS,
@@ -335,10 +337,14 @@ public class FriendCacheService(
         )
     }
 
-    override suspend fun getAll(uuid: UUID, type: Type): Flow<UUID> {
-        return cacheClient.connect { connection ->
-            getAll(connection, uuid, type)
-        }
+    override fun getAll(uuid: UUID, type: Type): Flow<UUID> = flow {
+        val key = encodeFormatKey(type.key, uuid.toString())
+
+        cacheClient.connect {
+            it.smembers(key)
+        }.mapNotNull { member ->
+            decodeFromByteArrayOrNull(UUIDSerializer, member)
+        }.let { emitAll(it) }
     }
 
     /**
@@ -456,38 +462,19 @@ public class FriendCacheService(
      * @param removed Type where the members are removed.
      * @return Flow of the members of [uuid] for the given [list] and [added] merged without the elements in [removed].
      */
-    private suspend fun mergeFirstAndSecondThenRemoveThirdRelation(
+    private fun mergeFirstAndSecondThenRemoveThirdRelation(
         uuid: UUID,
         list: Type,
         added: Type,
         removed: Type
-    ): Flow<UUID> {
-        return cacheClient.connect { connection ->
-            val removedFriend = getAll(connection, uuid, removed).toSet()
+    ): Flow<UUID> = flow {
+        val removedFriend = getAll(uuid, removed).toSet()
 
-            listOf(getAll(connection, uuid, list), getAll(connection, uuid, added))
-                .merge()
-                .distinctUntilChanged()
-                .filter { it !in removedFriend }
-        }
-    }
-
-    /**
-     * Get all the members of [uuid] for the given [type].
-     * @param connection Redis connection.
-     * @param uuid UUID of the user.
-     * @param type Type where the members are stored.
-     * @return Flow of the members of [uuid] for the given [type].
-     */
-    private fun getAll(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        uuid: UUID,
-        type: Type
-    ): Flow<UUID> {
-        val key = encodeFormatKey(type.key, uuid.toString())
-        return connection.smembers(key).mapNotNull { member ->
-            decodeFromByteArrayOrNull(UUIDSerializer, member)
-        }
+        listOf(getAll(uuid, list), getAll(uuid, added))
+            .merge()
+            .distinctUntilChanged()
+            .filter { it !in removedFriend }
+            .let { emitAll(it) }
     }
 
     /**
@@ -546,11 +533,11 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         return removeAll(uuid, friends, true)
     }
 
-    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
+    override fun getFriends(uuid: UUID): Flow<UUID> {
         return getAll(uuid, false)
     }
 
-    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
+    override fun getPendingFriends(uuid: UUID): Flow<UUID> {
         return getAll(uuid, true)
     }
 
