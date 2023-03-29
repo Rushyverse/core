@@ -111,7 +111,7 @@ public interface IGuildService {
      * @param name Name of the guild.
      * @return The guild, or `null` if it does not exist.
      */
-    public suspend fun getGuild(name: String): Flow<Guild>
+    public fun getGuild(name: String): Flow<Guild>
 
     /**
      * Check if an entity is the owner of a guild.
@@ -175,14 +175,14 @@ public interface IGuildService {
      * @param guildId ID of the guild.
      * @return A flow of all members.
      */
-    public suspend fun getMembers(guildId: Int): Flow<String>
+    public fun getMembers(guildId: Int): Flow<String>
 
     /**
      * Get all ids of entities that have been invited to a guild.
      * @param guildId ID of the guild.
      * @return A flow of all ids.
      */
-    public suspend fun getInvited(guildId: Int): Flow<String>
+    public fun getInvited(guildId: Int): Flow<String>
 }
 
 public interface IGuildCacheService : IGuildService {
@@ -222,7 +222,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         return database.runQuery(query).firstOrNull()
     }
 
-    override suspend fun getGuild(name: String): Flow<Guild> {
+    override fun getGuild(name: String): Flow<Guild> {
         requireGuildNameNotBlank(name)
 
         val meta = _Guild.guild
@@ -329,7 +329,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         return database.runQuery(query) > 0
     }
 
-    override suspend fun getMembers(guildId: Int): Flow<String> {
+    override fun getMembers(guildId: Int): Flow<String> {
         val meta = _GuildMember.guildMember
         val ids = meta.id
         val query = QueryDsl.from(meta).where {
@@ -338,7 +338,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         return database.flowQuery(query).filterNotNull()
     }
 
-    override suspend fun getInvited(guildId: Int): Flow<String> {
+    override fun getInvited(guildId: Int): Flow<String> {
         val meta = _GuildInvite.guildInvite
         val ids = meta.id
         val query = QueryDsl.from(meta).where {
@@ -449,22 +449,25 @@ public class GuildCacheService(
         }?.let { decodeFromByteArrayOrNull(Guild.serializer(), it) }
     }
 
-    override suspend fun getGuild(name: String): Flow<Guild> {
+    override fun getGuild(name: String): Flow<Guild> {
         requireGuildNameNotBlank(name)
 
-        return cacheClient.connect { connection ->
-            val removedGuilds = connection.smembers(encodeKeyUsingPrefixCommon(Type.REMOVE_GUILD))
-                .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
-                .toSet()
+        return flow {
+            val removedGuilds = cacheClient.connect { connection ->
+                connection.smembers(encodeKeyUsingPrefixCommon(Type.REMOVE_GUILD))
+                    .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
+                    .toSet()
+            }
 
             // If optimization is needed, we can store the guild by name too
             listOf(
-                getAllKeyValues(connection, Type.GUILD),
-                getAllKeyValues(connection, Type.ADD_GUILD)
+                getAllKeyValues(Type.GUILD),
+                getAllKeyValues(Type.ADD_GUILD)
             ).merge()
                 .distinctUntilChanged()
                 .mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }
                 .filter { it.name == name && it.id !in removedGuilds }
+                .collect { emit(it) }
         }
     }
 
@@ -524,24 +527,23 @@ public class GuildCacheService(
         return addEntity(guildId, entityId, Type.REMOVE_INVITATION)
     }
 
-    override suspend fun getMembers(guildId: Int): Flow<String> {
+    override fun getMembers(guildId: Int): Flow<String> {
         val idString = guildId.toString()
         return mergeStoredAndAddedWithoutRemoved(
             Type.MEMBERS,
             Type.ADD_MEMBER,
             Type.REMOVE_MEMBER
-        ) { connection, type ->
-            getAllMembers(connection, type, idString)
-        }.mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
+        ) { type -> getAllMembers(type, idString) }
+            .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
     }
 
-    override suspend fun getInvited(guildId: Int): Flow<String> {
+    override fun getInvited(guildId: Int): Flow<String> {
         val idString = guildId.toString()
         return mergeStoredAndAddedWithoutRemoved(
             Type.INVITATIONS,
             Type.ADD_INVITATION,
             Type.REMOVE_INVITATION,
-        ) { connection, type -> getAllMembers(connection, type, idString) }
+        ) { type -> getAllMembers(type, idString) }
             .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
     }
 
@@ -597,57 +599,57 @@ public class GuildCacheService(
      * @param getValues Function to get the values of the given type.
      * @return Flow of all data filtered and distinct.
      */
-    private suspend inline fun mergeStoredAndAddedWithoutRemoved(
+    private inline fun mergeStoredAndAddedWithoutRemoved(
         stored: Type,
         added: Type,
         removed: Type,
-        getValues: (RedisCoroutinesCommands<ByteArray, ByteArray>, Type) -> Flow<ByteArray>
-    ): Flow<ByteArray> {
-        return cacheClient.connect { connection ->
-            val removedEntities = getValues(connection, removed).toSet()
+        crossinline getValues: (Type) -> Flow<ByteArray>
+    ): Flow<ByteArray> = flow {
+        val removedEntities = getValues(removed).toSet()
 
-            listOf(getValues(connection, stored), getValues(connection, added))
-                .merge()
-                .distinctUntilChanged()
-                .filter { it !in removedEntities }
-        }
+        listOf(getValues(stored), getValues(added))
+            .merge()
+            .distinctUntilChanged()
+            .filter { it !in removedEntities }
+            .collect { emit(it) }
     }
 
     /**
      * Returns all members of the set linked to the given type and id.
-     * @param connection Redis connection.
      * @param type Type of the data to get the members of.
      * @param id ID of the set.
      * @return Flow of all members of the set.
      */
     private fun getAllMembers(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         type: Type,
         id: String
-    ): Flow<ByteArray> = connection.smembers(encodeFormattedKeyUsingPrefix(type.key, id))
+    ): Flow<ByteArray> = flow {
+        val members = cacheClient.connect {
+            it.smembers(encodeFormattedKeyUsingPrefix(type.key, id))
+        }
+        emitAll(members)
+    }
 
     /**
      * Returns all values linked to the existing keys of the given types.
-     * @param connection Redis connection.
      * @param type Type of the keys to get the values of.
      * @return Flow of all values.
      */
-    private fun getAllKeyValues(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        type: Type,
-    ): Flow<ByteArray> = flow {
+    private fun getAllKeyValues(type: Type): Flow<ByteArray> = flow {
         val searchPattern = prefixKey.format("*") + type.key
         val scanArgs = KeyScanArgs.Builder.matches(searchPattern)
-        var cursor = connection.scan(scanArgs)
 
-        while (cursor != null && currentCoroutineContext().isActive) {
-            val keys = cursor.keys
-            if (keys.isEmpty()) break
+        cacheClient.connect { connection ->
+            var cursor = connection.scan(scanArgs)
+            while (cursor != null && currentCoroutineContext().isActive) {
+                val keys = cursor.keys
+                if (keys.isEmpty()) break
 
-            emitAll(connection.mget(*keys.toTypedArray()).map { it.value })
-            if (cursor.isFinished) break
+                emitAll(connection.mget(*keys.toTypedArray()).map { it.value })
+                if (cursor.isFinished) break
 
-            cursor = connection.scan(cursor, scanArgs)
+                cursor = connection.scan(cursor, scanArgs)
+            }
         }
     }
 
