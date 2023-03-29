@@ -399,7 +399,7 @@ public class FriendCacheService(
         friend: UUID,
         type: Type
     ): Boolean {
-        val key = encodeFormatKey(type.key, uuid.toString())
+        val key = encodeFormattedKeyUsingPrefix(type.key, uuid.toString())
         val value = encodeToByteArray(UUIDSerializer, friend)
         return connection.sismember(key, value) == true
     }
@@ -421,7 +421,7 @@ public class FriendCacheService(
         if (friends.isEmpty()) return true
 
         val size = friends.size
-        val key = encodeFormatKey(type.key, uuid.toString())
+        val key = encodeFormattedKeyUsingPrefix(type.key, uuid.toString())
         val friendsSerialized = friends.asSequence().map { encodeToByteArray(UUIDSerializer, it) }.toTypedArray(size)
 
         val result = connection.sadd(key, *friendsSerialized)
@@ -442,7 +442,7 @@ public class FriendCacheService(
         friend: UUID,
         type: Type
     ): Boolean {
-        val key = encodeFormatKey(type.key, uuid.toString())
+        val key = encodeFormattedKeyUsingPrefix(type.key, uuid.toString())
         val value = encodeToByteArray(UUIDSerializer, friend)
         val result = connection.srem(key, value)
         return result != null && result > 0
@@ -484,7 +484,7 @@ public class FriendCacheService(
         uuid: UUID,
         type: Type
     ): Flow<UUID> {
-        val key = encodeFormatKey(type.key, uuid.toString())
+        val key = encodeFormattedKeyUsingPrefix(type.key, uuid.toString())
         return connection.smembers(key).mapNotNull { member ->
             decodeFromByteArrayOrNull(UUIDSerializer, member)
         }
@@ -503,7 +503,7 @@ public class FriendCacheService(
         type: Type
     ): Boolean {
         return cacheClient.connect {
-            it.del(encodeFormatKey(type.key, uuid.toString()))
+            it.del(encodeFormattedKeyUsingPrefix(type.key, uuid.toString()))
             add(it, uuid, friends, type)
         }
     }
