@@ -464,10 +464,10 @@ public class GuildCacheService(
                 getAllKeyValues(Type.GUILD),
                 getAllKeyValues(Type.ADD_GUILD)
             ).merge()
-                .distinctUntilChanged()
                 .mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }
                 .filter { it.name == name && it.id !in removedGuilds }
-                .collect { emit(it) }
+                .distinctUntilChanged()
+                .let { emitAll(it) }
         }
     }
 
@@ -535,6 +535,7 @@ public class GuildCacheService(
             Type.REMOVE_MEMBER
         ) { type -> getAllMembers(type, idString) }
             .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
+            .distinctUntilChanged()
     }
 
     override fun getInvited(guildId: Int): Flow<String> {
@@ -545,6 +546,7 @@ public class GuildCacheService(
             Type.REMOVE_INVITATION,
         ) { type -> getAllMembers(type, idString) }
             .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
+            .distinctUntilChanged()
     }
 
     /**
@@ -609,9 +611,8 @@ public class GuildCacheService(
 
         listOf(getValues(stored), getValues(added))
             .merge()
-            .distinctUntilChanged()
             .filter { it !in removedEntities }
-            .collect { emit(it) }
+            .let { emitAll(it) }
     }
 
     /**
