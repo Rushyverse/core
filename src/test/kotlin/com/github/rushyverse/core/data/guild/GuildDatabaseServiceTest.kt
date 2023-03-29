@@ -11,7 +11,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.assertThrows
@@ -70,7 +69,7 @@ class GuildDatabaseServiceTest {
             fun `when owner is not owner of a guild`() = runTest {
                 val guild = service.createGuild(getRandomString(), getRandomString())
                 val guilds = getAllGuilds()
-                assertThat(guilds).containsExactly(guild)
+                assertContentEquals(listOf(guild), guilds)
             }
 
             @Test
@@ -80,7 +79,7 @@ class GuildDatabaseServiceTest {
                 assertNotEquals(guild.id, guild2.id)
 
                 val guilds = getAllGuilds()
-                assertThat(guilds).containsExactly(guild, guild2)
+                assertContentEquals(listOf(guild, guild2), guilds)
             }
 
             @Test
@@ -92,7 +91,7 @@ class GuildDatabaseServiceTest {
                 val guild2 = service.createGuild(getRandomString(), entity)
 
                 val guilds = getAllGuilds()
-                assertThat(guilds).containsExactly(guild, guild2)
+                assertContentEquals(listOf(guild, guild2), guilds)
             }
 
             @ParameterizedTest
@@ -115,7 +114,7 @@ class GuildDatabaseServiceTest {
                 assertNotEquals(guild.id, guild2.id)
 
                 val guilds = getAllGuilds()
-                assertThat(guilds).containsExactly(guild, guild2)
+                assertContentEquals(listOf(guild, guild2), guilds)
             }
 
             @ParameterizedTest
@@ -136,13 +135,15 @@ class GuildDatabaseServiceTest {
         fun `when guild exists`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
             assertTrue { service.deleteGuild(guild.id) }
-            assertThat(getAllGuilds()).isEmpty()
+            val guilds = getAllGuilds()
+            assertEquals(0, guilds.size)
         }
 
         @Test
         fun `when guild does not exist`() = runTest {
             assertFalse { service.deleteGuild(0) }
-            assertThat(getAllGuilds()).isEmpty()
+            val guilds = getAllGuilds()
+            assertEquals(0, guilds.size)
         }
 
     }
@@ -329,9 +330,9 @@ class GuildDatabaseServiceTest {
                 assertTrue { service.addMember(guild.id, entityId) }
 
                 val members = getAllMembers()
-                assertEquals(1, members.size)
+                assertEquals(2, members.size)
 
-                val member = members.single()
+                val member = members[1]
                 assertEquals(guild.id, member.id.guildId)
                 assertEquals(entityId, member.id.entityId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), member.createdAt.truncatedTo(ChronoUnit.MINUTES))
@@ -382,7 +383,7 @@ class GuildDatabaseServiceTest {
             assertFalse { service.addMember(guild.id, entityId) }
 
             val members = service.getMembers(guild.id).toList()
-            assertThat(members).containsExactlyInAnyOrder(owner, entityId)
+            assertContentEquals(listOf(owner, entityId), members)
         }
 
         @Test
@@ -392,7 +393,7 @@ class GuildDatabaseServiceTest {
             assertFalse { service.addMember(guild.id, guild.ownerId) }
 
             val members = service.getMembers(guild.id).toList()
-            assertThat(members).containsExactlyInAnyOrder(owner)
+            assertContentEquals(listOf(owner), members)
         }
 
         @Test
@@ -790,7 +791,7 @@ class GuildDatabaseServiceTest {
             membersToAdd.forEach { service.addMember(guild.id, it) }
 
             val members = service.getMembers(guild.id).toList()
-            assertThat(members).containsExactlyInAnyOrderElementsOf(membersToAdd + owner)
+            assertContentEquals(listOf(owner) + membersToAdd, members)
         }
 
         @Test
@@ -800,13 +801,13 @@ class GuildDatabaseServiceTest {
             service.addInvitation(guild.id, getRandomString(), null)
 
             val members = service.getMembers(guild.id).toList()
-            assertThat(members).containsExactlyInAnyOrder(owner)
+            assertContentEquals(listOf(owner), members)
         }
 
         @Test
         fun `when guild does not exist`() = runTest {
             val members = service.getMembers(0).toList()
-            assertThat(members).isEmpty()
+            assertContentEquals(emptyList(), members)
         }
     }
 
