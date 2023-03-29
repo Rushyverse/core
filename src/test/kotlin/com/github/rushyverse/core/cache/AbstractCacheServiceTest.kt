@@ -68,11 +68,11 @@ class AbstractCacheServiceTest {
             }
 
             val encodedKey = cacheService.function()
-            val resultKey = cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), encodedKey)
-
+            val resultKey = encodedKey.decodeToString()
             assertEquals(key, resultKey)
+
             val binaryFormat = cacheClient.binaryFormat
-            verify(exactly = 1) { binaryFormat.encodeToByteArray(String.serializer(), key) }
+            verify(exactly = 0) { binaryFormat.encodeToByteArray(String.serializer(), any()) }
         }
 
         @Test
@@ -83,11 +83,11 @@ class AbstractCacheServiceTest {
             }
 
             val encodedKey = cacheService.function()
-            val resultKey = cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), encodedKey)
-
+            val resultKey = encodedKey.decodeToString()
             assertEquals(prefixKey, resultKey)
+
             val binaryFormat = cacheClient.binaryFormat
-            verify(exactly = 1) { binaryFormat.encodeToByteArray(String.serializer(), prefixKey) }
+            verify(exactly = 0) { binaryFormat.encodeToByteArray(String.serializer(), any()) }
         }
 
         @Test
@@ -97,11 +97,11 @@ class AbstractCacheServiceTest {
             }
 
             val encodedKey = cacheService.function()
-            val resultKey = cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), encodedKey)
-
+            val resultKey = encodedKey.decodeToString()
             assertEquals("", resultKey)
+
             val binaryFormat = cacheClient.binaryFormat
-            verify(exactly = 1) { binaryFormat.encodeToByteArray(String.serializer(), "") }
+            verify(exactly = 0) { binaryFormat.encodeToByteArray(String.serializer(), any()) }
         }
 
         @Test
@@ -127,11 +127,11 @@ class AbstractCacheServiceTest {
             val expected = "$prefixKey:$key"
 
             val encodedKey = cacheService.function()
-            val resultKey = cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), encodedKey)
-
+            val resultKey = encodedKey.decodeToString()
             assertEquals(expected, resultKey)
+
             val binaryFormat = cacheClient.binaryFormat
-            verify(exactly = 1) { binaryFormat.encodeToByteArray(String.serializer(), expected) }
+            verify(exactly = 0) { binaryFormat.encodeToByteArray(String.serializer(), any()) }
         }
 
         @Test
@@ -145,11 +145,11 @@ class AbstractCacheServiceTest {
             val expected = "$prefixKey:$user:$key"
 
             val encodedKey = cacheService.function()
-            val resultKey = cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), encodedKey)
-
+            val resultKey = encodedKey.decodeToString()
             assertEquals(expected, resultKey)
+
             val binaryFormat = cacheClient.binaryFormat
-            verify(exactly = 1) { binaryFormat.encodeToByteArray(String.serializer(), expected) }
+            verify(exactly = 0) { binaryFormat.encodeToByteArray(String.serializer(), any()) }
         }
 
         @Test
@@ -164,11 +164,11 @@ class AbstractCacheServiceTest {
             val expected = "$prefixKey:$user:$guild:$key"
 
             val encodedKey = cacheService.function()
-            val resultKey = cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), encodedKey)
-
+            val resultKey = encodedKey.decodeToString()
             assertEquals(expected, resultKey)
+
             val binaryFormat = cacheClient.binaryFormat
-            verify(exactly = 1) { binaryFormat.encodeToByteArray(String.serializer(), expected) }
+            verify(exactly = 0) { binaryFormat.encodeToByteArray(String.serializer(), any()) }
         }
 
         @Test
@@ -177,16 +177,17 @@ class AbstractCacheServiceTest {
             val key = getRandomString()
             val prefixKey = getRandomString()
             val cacheService = object : AbstractCacheService(cacheClient, "$prefixKey:%s:") {
-                fun function() = encodeFormattedKeyUsingPrefix(key, argsFormat = arrayOf(user, getRandomString(), getRandomString()))
+                fun function() =
+                    encodeFormattedKeyUsingPrefix(key, argsFormat = arrayOf(user, getRandomString(), getRandomString()))
             }
             val expected = "$prefixKey:$user:$key"
 
             val encodedKey = cacheService.function()
-            val resultKey = cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), encodedKey)
-
+            val resultKey = encodedKey.decodeToString()
             assertEquals(expected, resultKey)
+
             val binaryFormat = cacheClient.binaryFormat
-            verify(exactly = 1) { binaryFormat.encodeToByteArray(String.serializer(), expected) }
+            verify(exactly = 0) { binaryFormat.encodeToByteArray(String.serializer(), any()) }
         }
 
     }
@@ -202,11 +203,11 @@ class AbstractCacheServiceTest {
             }
 
             val encodedKey = cacheService.function()
-            val resultKey = cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), encodedKey)
-
+            val resultKey = encodedKey.decodeToString()
             assertEquals(key, resultKey)
+
             val binaryFormat = cacheClient.binaryFormat
-            verify(exactly = 1) { binaryFormat.encodeToByteArray(String.serializer(), key) }
+            verify(exactly = 0) { binaryFormat.encodeToByteArray(String.serializer(), key) }
         }
 
         @Test
@@ -217,11 +218,11 @@ class AbstractCacheServiceTest {
             }
 
             val encodedKey = cacheService.function()
-            val resultKey = cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), encodedKey)
-
+            val resultKey = encodedKey.decodeToString()
             assertEquals(prefixKey, resultKey)
+
             val binaryFormat = cacheClient.binaryFormat
-            verify(exactly = 1) { binaryFormat.encodeToByteArray(String.serializer(), prefixKey) }
+            verify(exactly = 0) { binaryFormat.encodeToByteArray(String.serializer(), any()) }
         }
 
         @Test
@@ -231,11 +232,11 @@ class AbstractCacheServiceTest {
             }
 
             val encodedKey = cacheService.function()
-            val resultKey = cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), encodedKey)
-
+            val resultKey = encodedKey.decodeToString()
             assertEquals("", resultKey)
+
             val binaryFormat = cacheClient.binaryFormat
-            verify(exactly = 1) { binaryFormat.encodeToByteArray(String.serializer(), "") }
+            verify(exactly = 0) { binaryFormat.encodeToByteArray(String.serializer(), any()) }
         }
 
         @Test
@@ -248,12 +249,11 @@ class AbstractCacheServiceTest {
             val expected = "$prefixKey$key"
 
             val encodedKey = cacheService.function()
-            val resultKey = cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), encodedKey)
-
+            val resultKey = encodedKey.decodeToString()
             assertEquals(expected, resultKey)
 
             val binaryFormat = cacheClient.binaryFormat
-            verify(exactly = 1) { binaryFormat.encodeToByteArray(String.serializer(), expected) }
+            verify(exactly = 0) { binaryFormat.encodeToByteArray(String.serializer(), any()) }
         }
 
     }
@@ -358,7 +358,7 @@ class AbstractCacheServiceTest {
             val binaryFormat = cacheClient.binaryFormat
 
             val key = getRandomString()
-            val encodeKey = binaryFormat.encodeToByteArray(String.serializer(), key)
+            val encodeKey = key.encodeToByteArray()
 
             val value = getRandomString()
             val encodeValue = binaryFormat.encodeToByteArray(String.serializer(), value)
@@ -390,7 +390,7 @@ class AbstractCacheServiceTest {
             val binaryFormat = cacheClient.binaryFormat
 
             val key = getRandomString()
-            val encodeKey = binaryFormat.encodeToByteArray(String.serializer(), key)
+            val encodeKey = key.encodeToByteArray()
 
             val value = getRandomString()
             val encodeValue = binaryFormat.encodeToByteArray(String.serializer(), value)
