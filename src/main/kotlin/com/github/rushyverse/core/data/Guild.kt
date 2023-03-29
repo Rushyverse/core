@@ -635,23 +635,19 @@ public class GuildCacheService(
     private fun getAllKeyValues(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         type: Type,
-    ): Flow<ByteArray> {
-        val searchPattern =
-            prefixKey.format("*") + type.key
+    ): Flow<ByteArray> = flow {
+        val searchPattern = prefixKey.format("*") + type.key
+        val scanArgs = KeyScanArgs.Builder.matches(searchPattern)
+        var cursor = connection.scan(scanArgs)
 
-        return flow {
-            val scanArgs = KeyScanArgs.Builder.matches(searchPattern)
-            var cursor = connection.scan(scanArgs)
+        while (cursor != null && currentCoroutineContext().isActive) {
+            val keys = cursor.keys
+            if (keys.isEmpty()) break
 
-            while (cursor != null && currentCoroutineContext().isActive) {
-                val keys = cursor.keys
-                if (keys.isEmpty()) break
+            emitAll(connection.mget(*keys.toTypedArray()).map { it.value })
+            if (cursor.isFinished) break
 
-                emitAll(connection.mget(*keys.toTypedArray()).map { it.value })
-                if (cursor.isFinished) break
-
-                cursor = connection.scan(cursor, scanArgs)
-            }
+            cursor = connection.scan(cursor, scanArgs)
         }
     }
 
