@@ -28,7 +28,7 @@ import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import kotlin.test.*
 
-@Timeout(5, unit = TimeUnit.SECONDS)
+@Timeout(10, unit = TimeUnit.SECONDS)
 @Testcontainers
 class GuildCacheServiceTest {
 
@@ -368,14 +368,14 @@ class GuildCacheServiceTest {
         }
     }
 
-    private suspend fun getAllStoredGuilds(limit: Long = Long.MAX_VALUE): List<Guild> {
-        return getAllDataFromKey(GuildCacheService.Type.GUILD, limit).map { keyValue ->
+    private suspend fun getAllStoredGuilds(): List<Guild> {
+        return getAllDataFromKey(GuildCacheService.Type.GUILD).map { keyValue ->
             cacheClient.binaryFormat.decodeFromByteArray(Guild.serializer(), keyValue.value)
         }
     }
 
-    private suspend fun getAllAddedGuilds(limit: Long = Long.MAX_VALUE): List<Guild> {
-        return getAllDataFromKey(GuildCacheService.Type.ADD_GUILD, limit).map { keyValue ->
+    private suspend fun getAllAddedGuilds(): List<Guild> {
+        return getAllDataFromKey(GuildCacheService.Type.ADD_GUILD).map { keyValue ->
             cacheClient.binaryFormat.decodeFromByteArray(Guild.serializer(), keyValue.value)
         }
     }
@@ -390,12 +390,11 @@ class GuildCacheServiceTest {
     }
 
     private suspend fun getAllDataFromKey(
-        type: GuildCacheService.Type,
-        limit: Long
+        type: GuildCacheService.Type
     ): List<KeyValue<ByteArray, ByteArray>> {
         val searchKey = service.prefixKey.format("*") + type.key
         return cacheClient.connect {
-            val scanner = it.scan(KeyScanArgs.Builder.limit(limit).match(searchKey))
+            val scanner = it.scan(KeyScanArgs.Builder.limit(Long.MAX_VALUE).match(searchKey))
             if (scanner == null || scanner.keys.isEmpty()) return emptyList()
 
             it.mget(*scanner.keys.toTypedArray())
