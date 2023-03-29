@@ -458,7 +458,10 @@ public class GuildCacheService(
                 .toSet()
 
             // If optimization is needed, we can store the guild by name too
-            getAllKeyValues(connection, listOf(Type.GUILD, Type.ADD_GUILD))
+            listOf(
+                getAllKeyValues(connection, Type.GUILD),
+                getAllKeyValues(connection, Type.ADD_GUILD)
+            ).merge()
                 .distinctUntilChanged()
                 .mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }
                 .filter { it.name == name && it.id !in removedGuilds }
@@ -626,15 +629,15 @@ public class GuildCacheService(
     /**
      * Returns all values linked to the existing keys of the given types.
      * @param connection Redis connection.
-     * @param types Types of the keys to get the values of.
+     * @param type Type of the keys to get the values of.
      * @return Flow of all values.
      */
     private fun getAllKeyValues(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        types: List<Type>,
+        type: Type,
     ): Flow<ByteArray> {
         val searchPattern =
-            prefixKey.format("*") + types.joinToString(prefix = "[", separator = "|", postfix = "]*") { it.key }
+            prefixKey.format("*") + type.key
 
         return flow {
             val scanArgs = KeyScanArgs.Builder.matches(searchPattern)
