@@ -13,6 +13,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
+import org.komapper.core.dsl.operator.literal
 import org.komapper.r2dbc.R2dbcDatabase
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -23,6 +24,11 @@ import kotlin.random.nextInt
  * Exception thrown when an entity is invited to a guild, but is already a member.
  */
 public class GuildInvitedIsAlreadyMemberException(reason: String?) : IllegalArgumentException(reason)
+
+/**
+ * Exception thrown when a member is added to a guild, but it's the owner.
+ */
+public class GuildMemberIsOwnerOfGuildException(reason: String?) : IllegalArgumentException(reason)
 
 /**
  * Data class for guilds.
@@ -224,6 +230,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
 
     public companion object {
         private const val INVITED_IS_ALREADY_MEMBER_EXCEPTION_CODE = "P1000"
+        private const val MEMBER_IS_OWNER_OF_GUILD_EXCEPTION_CODE = "P1001"
     }
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
@@ -284,11 +291,19 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
             .onDuplicateKeyIgnore()
             .single(member)
 
-        return database.runQuery(query) > 0
+        return try {
+            database.runQuery(query) > 0
+        } catch (e: R2dbcException) {
+            throw when (e.sqlState) {
+                MEMBER_IS_OWNER_OF_GUILD_EXCEPTION_CODE -> GuildMemberIsOwnerOfGuildException(e.message)
+                else -> e
+            }
+        }
     }
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
         requireEntityIdNotBlank(entityId)
+        expiredAt?.let { requireExpiredAtAfterNow(it) }
 
         val invite = GuildInvite(
             GuildMemberIds(guildId, entityId),
@@ -313,12 +328,23 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     override suspend fun isMember(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
-        val meta = _GuildMember.guildMember
-        val ids = meta.id
-        val query = QueryDsl.from(meta).where {
-            ids.guildId eq guildId
-            ids.entityId eq entityId
-        }
+        val guildMeta = _Guild.guild
+
+        val guildMemberMeta = _GuildMember.guildMember
+        val ids = guildMemberMeta.id
+
+        val query = QueryDsl.from(guildMeta).leftJoin(guildMemberMeta) {
+            guildMeta.id eq ids.guildId
+        }.where {
+            guildMeta.id eq guildId
+            and {
+                guildMeta.ownerId eq entityId
+                or {
+                    ids.entityId eq entityId
+                }
+            }
+        }.select(literal(1))
+
         return database.runQuery(query).firstOrNull() != null
     }
 
@@ -330,7 +356,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         val query = QueryDsl.from(meta).where {
             ids.guildId eq guildId
             ids.entityId eq entityId
-        }
+        }.select(literal(1))
         return database.runQuery(query).firstOrNull() != null
     }
 
@@ -359,11 +385,19 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override fun getMembers(guildId: Int): Flow<String> {
-        val meta = _GuildMember.guildMember
-        val ids = meta.id
-        val query = QueryDsl.from(meta).where {
-            ids.guildId eq guildId
-        }.select(ids.entityId)
+        val guildMeta = _Guild.guild
+        val memberMeta = _GuildMember.guildMember
+        val ids = memberMeta.id
+
+        val query = QueryDsl.from(guildMeta).where {
+            guildMeta.id eq guildId
+        }.select(guildMeta.ownerId)
+            .union(
+                QueryDsl.from(memberMeta).where {
+                    ids.guildId eq guildId
+                }.select(ids.entityId)
+            )
+
         return database.flowQuery(query).filterNotNull()
     }
 
@@ -744,4 +778,12 @@ private fun requireGuildNameNotBlank(guildName: String) {
  */
 private fun requireOwnerIdNotBlank(ownerId: String) {
     require(ownerId.isNotBlank()) { "Owner ID cannot be blank" }
+}
+
+/**
+ * Check if the expired at is after now.
+ * @param expiredAt Instant when the entity expires.
+ */
+private fun requireExpiredAtAfterNow(expiredAt: Instant) {
+    require(expiredAt.isAfter(Instant.now())) { "Expired at must be after now" }
 }
