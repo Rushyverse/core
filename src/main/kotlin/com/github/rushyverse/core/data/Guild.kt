@@ -6,7 +6,9 @@ import com.github.rushyverse.core.serializer.InstantSerializer
 import io.lettuce.core.KeyScanArgs
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.r2dbc.spi.R2dbcException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import org.komapper.annotation.*
@@ -14,7 +16,6 @@ import org.komapper.core.dsl.QueryDsl
 import org.komapper.r2dbc.R2dbcDatabase
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.*
 import kotlin.random.Random
 import kotlin.random.nextInt
 
@@ -438,7 +439,7 @@ public class GuildCacheService(
     override suspend fun getGuild(id: Int): Guild? {
         val idString = id.toString()
         return cacheClient.connect { connection ->
-            // TODO use transaction https://github.com/lettuce-io/lettuce-core/issues/2371
+            // Unable to use transaction because of https://github.com/lettuce-io/lettuce-core/issues/2371
             val guild =
                 connection.get(encodeFormattedKeyUsingPrefix(Type.GUILD.key, idString))
                     ?: connection.get(encodeFormattedKeyUsingPrefix(Type.ADD_GUILD.key, idString))
@@ -456,11 +457,8 @@ public class GuildCacheService(
                 .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
                 .toSet()
 
-            // TODO : Use better scan including GUILD and ADD_GUILD keys
-            listOf(
-                getAllKeyValues(connection, Type.GUILD, Long.MAX_VALUE),
-                getAllKeyValues(connection, Type.ADD_GUILD, Long.MAX_VALUE)
-            ).merge()
+            // If optimization is needed, we can store the guild by name too
+            getAllKeyValues(connection, listOf(Type.GUILD, Type.ADD_GUILD))
                 .distinctUntilChanged()
                 .mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }
                 .filter { it.name == name && it.id !in removedGuilds }
@@ -626,22 +624,32 @@ public class GuildCacheService(
     ): Flow<ByteArray> = connection.smembers(encodeFormattedKeyUsingPrefix(type.key, id))
 
     /**
-     * Returns all keys of the given type.
+     * Returns all values linked to the existing keys of the given types.
      * @param connection Redis connection.
-     * @param type Type of the keys.
-     * @return Flow of all keys of the given type.
+     * @param types Types of the keys to get the values of.
+     * @return Flow of all values.
      */
-    private suspend fun getAllKeyValues(
+    private fun getAllKeyValues(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        type: Type,
-        limit: Long
+        types: List<Type>,
     ): Flow<ByteArray> {
-        val searchKey = prefixKey.format("*") + type.key
-        val scanner = connection.scan(KeyScanArgs.Builder.limit(limit).match(searchKey)) ?: return emptyFlow()
-        val keys = scanner.keys
-        if (keys.isEmpty()) return emptyFlow()
+        val searchPattern =
+            prefixKey.format("*") + types.joinToString(prefix = "[", separator = "|", postfix = "]*") { it.key }
 
-        return connection.mget(*keys.toTypedArray()).map { it.value }
+        return flow {
+            val scanArgs = KeyScanArgs.Builder.matches(searchPattern)
+            var cursor = connection.scan(scanArgs)
+
+            while (cursor != null && currentCoroutineContext().isActive) {
+                val keys = cursor.keys
+                if (keys.isEmpty()) break
+
+                emitAll(connection.mget(*keys.toTypedArray()).map { it.value })
+                if (cursor.isFinished) break
+
+                cursor = connection.scan(cursor, scanArgs)
+            }
+        }
     }
 
     /**
