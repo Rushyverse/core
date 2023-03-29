@@ -22,7 +22,7 @@ import kotlin.random.nextInt
 /**
  * Exception thrown when an entity is invited to a guild, but is already a member.
  */
-public class GuildInvitedIsAlreadyMemberException(reason: String?) : R2dbcException(reason)
+public class GuildInvitedIsAlreadyMemberException(reason: String?) : IllegalArgumentException(reason)
 
 /**
  * Data class for guilds.
@@ -56,6 +56,21 @@ public data class GuildMemberIds(
     public val entityId: String,
 )
 
+/**
+ * Interface for guild invites.
+ * @property entityId ID of the entity.
+ * @property expiredAt Timestamp of when the invite expires.
+ */
+public interface IGuildInvite {
+    public val entityId: String
+    public val expiredAt: Instant?
+}
+
+/**
+ * Database definition for guild invites.
+ * @property id IDs of the data.
+ * @property createdAt Timestamp of when the invite was created.
+ */
 @KomapperEntity
 @KomapperTable("guild_invite")
 @KomapperManyToOne(Guild::class, "guild")
@@ -64,8 +79,22 @@ public data class GuildInvite(
     val id: GuildMemberIds,
     @KomapperCreatedAt
     val createdAt: Instant,
-    val expiredAt: Instant?,
-)
+    override val expiredAt: Instant?,
+) : IGuildInvite {
+
+    override val entityId: String
+        get() = id.entityId
+}
+
+/**
+ * Cache definition for guild invites.
+ */
+@Serializable
+public data class CacheGuildInvite(
+    override val entityId: String,
+    @Serializable(with = InstantSerializer::class)
+    override val expiredAt: Instant?,
+) : IGuildInvite
 
 /**
  * Database definition for guild members.
@@ -514,7 +543,15 @@ public class GuildCacheService(
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
         requireEntityIdNotBlank(entityId)
-        return addEntity(guildId, entityId, Type.ADD_INVITATION)
+
+        val key = encodeFormattedKeyUsingPrefix(Type.ADD_INVITATION.key, guildId.toString())
+
+        val invite = CacheGuildInvite(entityId, expiredAt)
+        val result = cacheClient.connect { connection ->
+            connection.sadd(key, encodeToByteArray(CacheGuildInvite.serializer(), invite))
+        }
+
+        return result != null && result > 0
     }
 
     override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
