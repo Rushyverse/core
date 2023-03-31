@@ -281,10 +281,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     override suspend fun addMember(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
-        val member = GuildMember(
-            GuildMemberIds(guildId, entityId),
-            database.config.clockProvider.now().instant()
-        )
+        val member = GuildMember(GuildMemberIds(guildId, entityId), Instant.EPOCH)
 
         val query = QueryDsl.insert(_GuildMember.guildMember)
             .onDuplicateKeyIgnore()
@@ -298,12 +295,19 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
 
         val invite = GuildInvite(
             GuildMemberIds(guildId, entityId),
-            database.config.clockProvider.now().instant(),
+            Instant.EPOCH,
             expiredAt
         )
 
-        val query = QueryDsl.insert(_GuildInvite.guildInvite)
-            .onDuplicateKeyIgnore()
+        val meta = _GuildInvite.guildInvite
+        val query = QueryDsl.insert(meta)
+            .onDuplicateKeyUpdate()
+            .set {
+                it.expiredAt eq invite.expiredAt
+            }
+            .where {
+                meta.expiredAt notEq invite.expiredAt
+            }
             .single(invite)
 
         return try {
