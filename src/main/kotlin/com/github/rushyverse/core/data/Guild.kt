@@ -9,6 +9,7 @@ import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import org.komapper.annotation.*
@@ -62,6 +63,7 @@ public data class GuildMemberIds(
  * @property expiredAt Timestamp of when the invite expires.
  */
 public interface IGuildInvite {
+    public val guildId: Int
     public val entityId: String
     public val expiredAt: Instant?
 }
@@ -82,6 +84,9 @@ public data class GuildInvite(
     override val expiredAt: Instant?,
 ) : IGuildInvite {
 
+    override val guildId: Int
+        get() = id.guildId
+
     override val entityId: String
         get() = id.entityId
 }
@@ -91,6 +96,7 @@ public data class GuildInvite(
  */
 @Serializable
 public data class CacheGuildInvite(
+    override val guildId: Int,
     override val entityId: String,
     @Serializable(with = InstantSerializer::class)
     override val expiredAt: Instant?,
@@ -457,13 +463,10 @@ public class GuildCacheService(
      * @param guildId Guild ID.
      * @return `true` if guild is marked as deleted, `false` otherwise.
      */
-    private suspend fun isGuildDeleted(
+    private suspend fun isDeletedGuild(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         guildId: Int
-    ): Boolean {
-        val key = encodeKeyUsingPrefixCommon(Type.REMOVE_GUILD)
-        return connection.sismember(key, encodeToByteArray(Int.serializer(), guildId)) == true
-    }
+    ): Boolean = isValueOfSet(connection, encodeKeyUsingPrefixCommon(Type.REMOVE_GUILD), guildId, Int.serializer())
 
     override suspend fun getGuild(id: Int): Guild? {
         val idString = id.toString()
@@ -474,7 +477,7 @@ public class GuildCacheService(
                     ?: connection.get(encodeFormattedKeyUsingPrefix(Type.ADD_GUILD.key, idString))
                     ?: return@connect null
 
-            if (isGuildDeleted(connection, id)) null else guild
+            if (isDeletedGuild(connection, id)) null else guild
         }?.let { decodeFromByteArrayOrNull(Guild.serializer(), it) }
     }
 
@@ -547,7 +550,7 @@ public class GuildCacheService(
 
         val key = encodeFormattedKeyUsingPrefix(Type.ADD_INVITATION.key, guildId.toString())
 
-        val invite = CacheGuildInvite(entityId, expiredAt)
+        val invite = CacheGuildInvite(guildId, entityId, expiredAt)
         val result = cacheClient.connect { connection ->
             connection.sadd(key, encodeToByteArray(CacheGuildInvite.serializer(), invite))
         }
@@ -614,26 +617,9 @@ public class GuildCacheService(
         val guildIdString = guildId.toString()
         val entityIdEncoded = encodeToByteArray(String.serializer(), entityId)
         // TODO : Optimize with a single query using EVAL
-        return isMember(connection, guildIdString, stored, entityIdEncoded)
-                || isMember(connection, guildIdString, added, entityIdEncoded)
-                && !isMember(connection, guildIdString, removed, entityIdEncoded)
-    }
-
-    /**
-     * Check if an entity is present in the set linked to the given type and id.
-     * @param connection Redis connection.
-     * @param guildId ID of the guild.
-     * @param type Type of the data where the entity can be present.
-     * @param entityIdEncoded Encoded ID of the entity.
-     * @return `true` if the entity is present, `false` otherwise.
-     */
-    private suspend fun isMember(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        guildId: String,
-        type: Type,
-        entityIdEncoded: ByteArray
-    ): Boolean {
-        return connection.sismember(encodeFormattedKeyUsingPrefix(type.key, guildId), entityIdEncoded) ?: false
+        return isValueOfSet(connection, encodeFormattedKeyUsingPrefix(stored.key, guildIdString), entityIdEncoded)
+                || isValueOfSet(connection, encodeFormattedKeyUsingPrefix(added.key, guildIdString), entityIdEncoded)
+                && !isValueOfSet(connection, encodeFormattedKeyUsingPrefix(removed.key, guildIdString), entityIdEncoded)
     }
 
     /**
@@ -659,6 +645,21 @@ public class GuildCacheService(
             .let { emitAll(it) }
     }
 
+    private suspend fun <T> isValueOfSet(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        cacheKey: ByteArray,
+        entity: T,
+        serializer: KSerializer<T>,
+    ): Boolean = isValueOfSet(connection, cacheKey, encodeToByteArray(serializer, entity))
+
+    private suspend fun isValueOfSet(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        cacheKey: ByteArray,
+        value: ByteArray,
+    ): Boolean {
+        return connection.sismember(cacheKey, value) == true
+    }
+
     /**
      * Returns all members of the set linked to the given type and id.
      * @param type Type of the data to get the members of.
@@ -669,10 +670,9 @@ public class GuildCacheService(
         type: Type,
         id: String
     ): Flow<ByteArray> = flow {
-        val members = cacheClient.connect {
-            it.smembers(encodeFormattedKeyUsingPrefix(type.key, id))
+        cacheClient.connect { connection ->
+            emitAll(connection.smembers(encodeFormattedKeyUsingPrefix(type.key, id)))
         }
-        emitAll(members)
     }
 
     /**
