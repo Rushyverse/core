@@ -12,7 +12,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import org.komapper.annotation.*
+import org.komapper.annotation.KomapperEmbeddedId
+import org.komapper.annotation.KomapperEntity
+import org.komapper.annotation.KomapperTable
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.expression.WhereDeclaration
 import org.komapper.core.dsl.operator.literal
@@ -62,14 +64,14 @@ public interface IFriendService {
      * @param uuid ID of the entity.
      * @return Set of IDs of the friends.
      */
-    public suspend fun getFriends(uuid: UUID): Flow<UUID>
+    public fun getFriends(uuid: UUID): Flow<UUID>
 
     /**
      * Get all the pending requests of an entity.
      * @param uuid ID of the entity.
      * @return Set of IDs of the pending requests.
      */
-    public suspend fun getPendingFriends(uuid: UUID): Flow<UUID>
+    public fun getPendingFriends(uuid: UUID): Flow<UUID>
 
     /**
      * Check if two entities are friends.
@@ -115,7 +117,7 @@ public interface IFriendCacheService : IFriendService {
      * @param type Type of data to retrieve.
      * @return Map of IDs to data.
      */
-    public suspend fun getAll(uuid: UUID, type: FriendCacheService.Type): Flow<UUID>
+    public fun getAll(uuid: UUID, type: FriendCacheService.Type): Flow<UUID>
 
 }
 
@@ -187,8 +189,8 @@ public data class Friend(
             val meta = _Friend.friend
             val uuid = meta.uuid
             val tableName = meta.tableName()
-            val uuid1Name = uuid.uuid1.columnName
-            val uuid2Name = uuid.uuid2.columnName
+            val uuid1Name = uuid.uuid1.name
+            val uuid2Name = uuid.uuid2.name
 
             database.withTransaction {
                 database.runQuery(QueryDsl.create(meta))
@@ -294,11 +296,11 @@ public class FriendCacheService(
         return addInFirstAndDeleteInSecondRelation(uuid, friend, Type.REMOVE_PENDING_FRIEND, Type.ADD_PENDING_FRIEND)
     }
 
-    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
+    override fun getFriends(uuid: UUID): Flow<UUID> {
         return mergeFirstAndSecondThenRemoveThirdRelation(uuid, Type.FRIENDS, Type.ADD_FRIEND, Type.REMOVE_FRIEND)
     }
 
-    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
+    override fun getPendingFriends(uuid: UUID): Flow<UUID> {
         return mergeFirstAndSecondThenRemoveThirdRelation(
             uuid,
             Type.PENDING_FRIENDS,
@@ -335,9 +337,13 @@ public class FriendCacheService(
         )
     }
 
-    override suspend fun getAll(uuid: UUID, type: Type): Flow<UUID> {
-        return cacheClient.connect { connection ->
-            getAll(connection, uuid, type)
+    override fun getAll(uuid: UUID, type: Type): Flow<UUID> = flow {
+        val key = encodeFormatKey(type.key, uuid.toString())
+
+        cacheClient.connect { connection ->
+            connection.smembers(key)
+                .mapNotNull { decodeFromByteArrayOrNull(UUIDSerializer, it) }
+                .let { emitAll(it) }
         }
     }
 
@@ -399,7 +405,7 @@ public class FriendCacheService(
         friend: UUID,
         type: Type
     ): Boolean {
-        val key = encodeFormattedKeyUsingPrefix(type.key, uuid.toString())
+        val key = encodeFormatKey(type.key, uuid.toString())
         val value = encodeToByteArray(UUIDSerializer, friend)
         return connection.sismember(key, value) == true
     }
@@ -421,7 +427,7 @@ public class FriendCacheService(
         if (friends.isEmpty()) return true
 
         val size = friends.size
-        val key = encodeFormattedKeyUsingPrefix(type.key, uuid.toString())
+        val key = encodeFormatKey(type.key, uuid.toString())
         val friendsSerialized = friends.asSequence().map { encodeToByteArray(UUIDSerializer, it) }.toTypedArray(size)
 
         val result = connection.sadd(key, *friendsSerialized)
@@ -442,7 +448,7 @@ public class FriendCacheService(
         friend: UUID,
         type: Type
     ): Boolean {
-        val key = encodeFormattedKeyUsingPrefix(type.key, uuid.toString())
+        val key = encodeFormatKey(type.key, uuid.toString())
         val value = encodeToByteArray(UUIDSerializer, friend)
         val result = connection.srem(key, value)
         return result != null && result > 0
@@ -456,38 +462,19 @@ public class FriendCacheService(
      * @param removed Type where the members are removed.
      * @return Flow of the members of [uuid] for the given [list] and [added] merged without the elements in [removed].
      */
-    private suspend fun mergeFirstAndSecondThenRemoveThirdRelation(
+    private fun mergeFirstAndSecondThenRemoveThirdRelation(
         uuid: UUID,
         list: Type,
         added: Type,
         removed: Type
-    ): Flow<UUID> {
-        return cacheClient.connect { connection ->
-            val removedFriend = getAll(connection, uuid, removed).toSet()
+    ): Flow<UUID> = flow {
+        val removedFriend = getAll(uuid, removed).toSet()
 
-            listOf(getAll(connection, uuid, list), getAll(connection, uuid, added))
-                .merge()
-                .distinctUntilChanged()
-                .filter { it !in removedFriend }
-        }
-    }
-
-    /**
-     * Get all the members of [uuid] for the given [type].
-     * @param connection Redis connection.
-     * @param uuid UUID of the user.
-     * @param type Type where the members are stored.
-     * @return Flow of the members of [uuid] for the given [type].
-     */
-    private fun getAll(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        uuid: UUID,
-        type: Type
-    ): Flow<UUID> {
-        val key = encodeFormattedKeyUsingPrefix(type.key, uuid.toString())
-        return connection.smembers(key).mapNotNull { member ->
-            decodeFromByteArrayOrNull(UUIDSerializer, member)
-        }
+        listOf(getAll(uuid, list), getAll(uuid, added))
+            .merge()
+            .distinctUntilChanged()
+            .filter { it !in removedFriend }
+            .let { emitAll(it) }
     }
 
     /**
@@ -503,7 +490,7 @@ public class FriendCacheService(
         type: Type
     ): Boolean {
         return cacheClient.connect {
-            it.del(encodeFormattedKeyUsingPrefix(type.key, uuid.toString()))
+            it.del(encodeFormatKey(type.key, uuid.toString()))
             add(it, uuid, friends, type)
         }
     }
@@ -546,11 +533,11 @@ public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriend
         return removeAll(uuid, friends, true)
     }
 
-    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
+    override fun getFriends(uuid: UUID): Flow<UUID> {
         return getAll(uuid, false)
     }
 
-    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
+    override fun getPendingFriends(uuid: UUID): Flow<UUID> {
         return getAll(uuid, true)
     }
 

@@ -1,8 +1,6 @@
 package com.github.rushyverse.core.supplier.database
 
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.toSet
+import kotlinx.coroutines.flow.*
 import java.util.*
 
 /**
@@ -57,16 +55,16 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
+    override fun getFriends(uuid: UUID): Flow<UUID> = flow {
         val friends = supplier.getFriends(uuid).toSet()
         cache.setFriends(uuid, friends)
-        return friends.asFlow()
+        emitAll(friends.asFlow())
     }
 
-    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
+    override fun getPendingFriends(uuid: UUID): Flow<UUID> = flow {
         val requests = supplier.getPendingFriends(uuid).toSet()
         cache.setPendingFriends(uuid, requests)
-        return requests.asFlow()
+        emitAll(requests.asFlow())
     }
 
     override suspend fun isFriend(uuid: UUID, friend: UUID): Boolean {
