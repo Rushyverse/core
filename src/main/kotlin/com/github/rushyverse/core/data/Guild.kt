@@ -303,10 +303,17 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         val query = QueryDsl.insert(meta)
             .onDuplicateKeyUpdate()
             .set {
-                it.expiredAt eq invite.expiredAt
+                it.expiredAt eq expiredAt
             }
             .where {
-                meta.expiredAt notEq invite.expiredAt
+                if (expiredAt == null) {
+                    meta.expiredAt.isNotNull()
+                } else {
+                    meta.expiredAt.isNull()
+                    or {
+                        meta.expiredAt notEq expiredAt
+                    }
+                }
             }
             .single(invite)
 
@@ -353,6 +360,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
             ids.guildId eq guildId
             ids.entityId eq entityId
         }
+
         return database.runQuery(query) > 0
     }
 
