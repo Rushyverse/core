@@ -227,7 +227,7 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
-        fun  `when owner of several guilds`() = runTest {
+        fun `when owner of several guilds`() = runTest {
             val owner = getRandomString()
             val guild = service.createGuild(getRandomString(), owner)
             val guild2 = service.createGuild(getRandomString(), owner)
@@ -340,8 +340,8 @@ class GuildDatabaseServiceTest {
                 assertEquals(1, members.size)
 
                 val member = members.single()
-                assertEquals(guild.id, member.id.guildId)
-                assertEquals(entityId, member.id.entityId)
+                assertEquals(guild.id, member.guildId)
+                assertEquals(entityId, member.entityId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), member.createdAt.truncatedTo(ChronoUnit.MINUTES))
             }
 
@@ -363,8 +363,8 @@ class GuildDatabaseServiceTest {
                 assertEquals(1, members.size)
 
                 val member = members.single()
-                assertEquals(guild.id, member.id.guildId)
-                assertEquals(entityId, member.id.entityId)
+                assertEquals(guild.id, member.guildId)
+                assertEquals(entityId, member.entityId)
 
                 assertEquals(now.truncatedTo(chronoUnit), member.createdAt)
             }
@@ -458,10 +458,11 @@ class GuildDatabaseServiceTest {
                 assertEquals(1, invites.size)
 
                 val invite = invites.single()
-                assertEquals(guild.id, invite.id.guildId)
-                assertEquals(entityId, invite.id.entityId)
+                assertEquals(guild.id, invite.guildId)
+                assertEquals(entityId, invite.entityId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), invite.createdAt.truncatedTo(ChronoUnit.MINUTES))
             }
+
             @ParameterizedTest
             @EnumSource(value = ChronoUnit::class, names = ["DAYS", "HOURS", "MINUTES"])
             fun `should use clock provider of database`(chronoUnit: ChronoUnit) = runTest {
@@ -480,8 +481,8 @@ class GuildDatabaseServiceTest {
                 assertEquals(1, invites.size)
 
                 val invite = invites.single()
-                assertEquals(guild.id, invite.id.guildId)
-                assertEquals(entityId, invite.id.entityId)
+                assertEquals(guild.id, invite.guildId)
+                assertEquals(entityId, invite.entityId)
 
                 assertEquals(now.truncatedTo(chronoUnit), invite.createdAt)
             }
@@ -503,8 +504,8 @@ class GuildDatabaseServiceTest {
                 assertEquals(1, invites.size)
 
                 val invite = invites.single()
-                assertEquals(guild.id, invite.id.guildId)
-                assertEquals(entityId, invite.id.entityId)
+                assertEquals(guild.id, invite.guildId)
+                assertEquals(entityId, invite.entityId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), invite.createdAt.truncatedTo(ChronoUnit.MINUTES))
                 assertEquals(
                     expirationDate.truncatedTo(ChronoUnit.SECONDS),
@@ -523,8 +524,8 @@ class GuildDatabaseServiceTest {
                 assertEquals(1, invites.size)
 
                 val invite = invites.single()
-                assertEquals(guild.id, invite.id.guildId)
-                assertEquals(entityId, invite.id.entityId)
+                assertEquals(guild.id, invite.guildId)
+                assertEquals(entityId, invite.entityId)
                 assertEquals(now.truncatedTo(ChronoUnit.MINUTES), invite.createdAt.truncatedTo(ChronoUnit.MINUTES))
                 assertNull(invite.expiredAt)
             }
@@ -599,8 +600,8 @@ class GuildDatabaseServiceTest {
 
             val invites = getAllInvites()
             val invite = invites.single()
-            assertEquals(guild.id, invite.id.guildId)
-            assertEquals(entityId, invite.id.entityId)
+            assertEquals(guild.id, invite.guildId)
+            assertEquals(entityId, invite.entityId)
             assertEquals(expiredAt.truncatedTo(ChronoUnit.SECONDS), invite.expiredAt!!.truncatedTo(ChronoUnit.SECONDS))
         }
 
@@ -621,14 +622,17 @@ class GuildDatabaseServiceTest {
             val invites = getAllInvites()
             assertEquals(2, invites.size)
 
-            val inviteForEntity1 = invites.first { it.id.entityId == entityId }
-            assertEquals(guild.id, inviteForEntity1.id.guildId)
-            assertEquals(entityId, inviteForEntity1.id.entityId)
-            assertEquals(expiredAt.truncatedTo(ChronoUnit.SECONDS), inviteForEntity1.expiredAt!!.truncatedTo(ChronoUnit.SECONDS))
+            val inviteForEntity1 = invites.first { it.entityId == entityId }
+            assertEquals(guild.id, inviteForEntity1.guildId)
+            assertEquals(entityId, inviteForEntity1.entityId)
+            assertEquals(
+                expiredAt.truncatedTo(ChronoUnit.SECONDS),
+                inviteForEntity1.expiredAt!!.truncatedTo(ChronoUnit.SECONDS)
+            )
 
-            val inviteForEntity2 = invites.first { it.id.entityId == entityId2 }
-            assertEquals(guild.id, inviteForEntity2.id.guildId)
-            assertEquals(entityId2, inviteForEntity2.id.entityId)
+            val inviteForEntity2 = invites.first { it.entityId == entityId2 }
+            assertEquals(guild.id, inviteForEntity2.guildId)
+            assertEquals(entityId2, inviteForEntity2.entityId)
             assertNull(inviteForEntity2.expiredAt)
         }
 
@@ -641,6 +645,7 @@ class GuildDatabaseServiceTest {
             val guilds = getAllGuilds()
             assertEquals(0, guilds.size)
         }
+
         @ParameterizedTest
         @ValueSource(strings = ["", " ", "  ", "   "])
         fun `when entity id is blank`(id: String) = runTest {

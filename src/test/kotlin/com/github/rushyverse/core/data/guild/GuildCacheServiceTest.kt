@@ -2,9 +2,9 @@ package com.github.rushyverse.core.data.guild
 
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
-import com.github.rushyverse.core.data.CacheGuildInvite
 import com.github.rushyverse.core.data.Guild
 import com.github.rushyverse.core.data.GuildCacheService
+import com.github.rushyverse.core.data.GuildInvite
 import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.FlushMode
 import io.lettuce.core.KeyScanArgs
@@ -396,7 +396,7 @@ class GuildCacheServiceTest {
         }
 
         @Test
-        fun  `when owner of several guilds`() = runTest {
+        fun `when owner of several guilds`() = runTest {
             val owner = getRandomString()
             val guild = service.createGuild(getRandomString(), owner)
             val guild2 = service.createGuild(getRandomString(), owner)
@@ -557,7 +557,7 @@ class GuildCacheServiceTest {
             assertTrue { service.addInvitation(guild.id, entityId, null) }
 
             assertThat(getAllAddInvites(guild.id.toString())).containsExactly(
-                CacheGuildInvite(guild.id, entityId, null)
+                GuildInvite(guild.id, entityId, null)
             )
         }
 
@@ -581,7 +581,7 @@ class GuildCacheServiceTest {
 
             val invited = service.getInvited(guild.id).toList()
             assertThat(getAllAddInvites(guild.id.toString())).containsExactly(
-                CacheGuildInvite(guild.id, guild.ownerId, null)
+                GuildInvite(guild.id, guild.ownerId, null)
             )
         }
 
@@ -598,7 +598,7 @@ class GuildCacheServiceTest {
             assertContentEquals(listOf(entityId), invited)
 
             assertThat(getAllAddInvites(guild.id.toString())).containsExactly(
-                CacheGuildInvite(guild.id, entityId, expiredAt)
+                GuildInvite(guild.id, entityId, expiredAt)
             )
         }
 
@@ -637,15 +637,15 @@ class GuildCacheServiceTest {
         }.toList()
     }
 
-    private suspend fun getAllInvites(guildId: String = "*"): List<CacheGuildInvite> {
+    private suspend fun getAllInvites(guildId: String = "*"): List<GuildInvite> {
         return getAllValuesOfSet(GuildCacheService.Type.INVITATIONS, guildId).map {
-            cacheClient.binaryFormat.decodeFromByteArray(CacheGuildInvite.serializer(), it)
+            cacheClient.binaryFormat.decodeFromByteArray(GuildInvite.serializer(), it)
         }
     }
 
-    private suspend fun getAllAddInvites(guildId: String = "*"): List<CacheGuildInvite> {
+    private suspend fun getAllAddInvites(guildId: String = "*"): List<GuildInvite> {
         return getAllValuesOfSet(GuildCacheService.Type.ADD_INVITATION, guildId).map {
-            cacheClient.binaryFormat.decodeFromByteArray(CacheGuildInvite.serializer(), it)
+            cacheClient.binaryFormat.decodeFromByteArray(GuildInvite.serializer(), it)
         }
     }
 

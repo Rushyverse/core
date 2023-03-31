@@ -13,12 +13,12 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import org.komapper.annotation.*
+import org.komapper.core.DryRunDatabaseConfig.id
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.operator.literal
 import org.komapper.core.dsl.query.bind
 import org.komapper.r2dbc.R2dbcDatabase
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 import kotlin.random.Random
 import kotlin.random.nextInt
 
@@ -51,29 +51,8 @@ public data class Guild(
     val ownerId: String,
     @KomapperCreatedAt
     @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant,
+    val createdAt: Instant = Instant.EPOCH,
 )
-
-/**
- * ID class for guild members.
- * @property guildId ID of the guild.
- * @property entityId ID of the member.
- */
-public data class GuildMemberIds(
-    public val guildId: Int,
-    public val entityId: String,
-)
-
-/**
- * Interface for guild invites.
- * @property entityId ID of the entity.
- * @property expiredAt Timestamp of when the invite expires.
- */
-public interface IGuildInvite {
-    public val guildId: Int
-    public val entityId: String
-    public val expiredAt: Instant?
-}
 
 /**
  * Database definition for guild invites.
@@ -83,44 +62,35 @@ public interface IGuildInvite {
 @KomapperEntity
 @KomapperTable("guild_invite")
 @KomapperManyToOne(Guild::class, "guild")
-public data class GuildInvite(
-    @KomapperEmbeddedId
-    val id: GuildMemberIds,
-    @KomapperCreatedAt
-    val createdAt: Instant,
-    override val expiredAt: Instant?,
-) : IGuildInvite {
-
-    override val guildId: Int
-        get() = id.guildId
-
-    override val entityId: String
-        get() = id.entityId
-}
-
-/**
- * Cache definition for guild invites.
- */
 @Serializable
-public data class CacheGuildInvite(
-    override val guildId: Int,
-    override val entityId: String,
+public data class GuildInvite(
+    @KomapperId
+    val guildId: Int,
+    @KomapperId
+    val entityId: String,
     @Serializable(with = InstantSerializer::class)
-    override val expiredAt: Instant?,
-) : IGuildInvite
+    val expiredAt: Instant?,
+    @KomapperCreatedAt
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant = Instant.EPOCH,
+)
 
 @KomapperEntity
 @KomapperTable("guild_member")
 @KomapperManyToOne(Guild::class, "guild")
+@Serializable
 public data class GuildMember(
-    @KomapperEmbeddedId
-    val id: GuildMemberIds,
+    @KomapperId
+    val guildId: Int,
+    @KomapperId
+    val entityId: String,
     @KomapperCreatedAt
-    val createdAt: Instant,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant = Instant.EPOCH,
 )
 
 /**
- * View definition for guild members with the owner.
+ * SQL View definition for guild members with the owner.
  * @property guildId ID of the guild.
  * @property memberId ID of the member.
  * @property createdAt Timestamp of when the member was added.
@@ -255,7 +225,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         requireGuildNameNotBlank(name)
         requireOwnerIdNotBlank(ownerId)
 
-        val guild = Guild(0, name, ownerId, Instant.EPOCH)
+        val guild = Guild(0, name, ownerId)
         val query = QueryDsl.insert(_Guild.guild).single(guild)
         return database.runQuery(query)
     }
@@ -300,7 +270,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     override suspend fun addMember(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
-        val member = GuildMember(GuildMemberIds(guildId, entityId), Instant.EPOCH)
+        val member = GuildMember(guildId, entityId)
 
         val query = QueryDsl.insert(_GuildMember.guildMember)
             .onDuplicateKeyIgnore()
@@ -321,9 +291,10 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         expiredAt?.let { requireExpiredAtAfterNow(it) }
 
         val invite = GuildInvite(
-            GuildMemberIds(guildId, entityId),
-            Instant.EPOCH,
-            expiredAt
+            guildId,
+            entityId,
+            expiredAt,
+            Instant.EPOCH
         )
 
         val meta = _GuildInvite.guildInvite
@@ -370,10 +341,9 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         requireEntityIdNotBlank(entityId)
 
         val meta = _GuildInvite.guildInvite
-        val ids = meta.id
         val query = QueryDsl.from(meta).where {
-            ids.guildId eq guildId
-            ids.entityId eq entityId
+            meta.guildId eq guildId
+            meta.entityId eq entityId
         }.select(literal(1))
         return database.runQuery(query).firstOrNull() != null
     }
@@ -382,10 +352,9 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         requireEntityIdNotBlank(entityId)
 
         val meta = _GuildMember.guildMember
-        val ids = meta.id
         val query = QueryDsl.delete(meta).where {
-            ids.guildId eq guildId
-            ids.entityId eq entityId
+            meta.guildId eq guildId
+            meta.entityId eq entityId
         }
 
         return database.runQuery(query) > 0
@@ -395,10 +364,9 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         requireEntityIdNotBlank(entityId)
 
         val meta = _GuildInvite.guildInvite
-        val ids = meta.id
         val query = QueryDsl.delete(meta).where {
-            ids.guildId eq guildId
-            ids.entityId eq entityId
+            meta.guildId eq guildId
+            meta.entityId eq entityId
         }
         return database.runQuery(query) > 0
     }
@@ -415,10 +383,9 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
 
     override fun getInvited(guildId: Int): Flow<String> {
         val meta = _GuildInvite.guildInvite
-        val ids = meta.id
         val query = QueryDsl.from(meta).where {
-            ids.guildId eq guildId
-        }.select(ids.entityId)
+            meta.guildId eq guildId
+        }.select(meta.entityId)
         return database.flowQuery(query).filterNotNull()
     }
 
@@ -470,16 +437,12 @@ public class GuildCacheService(
         requireGuildNameNotBlank(name)
         requireOwnerIdNotBlank(ownerId)
 
-        /**
-         * Truncate to milliseconds to avoid precision loss with serialization.
-         */
-        val now = Instant.now().truncatedTo(ChronoUnit.MILLIS)
         var guild: Guild
         cacheClient.connect { connection ->
             do {
                 // Negative ID to avoid conflict with database ID generator
                 val id = Random.nextInt(RANGE_GUILD_ID)
-                guild = Guild(id, name, ownerId, now)
+                guild = Guild(id, name, ownerId)
                 val key = encodeFormattedKeyUsingPrefix(Type.ADD_GUILD.key, id.toString())
             } while (connection.setnx(key, encodeToByteArray(Guild.serializer(), guild)) != true)
         }
@@ -590,9 +553,9 @@ public class GuildCacheService(
 
         val key = encodeFormattedKeyUsingPrefix(Type.ADD_INVITATION.key, guildId.toString())
 
-        val invite = CacheGuildInvite(guildId, entityId, expiredAt)
+        val invite = GuildInvite(guildId, entityId, expiredAt)
         val result = cacheClient.connect { connection ->
-            connection.sadd(key, encodeToByteArray(CacheGuildInvite.serializer(), invite))
+            connection.sadd(key, encodeToByteArray(GuildInvite.serializer(), invite))
         }
 
         return result != null && result > 0
@@ -628,7 +591,7 @@ public class GuildCacheService(
         val now = Instant.now()
         listOf(getAllMembers(Type.INVITATIONS, idString), getAllMembers(Type.ADD_INVITATION, idString))
             .merge()
-            .mapNotNull { decodeFromByteArrayOrNull(CacheGuildInvite.serializer(), it) }
+            .mapNotNull { decodeFromByteArrayOrNull(GuildInvite.serializer(), it) }
             .filter { it.expiredAt == null || it.expiredAt.isAfter(now) }
             .map { it.entityId }
             .filter { it !in removedEntities }
