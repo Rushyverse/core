@@ -732,8 +732,9 @@ class GuildDatabaseServiceTest {
             val owner = getRandomString()
             val guild = service.createGuild(getRandomString(), owner)
             val entityId = getRandomString()
-            val entityId2 = getRandomString()
             service.addMember(guild.id, entityId)
+
+            val entityId2 = getRandomString()
             assertFalse { service.removeMember(guild.id, entityId2) }
 
             val members = service.getMembers(guild.id).toList()
