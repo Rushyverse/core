@@ -48,7 +48,7 @@ UNION ALL
 SELECT gm.guild_id as guild_id, gm.entity_id as member_id, gm.created_at as created_at
 FROM guild_member gm;
 
--- Function to check if member is is the owner of the guild
+-- Function to check if member is the owner of the guild
 CREATE OR REPLACE FUNCTION check_member_is_owner() RETURNS TRIGGER AS
 $$
 BEGIN
