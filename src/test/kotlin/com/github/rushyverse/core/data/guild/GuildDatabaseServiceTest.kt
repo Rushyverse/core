@@ -583,11 +583,44 @@ class GuildDatabaseServiceTest {
         fun `when entity is already invited`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
             val entityId = getRandomString()
+            val expiredAt = Instant.now().plusSeconds(10)
             assertTrue { service.addInvitation(guild.id, entityId, null) }
             assertFalse { service.addInvitation(guild.id, entityId, null) }
+            assertTrue { service.addInvitation(guild.id, entityId, expiredAt) }
 
-            val invited = service.getInvited(guild.id).toList()
-            assertContentEquals(listOf(entityId), invited)
+            val invites = getAllInvites()
+            val invite = invites.single()
+            assertEquals(guild.id, invite.id.guildId)
+            assertEquals(entityId, invite.id.entityId)
+            assertEquals(expiredAt.truncatedTo(ChronoUnit.SECONDS), invite.expiredAt!!.truncatedTo(ChronoUnit.SECONDS))
+        }
+
+        @Test
+        fun `when entity is already invited with another entity invited`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            val entityId2 = getRandomString()
+            val expiredAt = Instant.now().plusSeconds(10)
+
+            assertTrue { service.addInvitation(guild.id, entityId, null) }
+            assertTrue { service.addInvitation(guild.id, entityId2, null) }
+
+            assertFalse { service.addInvitation(guild.id, entityId, null) }
+
+            assertTrue { service.addInvitation(guild.id, entityId, expiredAt) }
+
+            val invites = getAllInvites()
+            assertEquals(2, invites.size)
+
+            val inviteForEntity1 = invites.first { it.id.entityId == entityId }
+            assertEquals(guild.id, inviteForEntity1.id.guildId)
+            assertEquals(entityId, inviteForEntity1.id.entityId)
+            assertEquals(expiredAt.truncatedTo(ChronoUnit.SECONDS), inviteForEntity1.expiredAt!!.truncatedTo(ChronoUnit.SECONDS))
+
+            val inviteForEntity2 = invites.first { it.id.entityId == entityId2 }
+            assertEquals(guild.id, inviteForEntity2.id.guildId)
+            assertEquals(entityId2, inviteForEntity2.id.entityId)
+            assertNull(inviteForEntity2.expiredAt)
         }
 
         @Test
