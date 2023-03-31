@@ -340,11 +340,11 @@ public class FriendCacheService(
     override fun getAll(uuid: UUID, type: Type): Flow<UUID> = flow {
         val key = encodeFormatKey(type.key, uuid.toString())
 
-        cacheClient.connect {
-            it.smembers(key)
-        }.mapNotNull { member ->
-            decodeFromByteArrayOrNull(UUIDSerializer, member)
-        }.let { emitAll(it) }
+        cacheClient.connect { connection ->
+            connection.smembers(key)
+                .mapNotNull { decodeFromByteArrayOrNull(UUIDSerializer, it) }
+                .let { emitAll(it) }
+        }
     }
 
     /**
