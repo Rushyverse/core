@@ -14,6 +14,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
+import org.komapper.core.dsl.operator.literal
+import org.komapper.core.dsl.query.bind
 import org.komapper.r2dbc.R2dbcDatabase
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -24,6 +26,11 @@ import kotlin.random.nextInt
  * Exception thrown when an entity is invited to a guild, but is already a member.
  */
 public class GuildInvitedIsAlreadyMemberException(reason: String?) : IllegalArgumentException(reason)
+
+/**
+ * Exception thrown when a member is added to a guild, but it's the owner.
+ */
+public class GuildMemberIsOwnerOfGuildException(reason: String?) : IllegalArgumentException(reason)
 
 /**
  * Data class for guilds.
@@ -102,11 +109,6 @@ public data class CacheGuildInvite(
     override val expiredAt: Instant?,
 ) : IGuildInvite
 
-/**
- * Database definition for guild members.
- * @property id ID of the guild and member.
- * @property createdAt Timestamp of when the member was added.
- */
 @KomapperEntity
 @KomapperTable("guild_member")
 @KomapperManyToOne(Guild::class, "guild")
@@ -115,6 +117,22 @@ public data class GuildMember(
     val id: GuildMemberIds,
     @KomapperCreatedAt
     val createdAt: Instant,
+)
+
+/**
+ * View definition for guild members with the owner.
+ * @property guildId ID of the guild.
+ * @property memberId ID of the member.
+ * @property createdAt Timestamp of when the member was added.
+ */
+@KomapperEntity
+@KomapperTable("guild_members_with_owner")
+public data class GuildMemberWithOwnerDef(
+    @KomapperId
+    public val guildId: Int,
+    @KomapperId
+    public val memberId: String,
+    public val createdAt: Instant,
 )
 
 public interface IGuildService {
@@ -230,6 +248,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
 
     public companion object {
         private const val INVITED_IS_ALREADY_MEMBER_EXCEPTION_CODE = "P1000"
+        private const val MEMBER_IS_OWNER_OF_GUILD_EXCEPTION_CODE = "P1001"
     }
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
@@ -287,11 +306,19 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
             .onDuplicateKeyIgnore()
             .single(member)
 
-        return database.runQuery(query) > 0
+        return try {
+            database.runQuery(query) > 0
+        } catch (e: R2dbcException) {
+            throw when (e.sqlState) {
+                MEMBER_IS_OWNER_OF_GUILD_EXCEPTION_CODE -> GuildMemberIsOwnerOfGuildException(e.message)
+                else -> e
+            }
+        }
     }
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
         requireEntityIdNotBlank(entityId)
+        expiredAt?.let { requireExpiredAtAfterNow(it) }
 
         val invite = GuildInvite(
             GuildMemberIds(guildId, entityId),
@@ -330,13 +357,13 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     override suspend fun isMember(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
-        val meta = _GuildMember.guildMember
-        val ids = meta.id
-        val query = QueryDsl.from(meta).where {
-            ids.guildId eq guildId
-            ids.entityId eq entityId
-        }
-        return database.runQuery(query).firstOrNull() != null
+        val query = QueryDsl.executeTemplate(
+            """
+                SELECT is_member(/*guild*/0, /*entity*/'');
+            """.trimIndent()
+        ).bind("guild", guildId).bind("entity", entityId)
+
+        return database.runQuery(query) == 1L
     }
 
     override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
@@ -347,7 +374,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
         val query = QueryDsl.from(meta).where {
             ids.guildId eq guildId
             ids.entityId eq entityId
-        }
+        }.select(literal(1))
         return database.runQuery(query).firstOrNull() != null
     }
 
@@ -377,11 +404,12 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override fun getMembers(guildId: Int): Flow<String> {
-        val meta = _GuildMember.guildMember
-        val ids = meta.id
+        val meta = _GuildMemberWithOwnerDef.guildMemberWithOwnerDef
+
         val query = QueryDsl.from(meta).where {
-            ids.guildId eq guildId
-        }.select(ids.entityId)
+            meta.guildId eq guildId
+        }.select(meta.memberId)
+
         return database.flowQuery(query).filterNotNull()
     }
 
