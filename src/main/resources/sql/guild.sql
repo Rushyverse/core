@@ -94,7 +94,7 @@ EXECUTE PROCEDURE delete_invite();
 -- Create a function to check if the entity is a member of the guild
 -- First parameter is the guild id
 -- Second parameter is the entity id
--- Returns true if the entity is a member of the guild, false otherwise
+-- Returns a table with 1 if the entity is a member of the guild, an empty table otherwise
 CREATE OR REPLACE FUNCTION is_member(guild INTEGER, entity VARCHAR(50))
     RETURNS TABLE
             (
