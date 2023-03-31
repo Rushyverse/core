@@ -40,6 +40,14 @@ CREATE TABLE guild_invite
 -- Add index on expired_at to be able to delete expired invites
 CREATE INDEX idx_guild_invite_expired_at ON guild_invite (expired_at);
 
+-- Create view to get guilds with members with owner
+CREATE OR REPLACE VIEW guild_members_with_owner AS
+SELECT g.id as guild_id, g.owner_id as member_id, g.created_at as created_at
+FROM guild g
+UNION ALL
+SELECT gm.guild_id as guild_id, gm.entity_id as member_id, gm.created_at as created_at
+FROM guild_member gm;
+
 -- Function to check if member is is the owner of the guild
 CREATE OR REPLACE FUNCTION check_member_is_owner() RETURNS TRIGGER AS
 $$
@@ -58,7 +66,7 @@ END
 $$ LANGUAGE plpgsql;
 
 -- Trigger to check if member is is the owner of the guild before adding a member to a guild
-CREATE TRIGGER check_member_is_owner_trigger
+CREATE OR REPLACE TRIGGER check_member_is_owner_trigger
     BEFORE INSERT
     ON guild_member
     FOR EACH ROW
@@ -77,11 +85,30 @@ END
 $$ LANGUAGE plpgsql;
 
 -- Trigger to delete invite if member joins guild
-CREATE TRIGGER delete_invite_trigger
+CREATE OR REPLACE TRIGGER delete_invite_trigger
     AFTER INSERT
     ON guild_member
     FOR EACH ROW
 EXECUTE PROCEDURE delete_invite();
+
+-- Create a function to check if the entity is a member of the guild
+-- First parameter is the guild id
+-- Second parameter is the entity id
+-- Returns true if the entity is a member of the guild, false otherwise
+CREATE OR REPLACE FUNCTION is_member(guild INTEGER, entity VARCHAR(50))
+    RETURNS TABLE
+            (
+                is_member INTEGER
+            )
+AS
+$$
+BEGIN
+    RETURN QUERY (SELECT 1
+                  FROM guild_members_with_owner g
+                  WHERE g.guild_id = guild
+                    AND g.member_id = entity);
+END
+$$ LANGUAGE plpgsql;
 
 -- Function to check if member is already in guild
 -- If member is already in guild, do not insert invite
@@ -89,10 +116,7 @@ EXECUTE PROCEDURE delete_invite();
 CREATE OR REPLACE FUNCTION check_existing_member() RETURNS TRIGGER AS
 $$
 BEGIN
-    IF EXISTS(SELECT 1
-              FROM guild_members_with_owner g
-              WHERE g.id = NEW.guild_id
-                AND g.member_id = NEW.entity_id) THEN
+    IF EXISTS(SELECT 1 FROM is_member(NEW.guild_id, NEW.entity_id)) THEN
         RAISE EXCEPTION USING
             ERRCODE = 'P1000',
             MESSAGE = 'The entity cannot be invited to the guild because he is already a member of it';
@@ -103,7 +127,7 @@ END
 $$ LANGUAGE plpgsql;
 
 -- Trigger to check if member is already in guild
-CREATE TRIGGER check_existing_member_trigger
+CREATE OR REPLACE TRIGGER check_existing_member_trigger
     BEFORE INSERT
     ON guild_invite
     FOR EACH ROW
@@ -124,16 +148,8 @@ $$ LANGUAGE plpgsql;
 
 -- Trigger to delete expired invites
 -- Will be executed after a transaction is committed
-CREATE TRIGGER delete_expired_invite_trigger
+CREATE OR REPLACE TRIGGER delete_expired_invite_trigger
     AFTER INSERT OR UPDATE
     ON guild_invite
     FOR EACH STATEMENT
 EXECUTE PROCEDURE delete_expired_invite();
-
--- Create view to get guilds with members with owner
-CREATE OR REPLACE VIEW guild_members_with_owner AS
-SELECT g.id as guild_id, g.owner_id as member_id, g.created_at as created_at
-FROM guild g
-UNION ALL
-SELECT gm.guild_id as guild_id, gm.entity_id as member_id, gm.created_at as created_at
-FROM guild_member gm;
