@@ -132,8 +132,8 @@ EXECUTE PROCEDURE delete_expired_invite();
 
 -- Create view to get guilds with members with owner
 CREATE OR REPLACE VIEW guild_members_with_owner AS
-SELECT g.id, g.owner_id as member_id, g.created_at
+SELECT g.id as guild_id, g.owner_id as member_id, g.created_at
 FROM guild g
 UNION ALL
-SELECT gm.guild_id, gm.entity_id as member_id, gm.created_at
+SELECT gm.guild_id as guild_id, gm.entity_id as member_id, gm.created_at
 FROM guild_member gm;
