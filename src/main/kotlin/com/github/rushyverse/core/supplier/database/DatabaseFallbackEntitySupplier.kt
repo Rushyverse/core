@@ -39,13 +39,13 @@ public class DatabaseFallbackEntitySupplier(
         return setPriority.removePendingFriend(uuid, friend)
     }
 
-    override suspend fun getFriends(uuid: UUID): Flow<UUID> {
+    override fun getFriends(uuid: UUID): Flow<UUID> {
         return getPriority.getFriends(uuid).onEmpty {
             emitAll(setPriority.getFriends(uuid))
         }
     }
 
-    override suspend fun getPendingFriends(uuid: UUID): Flow<UUID> {
+    override fun getPendingFriends(uuid: UUID): Flow<UUID> {
         return getPriority.getPendingFriends(uuid).onEmpty {
             emitAll(setPriority.getPendingFriends(uuid))
         }
