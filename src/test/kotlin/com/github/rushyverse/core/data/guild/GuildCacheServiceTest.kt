@@ -557,7 +557,7 @@ class GuildCacheServiceTest {
             assertTrue { service.addInvitation(guild.id, entityId, null) }
 
             assertThat(getAllAddInvites(guild.id.toString())).containsExactly(
-                CacheGuildInvite(entityId, null)
+                CacheGuildInvite(guild.id, entityId, null)
             )
         }
 
@@ -581,7 +581,7 @@ class GuildCacheServiceTest {
 
             val invited = service.getInvited(guild.id).toList()
             assertThat(getAllAddInvites(guild.id.toString())).containsExactly(
-                CacheGuildInvite(guild.ownerId, null)
+                CacheGuildInvite(guild.id, guild.ownerId, null)
             )
         }
 
@@ -589,11 +589,17 @@ class GuildCacheServiceTest {
         fun `when entity is already invited`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
             val entityId = getRandomString()
+            val expiredAt = Instant.now().plusSeconds(10)
             assertTrue { service.addInvitation(guild.id, entityId, null) }
             assertFalse { service.addInvitation(guild.id, entityId, null) }
+            assertTrue { service.addInvitation(guild.id, entityId, expiredAt) }
 
             val invited = service.getInvited(guild.id).toList()
             assertContentEquals(listOf(entityId), invited)
+
+            assertThat(getAllAddInvites(guild.id.toString())).containsExactly(
+                CacheGuildInvite(guild.id, entityId, expiredAt)
+            )
         }
 
         @Test
@@ -670,8 +676,8 @@ class GuildCacheServiceTest {
     private suspend fun getAllValuesOfSet(type: GuildCacheService.Type, guildId: String = "*"): List<ByteArray> {
         val searchKey = service.prefixKey.format(guildId) + type.key
         return cacheClient.connect {
-            it.smembers(searchKey.encodeToByteArray())
-        }.toList()
+            it.smembers(searchKey.encodeToByteArray()).toList()
+        }
     }
 
     private suspend fun getAllDataFromKey(
@@ -682,7 +688,7 @@ class GuildCacheServiceTest {
             val scanner = it.scan(KeyScanArgs.Builder.limit(Long.MAX_VALUE).match(searchKey))
             if (scanner == null || scanner.keys.isEmpty()) return emptyList()
 
-            it.mget(*scanner.keys.toTypedArray())
-        }.toList()
+            it.mget(*scanner.keys.toTypedArray()).toList()
+        }
     }
 }
