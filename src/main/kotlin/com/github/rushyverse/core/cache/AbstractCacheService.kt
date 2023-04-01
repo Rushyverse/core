@@ -47,7 +47,7 @@ public abstract class AbstractCacheService(
      * @return [String] corresponding to the key using the [prefixKey] and [key].
      */
     protected open fun formattedKeyWithPrefix(key: String, vararg argsFormat: String): String {
-        return prefixKey.format(*argsFormat) + key
+        return (prefixKey + key).format(*argsFormat)
     }
 
     /**
