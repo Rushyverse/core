@@ -77,7 +77,7 @@ class GuildCacheServiceTest {
             fun `when owner is not owner of a guild`() = runTest {
                 val guild = service.createGuild(getRandomString(), getRandomString())
                 assertThat(getAllAddedGuilds()).containsExactly(guild)
-                assertThat(getAllStoredGuilds()).isEmpty()
+                assertThat(getAllImportedGuilds()).isEmpty()
                 assertThat(getAllDeletedGuilds()).isEmpty()
             }
 
@@ -89,7 +89,7 @@ class GuildCacheServiceTest {
 
                 val guilds = getAllAddedGuilds()
                 assertThat(guilds).containsExactlyInAnyOrder(guild, guild2)
-                assertThat(getAllStoredGuilds()).isEmpty()
+                assertThat(getAllImportedGuilds()).isEmpty()
                 assertThat(getAllDeletedGuilds()).isEmpty()
             }
 
@@ -103,7 +103,7 @@ class GuildCacheServiceTest {
 
                 val guilds = getAllAddedGuilds()
                 assertThat(guilds).containsExactlyInAnyOrder(guild, guild2)
-                assertThat(getAllStoredGuilds()).isEmpty()
+                assertThat(getAllImportedGuilds()).isEmpty()
                 assertThat(getAllDeletedGuilds()).isEmpty()
             }
 
@@ -128,7 +128,7 @@ class GuildCacheServiceTest {
 
                 val guilds = getAllAddedGuilds()
                 assertThat(guilds).containsExactlyInAnyOrder(guild, guild2)
-                assertThat(getAllStoredGuilds()).isEmpty()
+                assertThat(getAllImportedGuilds()).isEmpty()
                 assertThat(getAllDeletedGuilds()).isEmpty()
             }
 
@@ -152,7 +152,7 @@ class GuildCacheServiceTest {
 
             val addedIds: List<Int> = getAllAddedGuilds().map { it.id }
             assertThat(idsCreated).containsExactlyInAnyOrderElementsOf(addedIds)
-            assertThat(getAllStoredGuilds()).isEmpty()
+            assertThat(getAllImportedGuilds()).isEmpty()
             assertThat(getAllDeletedGuilds()).isEmpty()
         }
 
@@ -162,7 +162,7 @@ class GuildCacheServiceTest {
     inner class DeleteGuild {
 
         @Nested
-        inner class GuildOnlyInGuild {
+        inner class WithCacheGuild {
 
             @Test
             fun `when guild exists`() = runTest {
@@ -170,15 +170,15 @@ class GuildCacheServiceTest {
                 assertTrue { service.deleteGuild(guild.id) }
                 assertThat(getAllAddedGuilds()).isEmpty()
                 assertThat(getAllDeletedGuilds()).isEmpty()
-                assertThat(getAllStoredGuilds()).isEmpty()
+                assertThat(getAllImportedGuilds()).isEmpty()
             }
 
             @Test
             fun `when guild does not exist`() = runTest {
                 assertFalse { service.deleteGuild(0) }
                 assertThat(getAllAddedGuilds()).isEmpty()
-                assertThat(getAllDeletedGuilds()).containsExactly(0)
-                assertThat(getAllStoredGuilds()).isEmpty()
+                assertThat(getAllDeletedGuilds()).isEmpty()
+                assertThat(getAllImportedGuilds()).isEmpty()
             }
 
             @Test
@@ -187,9 +187,9 @@ class GuildCacheServiceTest {
                 val guild2 = service.createGuild(getRandomString(), getRandomString())
 
                 assertTrue { service.deleteGuild(guild.id) }
-                assertThat(getAllAddedGuilds()).containsExactlyInAnyOrder(guild, guild2)
-                assertThat(getAllDeletedGuilds()).containsExactly(guild.id)
-                assertThat(getAllStoredGuilds()).isEmpty()
+                assertThat(getAllAddedGuilds()).containsExactlyInAnyOrder(guild2)
+                assertThat(getAllDeletedGuilds()).isEmpty()
+                assertThat(getAllImportedGuilds()).isEmpty()
             }
 
             @Test
@@ -200,7 +200,7 @@ class GuildCacheServiceTest {
 
                 assertThat(getAllAddedGuilds()).isEmpty()
                 assertThat(getAllDeletedGuilds()).isEmpty()
-                assertThat(getAllStoredGuilds()).isEmpty()
+                assertThat(getAllImportedGuilds()).isEmpty()
             }
 
             @Test
@@ -252,13 +252,65 @@ class GuildCacheServiceTest {
             }
 
         }
+
+        @Nested
+        inner class WithImportedGuild {
+
+            @Test
+            fun `when guild exists`() = runTest {
+                val guild = Guild(0, getRandomString(), getRandomString())
+                service.importGuild(guild)
+                assertTrue { service.deleteGuild(guild.id) }
+                assertThat(getAllAddedGuilds()).isEmpty()
+                assertThat(getAllDeletedGuilds()).containsExactly(guild.id)
+                assertThat(getAllImportedGuilds()).containsExactly(guild)
+            }
+
+            @Test
+            fun `when guild does not exist`() = runTest {
+                assertFalse { service.deleteGuild(0) }
+                assertThat(getAllAddedGuilds()).isEmpty()
+                assertThat(getAllDeletedGuilds()).isEmpty()
+                assertThat(getAllImportedGuilds()).isEmpty()
+            }
+
+            @Test
+            fun `when another guild is deleted`() = runTest {
+                val guild = Guild(0, getRandomString(), getRandomString())
+                service.importGuild(guild)
+                val guild2 = Guild(1, getRandomString(), getRandomString())
+                service.importGuild(guild2)
+
+                assertTrue { service.deleteGuild(guild.id) }
+                assertThat(getAllAddedGuilds()).isEmpty()
+                assertThat(getAllDeletedGuilds()).containsExactly(guild.id)
+                assertThat(getAllImportedGuilds()).containsExactlyInAnyOrder(guild, guild2)
+            }
+
+            @Test
+            fun `when guild is already deleted`() = runTest {
+                val guild = Guild(0, getRandomString(), getRandomString())
+                service.importGuild(guild)
+                assertTrue { service.deleteGuild(guild.id) }
+                assertFalse { service.deleteGuild(guild.id) }
+
+                assertThat(getAllAddedGuilds()).isEmpty()
+                assertThat(getAllDeletedGuilds()).containsExactly(guild.id)
+                assertThat(getAllImportedGuilds()).containsExactly(guild)
+            }
+
+            @Test
+            fun `delete all linked data`() = runTest {
+                TODO("Delete data ?")
+            }
+        }
     }
 
     @Nested
     inner class GetGuildById {
 
         @Nested
-        inner class WithSavedState {
+        inner class WithImportedGuild {
 
             @Test
             fun `when guild is not deleted`() = runTest {
@@ -290,7 +342,7 @@ class GuildCacheServiceTest {
         }
 
         @Nested
-        inner class WithAddedState {
+        inner class WithCacheGuild {
 
             @Test
             fun `when guild is not deleted`() = runTest {
@@ -664,7 +716,7 @@ class GuildCacheServiceTest {
         }
     }
 
-    private suspend fun getAllStoredGuilds(): List<Guild> {
+    private suspend fun getAllImportedGuilds(): List<Guild> {
         return getAllDataFromKey(GuildCacheService.Type.IMPORT_GUILD).map { keyValue ->
             cacheClient.binaryFormat.decodeFromByteArray(Guild.serializer(), keyValue.value)
         }
