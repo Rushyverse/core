@@ -13,7 +13,6 @@ import io.lettuce.core.KeyValue
 import io.lettuce.core.RedisURI
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
@@ -957,7 +956,7 @@ class GuildCacheServiceTest {
             val entityId = getRandomString()
             assertTrue { service.addInvitation(guild.id, entityId, null) }
 
-            val invited = service.getInvited(guild.id).toList()
+            val invited = service.getInvitations(guild.id).toList()
             assertContentEquals(listOf(entityId), invited)
         }
 
@@ -982,8 +981,8 @@ class GuildCacheServiceTest {
             assertTrue { service.addInvitation(guild.id, entityId, null) }
             assertTrue { service.addInvitation(guild2.id, entityId, null) }
 
-            assertEquals(entityId, service.getInvited(guild.id).toList().single())
-            assertEquals(entityId, service.getInvited(guild2.id).toList().single())
+            assertEquals(entityId, service.getInvitations(guild.id).toList().single())
+            assertEquals(entityId, service.getInvitations(guild2.id).toList().single())
         }
 
         @Test
@@ -991,7 +990,7 @@ class GuildCacheServiceTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
             assertTrue { service.addInvitation(guild.id, guild.ownerId, null) }
 
-            val invited = service.getInvited(guild.id).toList()
+            val invited = service.getInvitations(guild.id).toList()
             assertThat(getAllAddInvites(guild.id.toString())).containsExactly(
                 GuildInvite(guild.id, guild.ownerId, null)
             )
@@ -1006,7 +1005,7 @@ class GuildCacheServiceTest {
             assertFalse { service.addInvitation(guild.id, entityId, null) }
             assertTrue { service.addInvitation(guild.id, entityId, expiredAt) }
 
-            val invited = service.getInvited(guild.id).toList()
+            val invited = service.getInvitations(guild.id).toList()
             assertContentEquals(listOf(entityId), invited)
 
             assertThat(getAllAddInvites(guild.id.toString())).containsExactly(
