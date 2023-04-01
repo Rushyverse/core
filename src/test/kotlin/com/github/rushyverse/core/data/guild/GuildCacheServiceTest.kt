@@ -687,9 +687,7 @@ class GuildCacheServiceTest {
 
     private suspend fun keyExists(type: GuildCacheService.Type, guildId: String): Boolean {
         val key = service.prefixKey.format(guildId) + type.key
-        return keyExists(key).apply {
-            println("Exists: $key = $this")
-        }
+        return keyExists(key)
     }
 
     private suspend fun keyExists(key: String): Boolean {
