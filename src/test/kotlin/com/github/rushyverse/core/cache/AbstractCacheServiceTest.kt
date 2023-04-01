@@ -64,7 +64,7 @@ class AbstractCacheServiceTest {
         fun `with empty prefix key should be the key`() {
             val key = getRandomString()
             val cacheService = object : AbstractCacheService(cacheClient, "") {
-                fun function() = encodeFormattedKeyUsingPrefix(key)
+                fun function() = encodeFormattedKeyWithPrefix(key)
             }
 
             val encodedKey = cacheService.function()
@@ -79,7 +79,7 @@ class AbstractCacheServiceTest {
         fun `with empty key should be the prefix key`() {
             val prefixKey = getRandomString()
             val cacheService = object : AbstractCacheService(cacheClient, prefixKey) {
-                fun function() = encodeFormattedKeyUsingPrefix("")
+                fun function() = encodeFormattedKeyWithPrefix("")
             }
 
             val encodedKey = cacheService.function()
@@ -93,7 +93,7 @@ class AbstractCacheServiceTest {
         @Test
         fun `with empty key and empty prefix key should be empty string`() {
             val cacheService = object : AbstractCacheService(cacheClient, "") {
-                fun function() = encodeFormattedKeyUsingPrefix("")
+                fun function() = encodeFormattedKeyWithPrefix("")
             }
 
             val encodedKey = cacheService.function()
@@ -109,7 +109,7 @@ class AbstractCacheServiceTest {
             val key = getRandomString()
             val prefixKey = getRandomString()
             val cacheService = object : AbstractCacheService(cacheClient, "$prefixKey:%s:") {
-                fun function() = encodeFormattedKeyUsingPrefix(key)
+                fun function() = encodeFormattedKeyWithPrefix(key)
             }
 
             assertThrows<MissingFormatArgumentException> {
@@ -122,7 +122,7 @@ class AbstractCacheServiceTest {
             val key = getRandomString()
             val prefixKey = getRandomString()
             val cacheService = object : AbstractCacheService(cacheClient, "$prefixKey:") {
-                fun function() = encodeFormattedKeyUsingPrefix(key)
+                fun function() = encodeFormattedKeyWithPrefix(key)
             }
             val expected = "$prefixKey:$key"
 
@@ -140,7 +140,7 @@ class AbstractCacheServiceTest {
             val key = getRandomString()
             val prefixKey = getRandomString()
             val cacheService = object : AbstractCacheService(cacheClient, "$prefixKey:%s:") {
-                fun function() = encodeFormattedKeyUsingPrefix(key, argsFormat = arrayOf(user))
+                fun function() = encodeFormattedKeyWithPrefix(key, argsFormat = arrayOf(user))
             }
             val expected = "$prefixKey:$user:$key"
 
@@ -159,7 +159,7 @@ class AbstractCacheServiceTest {
             val key = getRandomString()
             val prefixKey = getRandomString()
             val cacheService = object : AbstractCacheService(cacheClient, "$prefixKey:%s:%s:") {
-                fun function() = encodeFormattedKeyUsingPrefix(key, argsFormat = arrayOf(user, guild))
+                fun function() = encodeFormattedKeyWithPrefix(key, argsFormat = arrayOf(user, guild))
             }
             val expected = "$prefixKey:$user:$guild:$key"
 
@@ -178,7 +178,7 @@ class AbstractCacheServiceTest {
             val prefixKey = getRandomString()
             val cacheService = object : AbstractCacheService(cacheClient, "$prefixKey:%s:") {
                 fun function() =
-                    encodeFormattedKeyUsingPrefix(key, argsFormat = arrayOf(user, getRandomString(), getRandomString()))
+                    encodeFormattedKeyWithPrefix(key, argsFormat = arrayOf(user, getRandomString(), getRandomString()))
             }
             val expected = "$prefixKey:$user:$key"
 
@@ -199,7 +199,7 @@ class AbstractCacheServiceTest {
         fun `with empty prefix key should be the key`() {
             val key = getRandomString()
             val cacheService = object : AbstractCacheService(cacheClient, "") {
-                fun function() = encodeKeyUsingPrefix(key)
+                fun function() = encodeKeyWithPrefix(key)
             }
 
             val encodedKey = cacheService.function()
@@ -214,7 +214,7 @@ class AbstractCacheServiceTest {
         fun `with empty key should be the prefix key`() {
             val prefixKey = getRandomString()
             val cacheService = object : AbstractCacheService(cacheClient, prefixKey) {
-                fun function() = encodeKeyUsingPrefix("")
+                fun function() = encodeKeyWithPrefix("")
             }
 
             val encodedKey = cacheService.function()
@@ -228,7 +228,7 @@ class AbstractCacheServiceTest {
         @Test
         fun `with empty key and empty prefix key should be empty string`() {
             val cacheService = object : AbstractCacheService(cacheClient, "") {
-                fun function() = encodeKeyUsingPrefix("")
+                fun function() = encodeKeyWithPrefix("")
             }
 
             val encodedKey = cacheService.function()
@@ -244,7 +244,7 @@ class AbstractCacheServiceTest {
             val key = getRandomString()
             val prefixKey = getRandomString()
             val cacheService = object : AbstractCacheService(cacheClient, prefixKey) {
-                fun function() = encodeKeyUsingPrefix(key)
+                fun function() = encodeKeyWithPrefix(key)
             }
             val expected = "$prefixKey$key"
 

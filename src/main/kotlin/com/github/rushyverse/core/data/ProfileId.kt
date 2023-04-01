@@ -44,14 +44,14 @@ public class ProfileIdCacheService(
 ) : AbstractCacheService(client, prefixKey, expirationKey), IProfileIdCacheService {
 
     override suspend fun getIdByName(name: String): ProfileId? {
-        val key = encodeKeyUsingPrefix(name)
+        val key = encodeKeyWithPrefix(name)
         val dataSerial = cacheClient.connect { it.get(key) } ?: return null
         val uuid = decodeFromByteArrayOrNull(String.serializer(), dataSerial) ?: return null
         return ProfileId(id = uuid, name = name)
     }
 
     override suspend fun save(profile: ProfileId) {
-        val key = encodeKeyUsingPrefix(profile.name)
+        val key = encodeKeyWithPrefix(profile.name)
         val value = encodeToByteArray(String.serializer(), profile.id)
         cacheClient.connect {
             setWithExpiration(it, key, value)
