@@ -539,7 +539,7 @@ public class GuildCacheService(
         return if (isCacheGuild(id)) {
             deleteGuildData(id)
         } else {
-            addMarkGuildAsDeleted(id)
+            hasGuild(id) && addMarkGuildAsDeleted(id)
         }
     }
 
