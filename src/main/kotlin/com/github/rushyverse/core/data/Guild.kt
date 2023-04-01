@@ -539,7 +539,7 @@ public class GuildCacheService(
         return if (isCacheGuild(id)) {
             deleteGuildData(id)
         } else {
-            hasGuild(id) && addMarkGuildAsDeleted(id)
+            hasGuild(id) && deleteGuildData(id) && addMarkGuildAsDeleted(id)
         }
     }
 
@@ -726,7 +726,10 @@ public class GuildCacheService(
      * @param guildId Guild to delete.
      * @return `true` if at least one key was deleted, `false` otherwise.
      */
-    private suspend fun deleteGuildData(guildId: Int): Boolean {
+    private suspend fun deleteGuildData(
+        guildId: Int,
+        vararg types: Type
+    ): Boolean {
         val numberOfDeletion = flow {
             val searchPattern = formattedKeyWithPrefix("*", guildId.toString())
             // Will remove all keys :
@@ -743,11 +746,6 @@ public class GuildCacheService(
                     connection.del(it)
                 }
             }.let { emitAll(it) }
-
-            // Just for safety, remove mark as deleted
-            // Will remove the key :
-            // - guild:remove (id in set)
-            emit(if (removeMarkGuildAsDeleted(guildId)) 1L else null)
         }.filterNotNull().fold(0L) { acc, result -> acc + result }
 
         return numberOfDeletion > 0
@@ -868,7 +866,7 @@ public class GuildCacheService(
     private fun getAllKeyValues(type: Type): Flow<ByteArray> {
         val searchPattern = prefixKey.format("*") + type.key
         return scanKeys(searchPattern) { connection, keys ->
-            connection.mget(*keys.toTypedArray()).map { it.value }
+            connection.mget(*keys.toTypedArray()).filter { it.hasValue() }.map { it.value }
         }
     }
 
