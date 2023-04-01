@@ -23,14 +23,24 @@ import kotlin.random.Random
 import kotlin.random.nextInt
 
 /**
+ * Exception about guilds information.
+ */
+public open class GuildException(reason: String?) : Exception(reason)
+
+/**
+ * Exception thrown when a guild is not found.
+ */
+public open class GuildNotFoundException(reason: String?) : GuildException(reason)
+
+/**
  * Exception thrown when an entity is invited to a guild, but is already a member.
  */
-public class GuildInvitedIsAlreadyMemberException(reason: String?) : IllegalArgumentException(reason)
+public open class GuildInvitedIsAlreadyMemberException(reason: String?) : GuildException(reason)
 
 /**
  * Exception thrown when a member is added to a guild, but it's the owner.
  */
-public class GuildMemberIsOwnerOfGuildException(reason: String?) : IllegalArgumentException(reason)
+public open class GuildMemberIsOwnerOfGuildException(reason: String?) : GuildException(reason)
 
 /**
  * Data class for guilds.
@@ -408,6 +418,10 @@ public class GuildCacheService(
          * Range of possible ID to generate new guild.
          */
         val RANGE_GUILD_ID: IntRange = Int.MIN_VALUE until 0
+
+        fun isCacheGuildID(id: Int): Boolean {
+            return id in RANGE_GUILD_ID
+        }
     }
 
     public enum class Type(public val key: String) {
@@ -425,6 +439,10 @@ public class GuildCacheService(
     }
 
     override suspend fun saveGuild(guild: Guild): Boolean {
+        if (guild.id in RANGE_GUILD_ID) {
+            throw IllegalArgumentException("Guild ID cannot be between ${RANGE_GUILD_ID.first} and ${RANGE_GUILD_ID.last}")
+        }
+
         val result = cacheClient.connect {
             val key = encodeFormattedKeyUsingPrefix(Type.GUILD.key, guild.id.toString())
             it.set(key, encodeToByteArray(Guild.serializer(), guild))
@@ -451,6 +469,11 @@ public class GuildCacheService(
     }
 
     override suspend fun deleteGuild(id: Int): Boolean {
+        val guild = getGuild(id) ?: throw GuildNotFoundException("Unable to find guild with ID $id in cache")
+        if (isCacheGuildID(id)) {
+            return deleteAllGuildData(guild)
+        }
+
         val key = encodeKeyUsingPrefixCommon(Type.REMOVE_GUILD)
 
         val result = cacheClient.connect { connection ->
@@ -458,6 +481,34 @@ public class GuildCacheService(
         }
 
         return result != null && result > 0
+    }
+
+    /**
+     * Delete all data related to guild.
+     * Will delete the keys based on the [Guild.id].
+     * @param guild Guild to delete.
+     * @return `true` if at least one key was deleted, `false` otherwise.
+     */
+    private suspend fun deleteAllGuildData(guild: Guild): Boolean {
+        val searchPattern = prefixKey.format(guild.id.toString()) + "*"
+        val result = scanKeys(searchPattern) { connection, keys ->
+            keys.asFlow().map {
+                connection.del(it)
+            }
+        }.fold(0L) { acc, result -> acc + (result ?: 0) }
+
+        return result > 0
+    }
+
+    /**
+     * Check if guild exists in cache.
+     * If the guild does not exist, throw [GuildNotFoundException].
+     * @param id ID of guild to check.
+     */
+    private suspend fun checkHasGuild(id: Int) {
+        if (!hasGuild(id)) {
+            throw GuildNotFoundException("Unable to find guild with ID $id in cache")
+        }
     }
 
     /**
@@ -472,16 +523,35 @@ public class GuildCacheService(
     ): Boolean = isValueOfSet(connection, encodeKeyUsingPrefixCommon(Type.REMOVE_GUILD), guildId, Int.serializer())
 
     override suspend fun getGuild(id: Int): Guild? {
+        return getGuildSerializedIfNotDeleted(id)?.let {
+            decodeFromByteArrayOrNull(Guild.serializer(), it)
+        }
+    }
+
+    /**
+     * Check if guild exists in cache.
+     * @param id ID of guild to check.
+     * @return `true` if guild exists, `false` otherwise.
+     */
+    private suspend fun hasGuild(id: Int): Boolean {
+        return getGuildSerializedIfNotDeleted(id) != null
+    }
+
+    /**
+     * Get serialized guild if it is not marked as deleted.
+     * @param id ID of guild to get.
+     * @return Serialized guild if it exists and is not marked as deleted, `null` otherwise.
+     */
+    private suspend fun getGuildSerializedIfNotDeleted(id: Int): ByteArray? {
         val idString = id.toString()
         return cacheClient.connect { connection ->
-            // Unable to use transaction because of https://github.com/lettuce-io/lettuce-core/issues/2371
             val guild =
                 connection.get(encodeFormattedKeyUsingPrefix(Type.GUILD.key, idString))
                     ?: connection.get(encodeFormattedKeyUsingPrefix(Type.ADD_GUILD.key, idString))
                     ?: return@connect null
 
             if (isDeletedGuild(connection, id)) null else guild
-        }?.let { decodeFromByteArrayOrNull(Guild.serializer(), it) }
+        }
     }
 
     override fun getGuild(name: String): Flow<Guild> {
@@ -683,21 +753,10 @@ public class GuildCacheService(
      * @param type Type of the keys to get the values of.
      * @return Flow of all values.
      */
-    private fun getAllKeyValues(type: Type): Flow<ByteArray> = flow {
+    private fun getAllKeyValues(type: Type): Flow<ByteArray> {
         val searchPattern = prefixKey.format("*") + type.key
-        val scanArgs = KeyScanArgs.Builder.matches(searchPattern)
-
-        cacheClient.connect { connection ->
-            var cursor = connection.scan(scanArgs)
-            while (cursor != null && currentCoroutineContext().isActive) {
-                val keys = cursor.keys
-                if (keys.isEmpty()) break
-
-                emitAll(connection.mget(*keys.toTypedArray()).map { it.value })
-                if (cursor.isFinished) break
-
-                cursor = connection.scan(cursor, scanArgs)
-            }
+        return scanKeys(searchPattern) { connection, keys ->
+            connection.mget(*keys.toTypedArray()).map { it.value }
         }
     }
 

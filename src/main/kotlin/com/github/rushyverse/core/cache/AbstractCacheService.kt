@@ -1,6 +1,12 @@
 package com.github.rushyverse.core.cache
 
+import io.lettuce.core.KeyScanArgs
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerializationStrategy
 import kotlin.time.Duration
@@ -92,6 +98,31 @@ public abstract class AbstractCacheService(
             connection.psetex(key, expirationKey.inWholeMilliseconds, value)
         } else {
             connection.set(key, value)
+        }
+    }
+
+    /**
+     * Scan all keys matching the [pattern] and apply the [builder] function to each key.
+     * @param pattern Pattern to match.
+     * @param builder Function to emit a new flow to build the final flow.
+     * @return Flow of the result of the [builder] function.
+     */
+    protected inline fun <T> scanKeys(
+        pattern: String,
+        crossinline builder: (RedisCoroutinesCommands<ByteArray, ByteArray>, List<ByteArray>) -> Flow<T>
+    ): Flow<T> = flow {
+        val scanArgs = KeyScanArgs.Builder.matches(pattern)
+        cacheClient.connect { connection ->
+            var cursor = connection.scan(scanArgs)
+            while (cursor != null && currentCoroutineContext().isActive) {
+                val keys = cursor.keys
+                if (keys.isEmpty()) break
+
+                emitAll(builder(connection, keys))
+                if (cursor.isFinished) break
+
+                cursor = connection.scan(cursor, scanArgs)
+            }
         }
     }
 }
