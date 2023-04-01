@@ -145,6 +145,25 @@ class GuildDatabaseServiceTest {
             assertThat(getAllGuilds()).isEmpty()
         }
 
+        @Test
+        fun `when another guild is deleted`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val guild2 = service.createGuild(getRandomString(), getRandomString())
+
+            assertTrue { service.deleteGuild(guild.id) }
+            assertThat(getAllGuilds()).containsExactly(guild2)
+
+            assertTrue { service.deleteGuild(guild2.id) }
+            assertThat(getAllGuilds()).isEmpty()
+        }
+
+        @Test
+        fun `when guild is already deleted`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            assertTrue { service.deleteGuild(guild.id) }
+            assertFalse { service.deleteGuild(guild.id) }
+        }
+
     }
 
     @Nested
@@ -422,7 +441,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `when guild does not exist`() = runTest {
-            assertThrows<R2dbcDataIntegrityViolationException> {
+            assertThrows<GuildNotFoundException> {
                 service.addMember(0, getRandomString())
             }
 
@@ -638,7 +657,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `when guild does not exist`() = runTest {
-            assertThrows<R2dbcDataIntegrityViolationException> {
+            assertThrows<GuildNotFoundException> {
                 service.addInvitation(0, getRandomString(), null)
             }
 
