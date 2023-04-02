@@ -77,7 +77,13 @@ public data class GuildInvite(
     @KomapperCreatedAt
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant = Instant.EPOCH,
-)
+) {
+
+    public fun isExpired(): Boolean {
+        return expiredAt != null && expiredAt.isBefore(Instant.now())
+    }
+
+}
 
 @KomapperEntity
 @KomapperTable("guild_member")
@@ -222,7 +228,7 @@ public interface IGuildCacheService : IGuildService {
 
     public suspend fun importMembers(guildId: Int, members: Collection<String>): Boolean
 
-    public suspend fun importInvitations(guildId: Int, invites: Collection<GuildInvite>): Boolean
+    public suspend fun importInvitations(invites: Collection<GuildInvite>): Boolean
 
 }
 
@@ -641,19 +647,28 @@ public class GuildCacheService(
         }
     }
 
-    override suspend fun importInvitations(guildId: Int, invites: Collection<GuildInvite>): Boolean {
-        if (invites.isEmpty()) return true
-        invites.forEach { invite ->
-            require(invite.guildId == guildId) { "Invitation must be for the guild $guildId" }
-            invite.expiredAt?.let { requireExpiredAtAfterNow(it) }
-        }
-
-        checkHasGuild(guildId)
+    override suspend fun importInvitations(invites: Collection<GuildInvite>): Boolean {
+        if (invites.isEmpty()) return false
 
         val result = cacheClient.connect { connection ->
-            invites.map { invite ->
-                setOrUpdateInvitation(connection, Type.IMPORT_INVITATION, invite)
-            }
+            // Before importing invitations, we check if the guilds exist
+            invites.asSequence()
+                .map { it.guildId }
+                .distinct()
+                .forEach { guildId ->
+                    checkHasGuild(connection, guildId)
+                }
+
+            invites.asFlow()
+                .filterNot(GuildInvite::isExpired)
+                .filterNot {
+                    // Do not import invitation if the invitation is removed in cache
+                    hasMarkInvitationAsDeleted(connection, it.guildId.toString(), it.entityId)
+                }
+                .map {
+                    setOrUpdateInvitation(connection, Type.IMPORT_INVITATION, it)
+                }
+                .toList()
         }
 
         return result.any { it }
@@ -736,6 +751,23 @@ public class GuildCacheService(
         return connection.del(addKey) == 1L
     }
 
+    /**
+     * Check if an invitation is marked as deleted.
+     * @param connection Redis connection.
+     * @param guildId Guild ID.
+     * @param entityId Entity ID.
+     * @return `true` if the invitation is marked as deleted, `false` otherwise.
+     */
+    private suspend fun hasMarkInvitationAsDeleted(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        guildId: String,
+        entityId: String
+    ): Boolean = isValueOfSet(
+        connection,
+        encodeFormattedKeyWithPrefix(Type.REMOVE_INVITATION.key, guildId, entityId),
+        encodeToByteArray(String.serializer(), entityId)
+    )
+
     override suspend fun getGuild(id: Int): Guild? {
         val idString = id.toString()
         return cacheClient.connect { connection ->
@@ -774,8 +806,7 @@ public class GuildCacheService(
             getAllKeyValues(formattedKeyWithPrefix(Type.ADD_INVITATION.key, guildId.toString(), "*"))
         ).merge()
             .mapNotNull { decodeFromByteArrayOrNull(GuildInvite.serializer(), it) }
-            .filter { it.expiredAt == null || it.expiredAt.isAfter(Instant.now()) }
-            .filter { it.entityId !in removedEntities }
+            .filter { !it.isExpired() && it.entityId !in removedEntities }
             .let { emitAll(it) }
     }
 
@@ -843,13 +874,20 @@ public class GuildCacheService(
      * @return `true` if guild exists, `false` otherwise.
      */
     private suspend fun hasGuild(id: Int): Boolean {
-        val guildIdString = id.toString()
         return cacheClient.connect { connection ->
-            connection.exists(
-                encodeFormattedKeyWithPrefix(Type.IMPORT_GUILD.key, guildIdString),
-                encodeFormattedKeyWithPrefix(Type.ADD_GUILD.key, guildIdString)
-            )?.let { it > 0 } == true && !hasMarkGuildAsDeleted(connection, id)
+            hasGuild(connection, id)
         }
+    }
+
+    private suspend fun hasGuild(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        id: Int
+    ): Boolean {
+        val guildIdString = id.toString()
+        return connection.exists(
+            encodeFormattedKeyWithPrefix(Type.IMPORT_GUILD.key, guildIdString),
+            encodeFormattedKeyWithPrefix(Type.ADD_GUILD.key, guildIdString)
+        )?.let { it > 0 } == true && !hasMarkGuildAsDeleted(connection, id)
     }
 
     /**
@@ -994,6 +1032,15 @@ public class GuildCacheService(
      */
     private suspend fun checkHasGuild(id: Int) {
         if (!hasGuild(id)) {
+            throwGuildNotFoundException(id)
+        }
+    }
+
+    private suspend fun checkHasGuild(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        id: Int
+    ) {
+        if (!hasGuild(connection, id)) {
             throwGuildNotFoundException(id)
         }
     }
