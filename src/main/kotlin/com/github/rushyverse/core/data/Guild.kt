@@ -307,8 +307,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
-        requireEntityIdNotBlank(entityId)
-        expiredAt?.let { requireExpiredAtAfterNow(it) }
+        requireValidInvitation(entityId, expiredAt)
 
         val invite = GuildInvite(
             guildId,
@@ -638,8 +637,8 @@ public class GuildCacheService(
     }
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
-        requireEntityIdNotBlank(entityId)
-        expiredAt?.let { requireExpiredAtAfterNow(it) }
+        requireValidInvitation(entityId, expiredAt)
+
         val guild = getGuild(guildId) ?: throwGuildNotFoundException(guildId)
         if (guild.ownerId == entityId || isMember(guildId, entityId)) {
             throw GuildInvitedIsAlreadyMemberException("The entity $entityId is already a member of the guild $guildId")
@@ -653,6 +652,10 @@ public class GuildCacheService(
 
     override suspend fun importInvitations(invites: Collection<GuildInvite>): Boolean {
         if (invites.isEmpty()) return false
+
+        invites.forEach {
+            requireValidInvitation(it.entityId, it.expiredAt)
+        }
 
         val result = cacheClient.connect { connection ->
             // Before importing invitations, we check if the guilds exist
@@ -1089,4 +1092,14 @@ private fun requireOwnerIdNotBlank(ownerId: String) {
  */
 private fun requireExpiredAtAfterNow(expiredAt: Instant) {
     require(expiredAt.isAfter(Instant.now())) { "Expired at must be after now" }
+}
+
+/**
+ * Check all necessary requirements for a valid invitation.
+ * @param entityId Entity ID.
+ * @param expiredAt Expiration date.
+ */
+private fun requireValidInvitation(entityId: String, expiredAt: Instant?) {
+    requireEntityIdNotBlank(entityId)
+    expiredAt?.let { requireExpiredAtAfterNow(it) }
 }
