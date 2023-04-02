@@ -182,7 +182,7 @@ public interface IGuildService {
      * @return `true` if the entity was invited, `false` if the entity has already been invited.
      * @throws GuildNotFoundException If the guild does not exist.
      */
-    @Throws(GuildNotFoundException::class)
+    @Throws(GuildNotFoundException::class, GuildInvitedIsAlreadyMemberException::class)
     public suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean
 
     /**
@@ -632,11 +632,10 @@ public class GuildCacheService(
         requireEntityIdNotBlank(entityId)
         expiredAt?.let { requireExpiredAtAfterNow(it) }
         val guild = getGuild(guildId) ?: throwGuildNotFoundException(guildId)
-        if (guild.ownerId == entityId) {
+        if (guild.ownerId == entityId || isMember(guildId, entityId)) {
             throw GuildInvitedIsAlreadyMemberException("The entity $entityId is already a member of the guild $guildId")
         }
 
-        // TODO already member exception
         val invite = GuildInvite(guildId, entityId, expiredAt)
         return cacheClient.connect { connection ->
             setOrUpdateInvitation(connection, Type.ADD_INVITATION, invite)

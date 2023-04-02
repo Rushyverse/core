@@ -713,11 +713,11 @@ class GuildCacheServiceTest {
                 val guildId = it.id
                 val entityId = getRandomString()
                 assertTrue { service.addMember(guildId, entityId) }
-                assertTrue { service.addInvitation(guildId, entityId, null) }
+                assertThrows<GuildInvitedIsAlreadyMemberException> {
+                    service.addInvitation(guildId, entityId, null)
+                }
 
-                assertThat(getAllAddInvites(guildId.toString())).containsExactly(
-                    GuildInvite(guildId, entityId, null)
-                )
+                assertThat(getAllAddInvites(guildId.toString())).isEmpty()
             }
         }
 
@@ -807,12 +807,6 @@ class GuildCacheServiceTest {
                 cacheClient.binaryFormat.decodeFromByteArray(Int.serializer(), it)
             }.toList()
         }
-    }
-
-    private suspend fun keyExists(key: String): Boolean {
-        return cacheClient.connect {
-            it.exists(key.encodeToByteArray())
-        } == 1L
     }
 
     private suspend fun getAllImportedInvites(guildId: String): List<GuildInvite> {
