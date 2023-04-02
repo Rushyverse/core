@@ -136,9 +136,9 @@ public abstract class AbstractCacheService(
             var cursor = connection.scan(scanArgs)
             while (cursor != null && currentCoroutineContext().isActive) {
                 val keys = cursor.keys
-                if (keys.isEmpty()) break
-
-                emitAll(builder(connection, keys))
+                if (keys.isNotEmpty()) {
+                    emitAll(builder(connection, keys))
+                }
                 if (cursor.isFinished) break
 
                 cursor = connection.scan(cursor, scanArgs)
