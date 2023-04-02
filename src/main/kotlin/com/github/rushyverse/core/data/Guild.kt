@@ -700,34 +700,42 @@ public class GuildCacheService(
 
     override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
-        return if (isCacheGuild(guildId)) {
-            val key = encodeFormattedKeyWithPrefix(
-                Type.ADD_INVITATION.key,
-                guildId.toString(),
-                entityId
-            )
-            cacheClient.connect { connection ->
-                connection.del(key)
-            } == 1L
-        } else {
-            val importKey = encodeFormattedKeyWithPrefix(
-                Type.IMPORT_INVITATION.key,
-                guildId.toString(),
-                entityId
-            )
-            cacheClient.connect { connection ->
+        return cacheClient.connect { connection ->
+            if (isCacheGuild(guildId)) {
+                deleteInvitationAdded(connection, guildId, entityId)
+            } else {
+                val importKey = encodeFormattedKeyWithPrefix(
+                    Type.IMPORT_INVITATION.key,
+                    guildId.toString(),
+                    entityId
+                )
                 if (connection.exists(importKey) == 1L) {
                     addValueOfSet(guildId, entityId, Type.REMOVE_INVITATION)
                 } else {
-                    val addKey = encodeFormattedKeyWithPrefix(
-                        Type.ADD_INVITATION.key,
-                        guildId.toString(),
-                        entityId
-                    )
-                    connection.del(addKey) == 1L
+                    deleteInvitationAdded(connection, guildId, entityId)
                 }
             }
         }
+    }
+
+    /**
+     * Delete the key of the invitation added.
+     * @param guildId ID of the guild where the invitation was added.
+     * @param entityId ID of the entity that was invited.
+     * @param connection Cache connection.
+     * @return `true` if the key was deleted, `false` otherwise.
+     */
+    private suspend fun deleteInvitationAdded(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        guildId: Int,
+        entityId: String
+    ): Boolean {
+        val addKey = encodeFormattedKeyWithPrefix(
+            Type.ADD_INVITATION.key,
+            guildId.toString(),
+            entityId
+        )
+        return connection.del(addKey) == 1L
     }
 
     override suspend fun getGuild(id: Int): Guild? {
@@ -786,7 +794,7 @@ public class GuildCacheService(
     ): Boolean {
         val searchPattern = formattedKeyWithPrefix("*", guildId.toString())
         val keys = scanKeys(searchPattern) { _, keys ->
-                keys.asFlow()
+            keys.asFlow()
         }.toList()
 
         if(keys.isEmpty()){
