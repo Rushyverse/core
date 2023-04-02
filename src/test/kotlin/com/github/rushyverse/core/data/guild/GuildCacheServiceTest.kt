@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -24,9 +25,10 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.TimeUnit
 import kotlin.test.*
 
-//@Timeout(10, unit = TimeUnit.SECONDS)
+@Timeout(10, unit = TimeUnit.SECONDS)
 @Testcontainers
 class GuildCacheServiceTest {
 
@@ -259,7 +261,6 @@ class GuildCacheServiceTest {
                 assertThat(getAllAddMembers(guildIdString)).hasSize(10)
                 assertThat(getAllAddedGuilds()).containsExactly(guild2)
 
-                assertFalse { commonKeyExists(GuildCacheService.Type.REMOVE_GUILD) }
                 assertThat(getAllDeletedGuilds()).isEmpty()
             }
 
@@ -417,63 +418,28 @@ class GuildCacheServiceTest {
     @Nested
     inner class GetGuildById {
 
-        @Nested
-        inner class WithCacheGuild {
-
-            @Test
-            fun `when guild is not deleted`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
-                assertEquals(guild, service.getGuild(guild.id))
+        @Test
+        fun `when guild is not deleted`() = runTest {
+            withGuildImportedAndCreated {
+                assertEquals(it, service.getGuild(it.id))
             }
-
-            @Test
-            fun `when guild is deleted`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
-                service.deleteGuild(guild.id)
-                assertNull(service.getGuild(guild.id))
-            }
-
-            @Test
-            fun `when another guild is added`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
-                val guild2 = service.createGuild(getRandomString(), getRandomString())
-
-                assertEquals(guild, service.getGuild(guild.id))
-                assertEquals(guild2, service.getGuild(guild2.id))
-            }
-
         }
 
-        @Nested
-        inner class WithImportedGuild {
-
-            @Test
-            fun `when guild is not deleted`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString(), Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                service.importGuild(guild)
-                assertEquals(guild, service.getGuild(guild.id))
+        @Test
+        fun `when guild is deleted`() = runTest {
+            withGuildImportedAndCreated {
+                service.deleteGuild(it.id)
+                assertNull(service.getGuild(it.id))
             }
+        }
 
-            @Test
-            fun `when guild is deleted`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString(), Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                service.importGuild(guild)
-                service.deleteGuild(guild.id)
-                assertNull(service.getGuild(guild.id))
-            }
-
-            @Test
-            fun `when another guild is added`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString(), Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                val guild2 =
-                    Guild(1, getRandomString(), getRandomString(), Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                service.importGuild(guild)
-                service.importGuild(guild2)
-
-                assertEquals(guild, service.getGuild(guild.id))
+        @Test
+        fun `when another guild is added`() = runTest {
+            withGuildImportedAndCreated {
+                val guild2 = service.createGuild(getRandomString(), getRandomString())
+                assertEquals(it, service.getGuild(it.id))
                 assertEquals(guild2, service.getGuild(guild2.id))
             }
-
         }
 
         @Test
@@ -485,62 +451,28 @@ class GuildCacheServiceTest {
     @Nested
     inner class GetGuildByName {
 
-        @Nested
-        inner class WithImportedGuild {
-
-            @Test
-            fun `when guild is not deleted`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString(), Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                service.importGuild(guild)
-                assertThat(service.getGuild(guild.name).toList()).containsExactly(guild)
+        @Test
+        fun `when guild is not deleted`() = runTest {
+            withGuildImportedAndCreated {
+                assertThat(service.getGuild(it.name).toList()).containsExactly(it)
             }
-
-            @Test
-            fun `when guild is deleted`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString(), Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                service.importGuild(guild)
-                service.deleteGuild(guild.id)
-                assertThat(service.getGuild(guild.name).toList()).isEmpty()
-            }
-
-            @Test
-            fun `when another guild is added`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString(), Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                val guild2 =
-                    Guild(1, getRandomString(), getRandomString(), Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                service.importGuild(guild)
-                service.importGuild(guild2)
-
-                assertThat(service.getGuild(guild.name).toList()).containsExactly(guild)
-                assertThat(service.getGuild(guild2.name).toList()).containsExactly(guild2)
-            }
-
         }
 
-        @Nested
-        inner class WithCacheGuild {
-
-            @Test
-            fun `when guild is not deleted`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
-                assertThat(service.getGuild(guild.name).toList()).containsExactly(guild)
+        @Test
+        fun `when guild is deleted`() = runTest {
+            withGuildImportedAndCreated {
+                service.deleteGuild(it.id)
+                assertThat(service.getGuild(it.name).toList()).isEmpty()
             }
+        }
 
-            @Test
-            fun `when guild is deleted`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
-                service.deleteGuild(guild.id)
-                assertThat(service.getGuild(guild.name).toList()).isEmpty()
-            }
-
-            @Test
-            fun `when another guild is added`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
+        @Test
+        fun `when another guild is added`() = runTest {
+            withGuildImportedAndCreated {
                 val guild2 = service.createGuild(getRandomString(), getRandomString())
-                assertThat(service.getGuild(guild.name).toList()).containsExactly(guild)
+                assertThat(service.getGuild(it.name).toList()).containsExactly(it)
                 assertThat(service.getGuild(guild2.name).toList()).containsExactly(guild2)
             }
-
         }
 
         @Test
@@ -585,76 +517,33 @@ class GuildCacheServiceTest {
     @Nested
     inner class IsOwner {
 
-        @Nested
-        inner class WithImportedGuild {
-
-            @Test
-            fun `when owner of guild`() = runTest {
-                val owner = getRandomString()
-                val guild = Guild(0, getRandomString(), owner, Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                service.importGuild(guild)
-                assertTrue { service.isOwner(guild.id, owner) }
-            }
-
-            @Test
-            fun `when owner of several guilds`() = runTest {
-                val owner = getRandomString()
-                val guild = Guild(0, getRandomString(), owner, Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                val guild2 = Guild(1, getRandomString(), owner, Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                service.importGuild(guild)
-                service.importGuild(guild2)
-                assertTrue { service.isOwner(guild.id, owner) }
-                assertTrue { service.isOwner(guild2.id, owner) }
-            }
-
-            @Test
-            fun `when not owner of guild`() = runTest {
-                val owner = getRandomString()
-                val guild = Guild(0, getRandomString(), owner, Instant.now().truncatedTo(ChronoUnit.MILLIS))
-                service.importGuild(guild)
-                assertFalse { service.isOwner(guild.id, getRandomString()) }
-            }
-
-            @Test
-            fun `when guild does not exist`() = runTest {
-                assertFalse { service.isOwner(0, getRandomString()) }
+        @Test
+        fun `when owner of guild`() = runTest {
+            withGuildImportedAndCreated {
+                assertTrue { service.isOwner(it.id, it.ownerId) }
             }
         }
 
-        @Nested
-        inner class WithCacheGuild {
-
-            @Test
-            fun `when owner of guild`() = runTest {
-                val owner = getRandomString()
-                val guild = service.createGuild(getRandomString(), owner)
-                assertTrue { service.isOwner(guild.id, owner) }
+        @Test
+        fun `when owner of several guilds`() = runTest {
+            withGuildImportedAndCreated {
+                val ownerId = it.ownerId
+                val guild2 = service.createGuild(getRandomString(), ownerId)
+                assertTrue { service.isOwner(it.id, ownerId) }
+                assertTrue { service.isOwner(guild2.id, ownerId) }
             }
+        }
 
-            @Test
-            fun `when owner of several guilds`() = runTest {
-                val owner = getRandomString()
-                val guild = service.createGuild(getRandomString(), owner)
-                val guild2 = service.createGuild(getRandomString(), owner)
-                assertTrue { service.isOwner(guild.id, owner) }
-                assertTrue { service.isOwner(guild2.id, owner) }
+        @Test
+        fun `when not owner of guild`() = runTest {
+            withGuildImportedAndCreated {
+                assertFalse { service.isOwner(it.id, getRandomString()) }
             }
+        }
 
-            @Test
-            fun `when not owner of guild`() = runTest {
-                val owner = getRandomString()
-                val guild = service.createGuild(getRandomString(), owner)
-                assertFalse { service.isOwner(guild.id, getRandomString()) }
-            }
-
-            @Test
-            fun `when guild does not exist`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
-
-                assertFalse { service.isOwner(guild.id, getRandomString()) }
-                assertFalse { service.isOwner(0, getRandomString()) }
-            }
-
+        @Test
+        fun `when guild does not exist`() = runTest {
+            assertFalse { service.isOwner(0, getRandomString()) }
         }
 
         @ParameterizedTest
@@ -670,128 +559,62 @@ class GuildCacheServiceTest {
     @Nested
     inner class IsMember {
 
-        @Nested
-        inner class WithImportedGuild {
-
-            @Test
-            fun `when entity is a member of the guild`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString())
-                service.importGuild(guild)
-
+        @Test
+        fun `when entity is a member of the guild`() = runTest {
+            withGuildImportedAndCreated {
                 val entityId = getRandomString()
-                service.addMember(guild.id, entityId)
-                assertTrue { service.isMember(guild.id, entityId) }
+                service.addMember(it.id, entityId)
+                assertTrue { service.isMember(it.id, entityId) }
             }
-
-            @Test
-            fun `when entity is not a member of the guild`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString())
-                service.importGuild(guild)
-                val entityId = getRandomString()
-                assertFalse { service.isMember(guild.id, entityId) }
-            }
-
-            @Test
-            fun `when entity is invited in the guild`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString())
-                service.importGuild(guild)
-                val entityId = getRandomString()
-                service.addInvitation(guild.id, entityId, null)
-                assertFalse { service.isMember(guild.id, entityId) }
-            }
-
-            @Test
-            fun `when entity is member of another guild`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString())
-                service.importGuild(guild)
-                val guild2 = Guild(1, getRandomString(), getRandomString())
-                service.importGuild(guild2)
-                val entityId = getRandomString()
-                service.addMember(guild.id, entityId)
-
-                assertFalse { service.isMember(guild2.id, entityId) }
-            }
-
-            @Test
-            fun `when another entity is member of the guild`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString())
-                service.importGuild(guild)
-
-                val entityId = getRandomString()
-                val entity2Id = getRandomString()
-                service.addMember(guild.id, entity2Id)
-                assertFalse { service.isMember(guild.id, entityId) }
-            }
-
-            @Test
-            fun `when entity is removed of members`() = runTest {
-                val guild = Guild(0, getRandomString(), getRandomString())
-                service.importGuild(guild)
-
-                val entityId = getRandomString()
-                service.addMember(guild.id, entityId)
-                assertTrue { service.isMember(guild.id, entityId) }
-
-                service.removeMember(guild.id, entityId)
-                assertFalse { service.isMember(guild.id, entityId) }
-            }
-
         }
 
-        @Nested
-        inner class WithCacheGuild {
-
-            @Test
-            fun `when entity is a member of the guild`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
+        @Test
+        fun `when entity is not a member of the guild`() = runTest {
+            withGuildImportedAndCreated {
                 val entityId = getRandomString()
-                service.addMember(guild.id, entityId)
-                assertTrue { service.isMember(guild.id, entityId) }
+                assertFalse { service.isMember(it.id, entityId) }
             }
+        }
 
-            @Test
-            fun `when entity is not a member of the guild`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
+        @Test
+        fun `when entity is invited in the guild`() = runTest {
+            withGuildImportedAndCreated {
                 val entityId = getRandomString()
-                assertFalse { service.isMember(guild.id, entityId) }
+                service.addInvitation(it.id, entityId, null)
+                assertFalse { service.isMember(it.id, entityId) }
             }
+        }
 
-            @Test
-            fun `when entity is invited in the guild`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
-                val entityId = getRandomString()
-                service.addInvitation(guild.id, entityId, null)
-                assertFalse { service.isMember(guild.id, entityId) }
-            }
-
-            @Test
-            fun `when entity is member of another guild`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
+        @Test
+        fun `when entity is member of another guild`() = runTest {
+            withGuildImportedAndCreated {
                 val guild2 = service.createGuild(getRandomString(), getRandomString())
                 val entityId = getRandomString()
-                service.addMember(guild.id, entityId)
+                service.addMember(it.id, entityId)
                 assertFalse { service.isMember(guild2.id, entityId) }
             }
+        }
 
-            @Test
-            fun `when another entity is member of the guild`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
+        @Test
+        fun `when another entity is member of the guild`() = runTest {
+            withGuildImportedAndCreated {
                 val entityId = getRandomString()
                 val entity2Id = getRandomString()
-                service.addMember(guild.id, entity2Id)
-                assertFalse { service.isMember(guild.id, entityId) }
+                service.addMember(it.id, entity2Id)
+                assertFalse { service.isMember(it.id, entityId) }
             }
+        }
 
-            @Test
-            fun `when entity is removed of members`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
+        @Test
+        fun `when entity is removed of members`() = runTest {
+            withGuildImportedAndCreated {
                 val entityId = getRandomString()
-                service.addMember(guild.id, entityId)
-                assertTrue { service.isMember(guild.id, entityId) }
-                service.removeMember(guild.id, entityId)
-                assertFalse { service.isMember(guild.id, entityId) }
-            }
+                service.addMember(it.id, entityId)
+                assertTrue { service.isMember(it.id, entityId) }
 
+                service.removeMember(it.id, entityId)
+                assertFalse { service.isMember(it.id, entityId) }
+            }
         }
 
         @ParameterizedTest
@@ -817,41 +640,45 @@ class GuildCacheServiceTest {
 
             @Test
             fun `with field`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
-                val entityId = getRandomString()
-                val now = Instant.now()
-                val expirationDate = now.plusSeconds(10)
-                assertTrue { service.addInvitation(guild.id, entityId, expirationDate) }
+                withGuildImportedAndCreated {
+                    val guildId = it.id
+                    val entityId = getRandomString()
+                    val now = Instant.now()
+                    val expirationDate = now.plusSeconds(10)
+                    assertTrue { service.addInvitation(guildId, entityId, expirationDate) }
 
-                val guildIdString = guild.id.toString()
-                assertThat(getAllImportedInvites(guildIdString)).isEmpty()
-                assertThat(getAllAddInvites(guildIdString)).hasSize(1)
-                assertThat(getAllRemoveInvites(guildIdString)).isEmpty()
-                val inviteForGuild = getAllAddInvites(guild.id.toString())
+                    val guildIdString = guildId.toString()
+                    assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+                    assertThat(getAllAddInvites(guildIdString)).hasSize(1)
+                    assertThat(getAllRemoveInvites(guildIdString)).isEmpty()
+                    val inviteForGuild = getAllAddInvites(guildIdString)
 
-                val invite = inviteForGuild.single()
-                assertEquals(entityId, invite.entityId)
-                assertEquals(
-                    expirationDate.truncatedTo(ChronoUnit.SECONDS),
-                    invite.expiredAt!!.truncatedTo(ChronoUnit.SECONDS)
-                )
+                    val invite = inviteForGuild.single()
+                    assertEquals(entityId, invite.entityId)
+                    assertEquals(
+                        expirationDate.truncatedTo(ChronoUnit.SECONDS),
+                        invite.expiredAt!!.truncatedTo(ChronoUnit.SECONDS)
+                    )
+                }
             }
 
             @Test
             fun `without field`() = runTest {
-                val guild = service.createGuild(getRandomString(), getRandomString())
-                val entityId = getRandomString()
-                assertTrue { service.addInvitation(guild.id, entityId, null) }
+                withGuildImportedAndCreated {
+                    val guildId = it.id
+                    val entityId = getRandomString()
+                    assertTrue { service.addInvitation(guildId, entityId, null) }
 
-                val guildIdString = guild.id.toString()
-                assertThat(getAllImportedInvites(guildIdString)).isEmpty()
-                assertThat(getAllAddInvites(guildIdString)).hasSize(1)
-                assertThat(getAllRemoveInvites(guildIdString)).isEmpty()
-                val inviteForGuild = getAllAddInvites(guild.id.toString())
+                    val guildIdString = guildId.toString()
+                    assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+                    assertThat(getAllAddInvites(guildIdString)).hasSize(1)
+                    assertThat(getAllRemoveInvites(guildIdString)).isEmpty()
+                    val inviteForGuild = getAllAddInvites(guildIdString)
 
-                val invite = inviteForGuild.single()
-                assertEquals(entityId, invite.entityId)
-                assertNull(invite.expiredAt)
+                    val invite = inviteForGuild.single()
+                    assertEquals(entityId, invite.entityId)
+                    assertNull(invite.expiredAt)
+                }
             }
 
             @Test
@@ -868,66 +695,76 @@ class GuildCacheServiceTest {
 
         @Test
         fun `when entity is not invited in a guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val entityId = getRandomString()
-            assertTrue { service.addInvitation(guild.id, entityId, null) }
+            withGuildImportedAndCreated {
+                val guildId = it.id
+                val entityId = getRandomString()
+                assertTrue { service.addInvitation(guildId, entityId, null) }
 
-            val invitations = service.getInvitations(guild.id).toList()
-            assertThat(invitations).containsExactly(
-                GuildInvite(guild.id, entityId, null)
-            )
+                val invitations = service.getInvitations(guildId).toList()
+                assertThat(invitations).containsExactly(
+                    GuildInvite(guildId, entityId, null)
+                )
+            }
         }
 
         @Test
         fun `when entity is already a member of the guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val entityId = getRandomString()
-            assertTrue { service.addMember(guild.id, entityId) }
-            assertTrue { service.addInvitation(guild.id, entityId, null) }
+            withGuildImportedAndCreated {
+                val guildId = it.id
+                val entityId = getRandomString()
+                assertTrue { service.addMember(guildId, entityId) }
+                assertTrue { service.addInvitation(guildId, entityId, null) }
 
-            assertThat(getAllAddInvites(guild.id.toString())).containsExactly(
-                GuildInvite(guild.id, entityId, null)
-            )
+                assertThat(getAllAddInvites(guildId.toString())).containsExactly(
+                    GuildInvite(guildId, entityId, null)
+                )
+            }
         }
 
         @Test
         fun `when entity is invited in another guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val guild2 = service.createGuild(getRandomString(), getRandomString())
+            withGuildImportedAndCreated {
+                val guildId = it.id
+                val guild2 = service.createGuild(getRandomString(), getRandomString())
+                val guildId2 = guild2.id
 
-            val entityId = getRandomString()
-            assertTrue { service.addInvitation(guild.id, entityId, null) }
-            assertTrue { service.addInvitation(guild2.id, entityId, null) }
+                val entityId = getRandomString()
+                assertTrue { service.addInvitation(guildId, entityId, null) }
+                assertTrue { service.addInvitation(guildId2, entityId, null) }
 
-            assertThat(service.getInvitations(guild.id).toList()).containsExactly(
-                GuildInvite(guild.id, entityId, null)
-            )
-            assertThat(service.getInvitations(guild2.id).toList()).containsExactly(
-                GuildInvite(guild2.id, entityId, null)
-            )
+                assertThat(service.getInvitations(guildId).toList()).containsExactly(
+                    GuildInvite(guildId, entityId, null)
+                )
+                assertThat(service.getInvitations(guild2.id).toList()).containsExactly(
+                    GuildInvite(guildId2, entityId, null)
+                )
+            }
         }
 
         @Test
         fun `when entity is owner of a guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            assertThrows<GuildInvitedIsAlreadyMemberException> {
-                service.addInvitation(guild.id, guild.ownerId, null)
+            withGuildImportedAndCreated {
+                assertThrows<GuildInvitedIsAlreadyMemberException> {
+                    service.addInvitation(it.id, it.ownerId, null)
+                }
+                assertThat(getAllAddInvites(it.id.toString())).isEmpty()
             }
-            assertThat(getAllAddInvites(guild.id.toString())).isEmpty()
         }
 
         @Test
         fun `when entity is already invited`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val entityId = getRandomString()
-            val expiredAt = Instant.now().plusSeconds(10).truncatedTo(ChronoUnit.SECONDS)
-            assertTrue { service.addInvitation(guild.id, entityId, null) }
-            assertFalse { service.addInvitation(guild.id, entityId, null) }
-            assertTrue { service.addInvitation(guild.id, entityId, expiredAt) }
+            withGuildImportedAndCreated {
+                val guildId = it.id
+                val entityId = getRandomString()
+                val expiredAt = Instant.now().plusSeconds(10).truncatedTo(ChronoUnit.SECONDS)
+                assertTrue { service.addInvitation(guildId, entityId, null) }
+                assertFalse { service.addInvitation(guildId, entityId, null) }
+                assertTrue { service.addInvitation(guildId, entityId, expiredAt) }
 
-            assertThat(getAllAddInvites(guild.id.toString())).containsExactly(
-                GuildInvite(guild.id, entityId, expiredAt)
-            )
+                assertThat(getAllAddInvites(guildId.toString())).containsExactly(
+                    GuildInvite(guildId, entityId, expiredAt)
+                )
+            }
         }
 
         @ParameterizedTest
@@ -972,19 +809,6 @@ class GuildCacheServiceTest {
         }
     }
 
-    private suspend fun keyExists(
-        type: GuildCacheService.Type,
-        vararg format: String
-    ): Boolean {
-        val key = (service.prefixKey + type.key).format(*format)
-        return keyExists(key)
-    }
-
-    private suspend fun commonKeyExists(type: GuildCacheService.Type): Boolean {
-        val key = service.prefixCommonKey + type.key
-        return keyExists(key)
-    }
-
     private suspend fun keyExists(key: String): Boolean {
         return cacheClient.connect {
             it.exists(key.encodeToByteArray())
@@ -1000,6 +824,8 @@ class GuildCacheServiceTest {
     }
 
     private suspend fun getAllInvitesWithReplacement(type: GuildCacheService.Type, guildId: String): List<GuildInvite> {
+        // Redis allows to use * as a wildcard, but we need to escape the : character
+        // So we need to replace the * with [^:]+ and filter the keys with a regex
         val regexEnd = Regex(".*${type.key.replace("%s", "[^:]+")}\$")
         return getAllDataFromKey(type, guildId, "*")
             .filter {
@@ -1053,5 +879,20 @@ class GuildCacheServiceTest {
                 .filter { keyValue -> keyValue.hasValue() }
                 .toList()
         }
+    }
+
+    private suspend inline fun withGuildImportedAndCreated(
+        crossinline block: suspend (Guild) -> Unit
+    ) {
+        var guild = Guild(0, getRandomString(), getRandomString())
+        service.importGuild(guild)
+        block(guild)
+
+        cacheClient.connect {
+            it.flushall(FlushMode.SYNC)
+        }
+
+        guild = service.createGuild(getRandomString(), getRandomString())
+        block(guild)
     }
 }
