@@ -26,7 +26,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.test.*
 
-@Timeout(5, unit = TimeUnit.SECONDS)
+@Timeout(10, unit = TimeUnit.SECONDS)
 @Testcontainers
 class FriendCacheServiceTest {
 

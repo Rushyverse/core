@@ -708,9 +708,8 @@ public class GuildCacheService(
                     guildId.toString(),
                     entityId
                 )
-                // TODO Remove import invitation
-                if (connection.exists(importKey) == 1L) {
-                    addValueOfSet(guildId, entityId, Type.REMOVE_INVITATION)
+                if (connection.del(importKey) == 1L) {
+                    addValueOfSet(connection, guildId, entityId, Type.REMOVE_INVITATION)
                 } else {
                     deleteInvitationAdded(connection, guildId, entityId)
                 }
@@ -906,13 +905,20 @@ public class GuildCacheService(
         entityId: String,
         type: Type
     ): Boolean {
+        return cacheClient.connect { connection ->
+            addValueOfSet(connection, guildId, entityId, type)
+        }
+    }
+
+    private suspend fun addValueOfSet(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        guildId: Int,
+        entityId: String,
+        type: Type
+    ): Boolean {
         val key = encodeFormattedKeyWithPrefix(type.key, guildId.toString())
         val value = encodeToByteArray(String.serializer(), entityId)
-
-        val result = cacheClient.connect { connection ->
-            connection.sadd(key, value)
-        }
-
+        val result = connection.sadd(key, value)
         return result != null && result > 0
     }
 
