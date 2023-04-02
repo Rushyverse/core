@@ -79,6 +79,10 @@ public data class GuildInvite(
     val createdAt: Instant = Instant.EPOCH,
 ) {
 
+    /**
+     * Check if the invite is expired.
+     * @return `true` if the invite is expired, `false` if it is not.
+     */
     public fun isExpired(): Boolean {
         return expiredAt != null && expiredAt.isBefore(Instant.now())
     }
