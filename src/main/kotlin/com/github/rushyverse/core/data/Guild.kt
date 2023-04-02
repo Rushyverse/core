@@ -708,6 +708,7 @@ public class GuildCacheService(
                     guildId.toString(),
                     entityId
                 )
+                // TODO Remove import invitation
                 if (connection.exists(importKey) == 1L) {
                     addValueOfSet(guildId, entityId, Type.REMOVE_INVITATION)
                 } else {
