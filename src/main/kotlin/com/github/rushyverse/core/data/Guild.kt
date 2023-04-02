@@ -465,7 +465,7 @@ public class GuildCacheService(
          * Is not used to store guild's members created by [GuildCacheService].
          * The guild's members created by [GuildCacheService] are stored in [ADD_MEMBER] key.
          */
-        IMPORT_MEMBER("member"),
+        IMPORT_MEMBER("member:import"),
 
         /**
          * Key to store guild's members created by [GuildCacheService].
@@ -486,7 +486,7 @@ public class GuildCacheService(
          * Is not used to store guild's invitations created by [GuildCacheService].
          * The guild's invitations created by [GuildCacheService] are stored in [ADD_INVITATION] key.
          */
-        IMPORT_INVITATION("invite:%s"),
+        IMPORT_INVITATION("invite:import:%s"),
 
         /**
          * Key to store guild's invitations created by [GuildCacheService].
@@ -560,7 +560,6 @@ public class GuildCacheService(
             ).merge()
                 .mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }
                 .filter { it.name == name && it.id !in removedGuilds }
-                .distinctUntilChanged()
                 .let { emitAll(it) }
         }
     }
@@ -643,7 +642,7 @@ public class GuildCacheService(
     }
 
     override suspend fun importInvitations(guildId: Int, invites: Collection<GuildInvite>): Boolean {
-        if(invites.isEmpty()) return true
+        if (invites.isEmpty()) return true
         invites.forEach { invite ->
             require(invite.guildId == guildId) { "Invitation must be for the guild $guildId" }
             invite.expiredAt?.let { requireExpiredAtAfterNow(it) }
@@ -760,7 +759,6 @@ public class GuildCacheService(
                 .merge()
                 .filter { it !in removedEntities }
                 .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
-                .distinctUntilChanged()
                 .let { emitAll(it) }
         }
     }
@@ -778,7 +776,6 @@ public class GuildCacheService(
             .mapNotNull { decodeFromByteArrayOrNull(GuildInvite.serializer(), it) }
             .filter { it.expiredAt == null || it.expiredAt.isAfter(Instant.now()) }
             .filter { it.entityId !in removedEntities }
-            .distinctUntilChanged()
             .let { emitAll(it) }
     }
 
@@ -796,7 +793,7 @@ public class GuildCacheService(
             keys.asFlow()
         }.toList()
 
-        if(keys.isEmpty()){
+        if (keys.isEmpty()) {
             return false
         }
 
@@ -910,6 +907,15 @@ public class GuildCacheService(
         }
     }
 
+    /**
+     * Add an entity to the cache for the given guild and type.
+     * The entity will be added to the set linked of the type.
+     * @param connection Redis connection.
+     * @param guildId ID of the guild.
+     * @param entityId ID of the entity.
+     * @param type Category to register the entity in.
+     * @return `true` if the entity was added, `false` otherwise.
+     */
     private suspend fun addValueOfSet(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         guildId: Int,
