@@ -3,7 +3,6 @@ package com.github.rushyverse.core.data.guild
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.*
-import com.github.rushyverse.core.data._Guild.Companion.guild
 import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.FlushMode
 import io.lettuce.core.KeyScanArgs
@@ -11,7 +10,6 @@ import io.lettuce.core.KeyValue
 import io.lettuce.core.RedisURI
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
@@ -28,7 +26,6 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
-import kotlin.math.exp
 import kotlin.test.*
 
 @Timeout(10, unit = TimeUnit.SECONDS)
@@ -907,6 +904,116 @@ class GuildCacheServiceTest {
         }
     }
 
+    @Nested
+    inner class GetInvitations {
+
+        @Test
+        fun `when guild has no invitations`() = runTest {
+            withGuildImportedAndCreated {
+                val invitations = service.getInvitations(it.id).toList()
+                assertThat(invitations).isEmpty()
+            }
+        }
+
+        @Test
+        fun `when an entity is member but not invited`() = runTest {
+            withGuildImportedAndCreated {
+                val guild = service.createGuild(getRandomString(), it.ownerId)
+                service.addMember(guild.id, getRandomString())
+                service.importMembers(guild.id, listOf(getRandomString()))
+
+                val invitations = service.getInvitations(guild.id).toList()
+                assertThat(invitations).isEmpty()
+            }
+        }
+
+        @Test
+        fun `when guild does not exist`() = runTest {
+            val members = service.getInvitations(0).toList()
+            assertContentEquals(emptyList(), members)
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = [1, 2, 3, 4, 5])
+        fun `with added invitation`(number: Int) = runTest {
+            withGuildImportedAndCreated {
+                val guildId = it.id
+                val invites = List(number) { GuildInvite(guildId, getRandomString(), null) }.onEach { invite ->
+                    service.addInvitation(guildId, invite.entityId, null)
+                }
+
+                val invitations = service.getInvitations(guildId).toList()
+                assertThat(invitations).containsExactlyInAnyOrderElementsOf(invites)
+            }
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = [1, 2, 3, 4, 5])
+        fun `with added invitation that are deleted`(number: Int) = runTest {
+            withGuildImportedAndCreated {
+                val guildId = it.id
+                val invitesAdded = List(number) { GuildInvite(guildId, getRandomString(), null) }.onEach { invite ->
+                    service.addInvitation(guildId, invite.entityId, null)
+                }
+
+                invitesAdded.forEach { invite ->
+                    service.removeInvitation(guildId, invite.entityId)
+                }
+
+                val invitationsAfterRemoval = service.getInvitations(guildId).toList()
+                assertThat(invitationsAfterRemoval).isEmpty()
+            }
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = [1, 2, 3, 4, 5])
+        fun `with imported invitation`(number: Int) = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+            val expectedInvites = List(number) { GuildInvite(guildId, getRandomString(), null) }
+            service.importInvitations(guildId, expectedInvites)
+
+            val invites = service.getInvitations(guildId).toList()
+            assertThat(invites).containsExactlyInAnyOrderElementsOf(expectedInvites)
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = [1, 2, 3, 4, 5])
+        fun `with imported invitation that are deleted`(number: Int) = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+            val invites = List(number) { GuildInvite(guildId, getRandomString(), null) }
+            service.importInvitations(guildId, invites)
+
+            invites.forEach { invite ->
+                service.removeInvitation(guildId, invite.entityId)
+            }
+
+            val invitationsAfterRemoval = service.getInvitations(guildId).toList()
+            assertThat(invitationsAfterRemoval).isEmpty()
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = [1, 2, 3, 4, 5])
+        fun `with imported and added invitation`(number: Int) = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+
+            val importedInvites = List(number) { GuildInvite(guildId, getRandomString(), null) }
+            service.importInvitations(guildId, importedInvites)
+
+            val addedInvites = List(number) { GuildInvite(guildId, getRandomString(), null) }.onEach { invite ->
+                service.addInvitation(guildId, invite.entityId, null)
+            }
+
+            val invites = service.getInvitations(guildId).toList()
+            assertThat(invites).containsExactlyInAnyOrderElementsOf(importedInvites + addedInvites)
+        }
+    }
+
     private suspend fun getAllImportedGuilds(): List<Guild> {
         return getAllDataFromKey(GuildCacheService.Type.IMPORT_GUILD, "*").filter {
             it.key.decodeToString().endsWith(GuildCacheService.Type.IMPORT_GUILD.key)
@@ -941,13 +1048,8 @@ class GuildCacheServiceTest {
     }
 
     private suspend fun getAllInvitesWithReplacement(type: GuildCacheService.Type, guildId: String): List<GuildInvite> {
-        // Redis allows to use * as a wildcard, but we need to escape the : character
-        // So we need to replace the * with [^:]+ and filter the keys with a regex
-        val regexEnd = Regex(".*${type.key.replace("%s", "[^:]+")}\$")
         return getAllDataFromKey(type, guildId, "*")
-            .filter {
-                regexEnd.matches(it.key.decodeToString())
-            }.map { keyValue ->
+            .map { keyValue ->
                 cacheClient.binaryFormat.decodeFromByteArray(GuildInvite.serializer(), keyValue.value)
             }
     }
