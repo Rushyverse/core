@@ -3,6 +3,7 @@ package com.github.rushyverse.core.data.guild
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.*
+import com.github.rushyverse.core.data._Guild.Companion.guild
 import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.FlushMode
 import io.lettuce.core.KeyScanArgs
@@ -10,6 +11,7 @@ import io.lettuce.core.KeyValue
 import io.lettuce.core.RedisURI
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
@@ -780,6 +782,88 @@ class GuildCacheServiceTest {
         fun `when guild does not exist`(guildId: Int) = runTest {
             assertThrows<GuildNotFoundException> {
                 service.addInvitation(guildId, getRandomString(), null)
+            }
+        }
+    }
+
+    @Nested
+    inner class RemoveInvitation {
+
+        @Nested
+        inner class WithAddedInvitation {
+
+            @Test
+            fun `when entity is invited in the guild`() = runTest {
+                withGuildImportedAndCreated {
+                    val guildId = it.id
+                    val guildIdString = guildId.toString()
+                    val entityId = getRandomString()
+                    service.addInvitation(guildId, entityId, null)
+
+                    assertThat(getAllAddInvites(guildIdString)).containsExactly(
+                        GuildInvite(guildId, entityId, null)
+                    )
+
+                    assertTrue { service.removeInvitation(guildId, entityId) }
+
+                    assertThat(getAllAddInvites(guildIdString)).isEmpty()
+                    assertThat(getAllRemoveInvites(guildIdString)).isEmpty()
+                    assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+                }
+            }
+
+            @Test
+            fun `when entity is not invited in the guild`() = runTest {
+                withGuildImportedAndCreated {
+                    val guildId = it.id
+                    val guildIdString = guildId.toString()
+                    val entityId = getRandomString()
+                    assertFalse { service.removeInvitation(guildId, entityId) }
+
+                    assertThat(getAllAddInvites(guildIdString)).isEmpty()
+                    assertThat(getAllRemoveInvites(guildIdString)).isEmpty()
+                    assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+                }
+            }
+
+            @Test
+            fun `when another entity is invited in the guild`() = runTest {
+                withGuildImportedAndCreated {
+                    val guildId = it.id
+                    val guildIdString = guildId.toString()
+                    val entityId = getRandomString()
+                    val entityId2 = getRandomString()
+
+                    service.addInvitation(guildId, entityId, null)
+                    assertFalse { service.removeInvitation(guildId, entityId2) }
+
+                    assertThat(getAllAddInvites(guildIdString)).containsExactly(
+                        GuildInvite(guildId, entityId, null)
+                    )
+                    assertThat(getAllRemoveInvites(guildIdString)).isEmpty()
+                    assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+                }
+            }
+
+        }
+
+        @Test
+        fun `when guild does not exist`() = runTest {
+            assertFalse { service.removeInvitation(0, getRandomString()) }
+        }
+
+        @Test
+        fun `when entity is owner of the guild`() = runTest {
+            withGuildImportedAndCreated {
+                assertFalse { service.removeInvitation(it.id, it.ownerId) }
+            }
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = ["", " ", "  ", "   "])
+        fun `when entity id is blank`(id: String) = runTest {
+            assertThrows<IllegalArgumentException> {
+                service.removeInvitation(0, id)
             }
         }
     }
