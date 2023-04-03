@@ -503,6 +503,56 @@ class GuildCacheServiceTest {
     }
 
     @Nested
+    inner class ImportGuild {
+
+        @ParameterizedTest
+        @ValueSource(ints = [Int.MIN_VALUE, -800000, -1000, -1])
+        fun `when id is negative`(id: Int) = runTest {
+            assertThrows<IllegalArgumentException> {
+                service.importGuild(Guild(id, getRandomString(), getRandomString()))
+            }
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = [0, 1, 1000, 800000, Int.MAX_VALUE])
+        fun `should import guild with positive id`(id: Int) = runTest {
+            val guild = Guild(id, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            assertThat(getAllImportedGuilds()).containsExactly(guild)
+        }
+
+        @Test
+        fun `should replace the guild with the same id`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+
+            val guild2 = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild2)
+
+            assertThat(getAllImportedGuilds()).containsExactly(guild2)
+        }
+
+        @Test
+        fun `should not import if guild is deleted`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            service.deleteGuild(guild.id)
+
+            assertThat(getAllImportedGuilds()).isEmpty()
+
+            val guildSameID = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guildSameID)
+
+            assertThat(getAllImportedGuilds()).isEmpty()
+
+            val otherGuild = Guild(1, getRandomString(), getRandomString())
+            service.importGuild(otherGuild)
+
+            assertThat(getAllImportedGuilds()).containsExactly(otherGuild)
+        }
+    }
+
+    @Nested
     inner class IsOwner {
 
         @Test
