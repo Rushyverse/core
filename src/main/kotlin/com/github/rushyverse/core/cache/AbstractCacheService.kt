@@ -47,7 +47,7 @@ public abstract class AbstractCacheService(
      * @return [String] corresponding to the key using the [prefixKey] and [key].
      */
     protected open fun formattedKeyWithPrefix(key: String, vararg argsFormat: String): String {
-        return prefixKey.format(*argsFormat) + key
+        return (prefixKey + key).format(*argsFormat)
     }
 
     /**
@@ -136,9 +136,9 @@ public abstract class AbstractCacheService(
             var cursor = connection.scan(scanArgs)
             while (cursor != null && currentCoroutineContext().isActive) {
                 val keys = cursor.keys
-                if (keys.isEmpty()) break
-
-                emitAll(builder(connection, keys))
+                if (keys.isNotEmpty()) {
+                    emitAll(builder(connection, keys))
+                }
                 if (cursor.isFinished) break
 
                 cursor = connection.scan(cursor, scanArgs)

@@ -6,8 +6,8 @@ import com.github.rushyverse.core.data.utils.DatabaseUtils
 import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
 import com.github.rushyverse.core.data.utils.MicroClockProvider
 import com.github.rushyverse.core.utils.getRandomString
-import io.r2dbc.spi.R2dbcDataIntegrityViolationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -28,6 +28,11 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.test.*
+
+fun GuildInvite.defaultTime() = copy(
+    createdAt = Instant.EPOCH,
+    expiredAt = null
+)
 
 @Testcontainers
 class GuildDatabaseServiceTest {
@@ -435,7 +440,7 @@ class GuildDatabaseServiceTest {
             val members = service.getMembers(guild.id).toList()
             assertThat(members).containsExactlyInAnyOrder(owner, entityId)
 
-            val pendingMembers = service.getInvited(guild.id).toList()
+            val pendingMembers = service.getInvitations(guild.id).toList()
             assertThat(pendingMembers).isEmpty()
         }
 
@@ -567,8 +572,10 @@ class GuildDatabaseServiceTest {
             val entityId = getRandomString()
             assertTrue { service.addInvitation(guild.id, entityId, null) }
 
-            val invited = service.getInvited(guild.id).toList()
-            assertContentEquals(listOf(entityId), invited)
+            assertEquals(
+                GuildInvite(guild.id, entityId, null),
+                service.getInvitations(guild.id).single().defaultTime()
+            )
         }
 
         @Test
@@ -580,7 +587,7 @@ class GuildDatabaseServiceTest {
                 service.addInvitation(guild.id, entityId, null)
             }
 
-            val invited = service.getInvited(guild.id).toList()
+            val invited = service.getInvitations(guild.id).toList()
             assertEquals(0, invited.size)
         }
 
@@ -593,8 +600,14 @@ class GuildDatabaseServiceTest {
             assertTrue { service.addInvitation(guild.id, entityId, null) }
             assertTrue { service.addInvitation(guild2.id, entityId, null) }
 
-            assertEquals(entityId, service.getInvited(guild.id).toList().single())
-            assertEquals(entityId, service.getInvited(guild2.id).toList().single())
+            assertEquals(
+                GuildInvite(guild.id, entityId, null),
+                service.getInvitations(guild.id).single().defaultTime()
+            )
+            assertEquals(
+                GuildInvite(guild2.id, entityId, null),
+                service.getInvitations(guild2.id).single().defaultTime()
+            )
         }
 
         @Test
@@ -604,7 +617,7 @@ class GuildDatabaseServiceTest {
                 service.addInvitation(guild.id, guild.ownerId, null)
             }
 
-            val invited = service.getInvited(guild.id).toList()
+            val invited = service.getInvitations(guild.id).toList()
             assertEquals(0, invited.size)
         }
 
@@ -799,7 +812,7 @@ class GuildDatabaseServiceTest {
             service.addInvitation(guild.id, entityId, null)
             assertTrue { service.removeInvitation(guild.id, entityId) }
 
-            val invites = service.getInvited(guild.id).toList()
+            val invites = service.getInvitations(guild.id).toList()
             assertContentEquals(emptyList(), invites)
         }
 
@@ -809,7 +822,7 @@ class GuildDatabaseServiceTest {
             val entityId = getRandomString()
             assertFalse { service.removeInvitation(guild.id, entityId) }
 
-            val invites = service.getInvited(guild.id).toList()
+            val invites = service.getInvitations(guild.id).toList()
             assertContentEquals(emptyList(), invites)
         }
 
@@ -821,8 +834,10 @@ class GuildDatabaseServiceTest {
             service.addInvitation(guild.id, entityId, null)
             assertFalse { service.removeInvitation(guild.id, entityId2) }
 
-            val invites = service.getInvited(guild.id).toList()
-            assertContentEquals(listOf(entityId), invites)
+            assertEquals(
+                GuildInvite(guild.id, entityId, null),
+                service.getInvitations(guild.id).single().defaultTime()
+            )
         }
 
         @Test
@@ -892,7 +907,7 @@ class GuildDatabaseServiceTest {
         fun `when guild has no invitations`() = runTest {
             val owner = getRandomString()
             val guild = service.createGuild(getRandomString(), owner)
-            val members = service.getInvited(guild.id).toList()
+            val members = service.getInvitations(guild.id).toList()
             assertContentEquals(emptyList(), members)
         }
 
@@ -901,10 +916,12 @@ class GuildDatabaseServiceTest {
             val owner = getRandomString()
             val guild = service.createGuild(getRandomString(), owner)
             val membersToAdd = listOf(getRandomString(), getRandomString())
-            membersToAdd.forEach { service.addInvitation(guild.id, it, null) }
+            val invites = membersToAdd.map { GuildInvite(guild.id, it, null) }.onEach {
+                service.addInvitation(it.guildId, it.entityId, it.expiredAt)
+            }
 
-            val members = service.getInvited(guild.id).toList()
-            assertContentEquals(membersToAdd, members)
+            val members = service.getInvitations(guild.id).toList().map { it.defaultTime() }
+            assertThat(members).containsExactlyInAnyOrderElementsOf(invites)
         }
 
         @Test
@@ -913,13 +930,13 @@ class GuildDatabaseServiceTest {
             val guild = service.createGuild(getRandomString(), owner)
             service.addMember(guild.id, getRandomString())
 
-            val members = service.getInvited(guild.id).toList()
+            val members = service.getInvitations(guild.id).toList()
             assertContentEquals(emptyList(), members)
         }
 
         @Test
         fun `when guild does not exist`() = runTest {
-            val members = service.getInvited(0).toList()
+            val members = service.getInvitations(0).toList()
             assertContentEquals(emptyList(), members)
         }
     }
