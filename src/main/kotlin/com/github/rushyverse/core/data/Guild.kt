@@ -538,9 +538,11 @@ public class GuildCacheService(
         }
 
         return cacheClient.connect {
+            if(guildIsMarkedAsDeleted(it, guild.id)) return@connect false
+
             val key = createImportGuildKey(guild.id.toString())
-            it.set(key, encodeToByteArray(Guild.serializer(), guild))
-        } == "OK"
+            it.set(key, encodeToByteArray(Guild.serializer(), guild)) == "OK"
+        }
     }
 
     override suspend fun deleteGuild(id: Int): Boolean {
@@ -555,14 +557,7 @@ public class GuildCacheService(
 
     override fun getGuild(name: String): Flow<Guild> {
         requireGuildNameNotBlank(name)
-
-        return flow {
-            val removedGuilds = getAllRemovedGuilds().toSet()
- 0           // If optimization is needed, we can store the guild by name too
-            getAllImportedAndAddedGuilds()
-                .filter { it.name == name && it.id !in removedGuilds }
-                .let { emitAll(it) }
-        }
+        return getAllImportedAndAddedGuilds().filter { it.name == name }
     }
 
     /**
@@ -588,21 +583,10 @@ public class GuildCacheService(
         getAllKeyValues(createWildcardImportGuildKey())
             .mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }
 
-    /**
-     * Get all removed guilds.
-     * @return Flow of all removed guilds.
-     */
-    private fun getAllRemovedGuilds(): Flow<Int> =
-        getValuesOfSet(createRemoveGuildKey())
-            .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
-
     override suspend fun getGuild(id: Int): Guild? {
         val idString = id.toString()
         return cacheClient.connect { connection ->
-            val guild = getImportedOrAddedGuildValue(connection, idString) ?: return@connect null
-            // Check if the guild is marked as deleted because
-            // it is more common to request a guild that does not exist than a deleted guild
-            if (guildIsMarkedAsDeleted(connection, id)) null else guild
+            getImportedOrAddedGuildValue(connection, idString)
         }?.let {
             decodeFromByteArrayOrNull(Guild.serializer(), it)
         }
@@ -638,7 +622,7 @@ public class GuildCacheService(
             connection.exists(addKey) == 1L
         } else {
             val importKey = createImportGuildKey(guildIdString)
-            connection.exists(importKey, addKey)?.let { it > 0 } == true && !guildIsMarkedAsDeleted(connection, id)
+            connection.exists(importKey, addKey)?.let { it > 0 } == true
         }
     }
 
@@ -920,25 +904,14 @@ public class GuildCacheService(
         }
     }
 
-    override fun getInvitations(guildId: Int): Flow<GuildInvite> = flow {
+    override fun getInvitations(guildId: Int): Flow<GuildInvite> {
         val guildIdString = guildId.toString()
-        if (isCacheGuild(guildId)) {
+        return if (isCacheGuild(guildId)) {
             getAllAddedInvitations(guildIdString)
         } else {
-            val removedEntities = getAllRemovedEntityInvitations(guildIdString).toSet()
-            getAllImportedAndAddedInvitations(guildIdString).filter { it.entityId !in removedEntities }
+            getAllImportedAndAddedInvitations(guildIdString)
         }.filter { !it.isExpired() }
-            .let { emitAll(it) }
     }
-
-    /**
-     * Get all entities that were removed from the invitations linked to the guild.
-     * @param guildIdString ID of the guild.
-     * @return Flow of all entities that were removed from the invitations.
-     */
-    private fun getAllRemovedEntityInvitations(guildIdString: String): Flow<String> =
-        getValuesOfSet(createRemoveInvitationKey(guildIdString))
-            .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
 
     /**
      * Get all invitations that were imported and added linked to the guild.
