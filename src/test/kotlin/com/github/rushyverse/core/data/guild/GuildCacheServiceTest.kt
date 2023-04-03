@@ -911,7 +911,7 @@ class GuildCacheServiceTest {
                 val entityId = getRandomString()
                 assertTrue { service.addInvitation(guildId, entityId, null) }
 
-                val invitations = service.getInvitations(guildId).toList()
+                val invitations = getAllAddedInvites(guildId.toString())
                 assertThat(invitations).containsExactly(
                     GuildInvite(guildId, entityId, null)
                 )
@@ -943,10 +943,10 @@ class GuildCacheServiceTest {
                 assertTrue { service.addInvitation(guildId, entityId, null) }
                 assertTrue { service.addInvitation(guildId2, entityId, null) }
 
-                assertThat(service.getInvitations(guildId).toList()).containsExactly(
+                assertThat(getAllAddedInvites(guildId.toString())).containsExactly(
                     GuildInvite(guildId, entityId, null)
                 )
-                assertThat(service.getInvitations(guild2.id).toList()).containsExactly(
+                assertThat(getAllAddedInvites(guildId2.toString())).containsExactly(
                     GuildInvite(guildId2, entityId, null)
                 )
             }
@@ -969,7 +969,7 @@ class GuildCacheServiceTest {
                 val entityId = getRandomString()
                 val expiredAt = Instant.now().plusSeconds(10).truncatedTo(ChronoUnit.SECONDS)
                 assertTrue { service.addInvitation(guildId, entityId, null) }
-                assertFalse { service.addInvitation(guildId, entityId, null) }
+                assertTrue { service.addInvitation(guildId, entityId, null) }
                 assertTrue { service.addInvitation(guildId, entityId, expiredAt) }
 
                 assertThat(getAllAddedInvites(guildId.toString())).containsExactly(
@@ -1451,18 +1451,20 @@ class GuildCacheServiceTest {
     }
 
     private suspend fun getAllImportedInvites(guildId: String): List<GuildInvite> {
-        return getAllInvitesWithReplacement(GuildCacheService.Type.IMPORT_INVITATION, guildId)
+        return getAllInvites(GuildCacheService.Type.IMPORT_INVITATION, guildId)
     }
 
     private suspend fun getAllAddedInvites(guildId: String): List<GuildInvite> {
-        return getAllInvitesWithReplacement(GuildCacheService.Type.ADD_INVITATION, guildId)
+        return getAllInvites(GuildCacheService.Type.ADD_INVITATION, guildId)
     }
 
-    private suspend fun getAllInvitesWithReplacement(type: GuildCacheService.Type, guildId: String): List<GuildInvite> {
-        return getAllDataFromKey(type, guildId, "*")
-            .map { keyValue ->
-                cacheClient.binaryFormat.decodeFromByteArray(GuildInvite.serializer(), keyValue.value)
-            }
+    private suspend fun getAllInvites(type: GuildCacheService.Type, guildId: String): List<GuildInvite> {
+        return cacheClient.connect {
+            val searchKey = service.prefixKey.format(guildId) + type.key
+            it.hgetall(searchKey.encodeToByteArray())
+        }.map { keyValue ->
+            cacheClient.binaryFormat.decodeFromByteArray(GuildInvite.serializer(), keyValue.value)
+        }.toList()
     }
 
     private suspend fun getAllRemovedInvites(guildId: String): List<String> {

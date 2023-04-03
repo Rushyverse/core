@@ -6,7 +6,6 @@ import com.github.rushyverse.core.serializer.InstantSerializer
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.flow.*
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import org.komapper.annotation.*
@@ -496,14 +495,14 @@ public class GuildCacheService(
          * Is not used to store guild's invitations created by [GuildCacheService].
          * The guild's invitations created by [GuildCacheService] are stored in [ADD_INVITATION] key.
          */
-        IMPORT_INVITATION("invite:import:%s"),
+        IMPORT_INVITATION("invite:import"),
 
         /**
          * Key to store guild's invitations created by [GuildCacheService].
          * Is not used to store guild's invitations imported from other services like [GuildDatabaseService].
          * The guild's invitations imported from other services are stored in [IMPORT_INVITATION] key.
          */
-        ADD_INVITATION("invite:add:%s"),
+        ADD_INVITATION("invite:add"),
 
         /**
          * Key to remove guild's invitations imported from other services like [GuildDatabaseService].
@@ -665,6 +664,7 @@ public class GuildCacheService(
         members.forEach {
             requireEntityIdNotBlank(it.entityId)
         }
+
         val guildMembers = members.groupBy { it.guildId }
 
         val result = cacheClient.connect { connection ->
@@ -824,38 +824,51 @@ public class GuildCacheService(
             requireValidInvitation(it.entityId, it.expiredAt)
         }
 
-        val guildIds = invites.asSequence().map { it.guildId }.distinct().toList()
-
-        guildIds.forEach {
-            require(!isCacheGuild(it)) { "Unable to import invitation for guild ${it} because it is created by the cache service" }
+        val guildInvites = invites.groupBy { it.guildId }
+        guildInvites.keys.forEach {
+            require(!isCacheGuild(it)) { "Unable to import invitation for guild $it because it is created by the cache service" }
         }
 
         val result = cacheClient.connect { connection ->
             // Before importing invitations, we check if the guilds exist
-            guildIds.forEach {
-                checkHasGuild(connection, it)
+            guildInvites.keys.forEach { guildId ->
+                checkHasGuild(connection, guildId)
             }
 
-            invites.asFlow()
-                .filterNot {
-                    // Do not import invitation if the invitation is removed in cache
-                    invitationIsMarkedAsDeleted(connection, it.guildId.toString(), it.entityId)
+            guildInvites.map { (guildId, invites) ->
+                val guildIdString = guildId.toString()
+
+                val toAdd = invites.filterNot {
+                    invitationIsMarkedAsDeleted(connection, guildIdString, it.entityId)
                 }
-                .map {
-                    val guildIdString = it.guildId.toString()
-                    val importKey = createImportInvitationKey(guildIdString, it.entityId)
-                    if (setOrUpdateValue(connection, importKey, it, GuildInvite.serializer())) {
-                        val addKey = createAddInvitationKey(guildIdString, it.entityId)
-                        connection.del(addKey)
-                        true
-                    } else {
-                        false
-                    }
-                }
-                .toList()
+
+                if (toAdd.isEmpty()) return@map false
+
+                bulkRemoveAddedInvitations(connection, guildIdString, toAdd)
+                toAdd.forEach { importInvitation(connection, it) }
+                true
+            }
         }
 
         return result.any { it }
+    }
+
+    /**
+     * Remove all invitations in the add invitation list.
+     * @param connection Cache connection.
+     * @param guildId ID of the guild where the invitations are added.
+     * @param invites Invitations to delete.
+     * @return `true` if the at least one invitation was deleted, `false` otherwise.
+     */
+    private suspend fun bulkRemoveAddedInvitations(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        guildId: String,
+        invites: Collection<GuildInvite>
+    ): Boolean {
+        val addKey = createAddInvitationKey(guildId)
+        val fields = invites.map { encodeKey(it.entityId) }.toTypedArray()
+        val result = connection.hdel(addKey, *fields)
+        return result != null && result > 0
     }
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
@@ -866,19 +879,47 @@ public class GuildCacheService(
             throw GuildInvitedIsAlreadyMemberException("The entity $entityId is already a member of the guild $guildId")
         }
 
-        val guildIdString = guildId.toString()
         val invite = GuildInvite(guildId, entityId, expiredAt)
-        val addKey = createAddInvitationKey(guildIdString, entityId)
-        val serializer = GuildInvite.serializer()
-
         return cacheClient.connect { connection ->
             if (isCacheGuild(guildId)) {
-                setOrUpdateValue(connection, addKey, invite, GuildInvite.serializer())
+                addInvitation(connection, invite)
             } else {
-                val importKey = createImportInvitationKey(guildIdString, entityId)
-                connection.exists(importKey) == 0L && setOrUpdateValue(connection, addKey, invite, serializer)
+                val importKey = createImportInvitationKey(guildId.toString())
+                val encodedField = encodeKey(entityId)
+                if (connection.hexists(importKey, encodedField) == true) return@connect false
+
+                addInvitation(connection, invite)
             }
+            true
         }
+    }
+
+    /**
+     * Add an invitation to the add invitation list.
+     * @param connection Cache connection.
+     * @param invite Invitation to add.
+     */
+    private suspend fun addInvitation(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        invite: GuildInvite
+    ) {
+        val addKey = createAddInvitationKey(invite.guildId.toString())
+        val encodedField = encodeKey(invite.entityId)
+        connection.hset(addKey, encodedField, encodeToByteArray(GuildInvite.serializer(), invite))
+    }
+
+    /**
+     * Import an invitation to the import invitation list.
+     * @param connection Cache connection.
+     * @param invite Invitation to import.
+     */
+    private suspend fun importInvitation(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        invite: GuildInvite
+    ) {
+        val importKey = createImportInvitationKey(invite.guildId.toString())
+        val encodedField = encodeKey(invite.entityId)
+        connection.hset(importKey, encodedField, encodeToByteArray(GuildInvite.serializer(), invite))
     }
 
     override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
@@ -887,11 +928,9 @@ public class GuildCacheService(
             if (isCacheGuild(guildId)) {
                 removeAddedInvitation(connection, guildId, entityId)
             } else {
-                val importKey = createImportInvitationKey(guildId.toString(), entityId)
-
                 // If the invitation is imported, we mark it as removed
                 // Otherwise, we delete the key of the invitation added
-                if (connection.del(importKey) == 1L) {
+                if (removeImportedInvitation(connection, guildId, entityId)) {
                     markInvitationAsDeleted(connection, guildId, entityId)
                     true
                 } else {
@@ -905,18 +944,22 @@ public class GuildCacheService(
         requireEntityIdNotBlank(entityId)
 
         val guildIdString = guildId.toString()
-        val entityIdEncoded = encodeToByteArray(String.serializer(), entityId)
+        val encodedMapField = encodeKey(entityId)
 
         return cacheClient.connect { connection ->
             if (isCacheGuild(guildId)) {
                 // If the guild is created by GuildCacheService, we only need to check if the invitation is added
-                isValueOfSet(connection, createAddInvitationKey(guildIdString, entityId), entityIdEncoded)
+                isFieldOfMap(connection, createAddInvitationKey(guildIdString), encodedMapField)
             } else {
                 // If the guild is imported from other services, we need to check if the invitation is imported or added
                 // and if the invitation is not marked removed
-                (connection.exists(createImportInvitationKey(guildIdString, entityId)) == 1L ||
-                        connection.exists(createAddInvitationKey(guildIdString, entityId)) == 1L)
-                        && !isValueOfSet(connection, createRemoveInvitationKey(guildIdString), entityIdEncoded)
+                (isFieldOfMap(connection, createImportInvitationKey(guildIdString), encodedMapField) ||
+                        isFieldOfMap(connection, createAddInvitationKey(guildIdString), encodedMapField))
+                        && !isValueOfSet(
+                    connection,
+                    createRemoveInvitationKey(guildIdString),
+                    encodeToByteArray(String.serializer(), entityId)
+                )
             }
         }
     }
@@ -933,8 +976,26 @@ public class GuildCacheService(
         guildId: Int,
         entityId: String
     ): Boolean {
-        val addKey = createAddInvitationKey(guildId.toString(), entityId)
-        return connection.del(addKey) == 1L
+        val key = createAddInvitationKey(guildId.toString())
+        val field = encodeKey(entityId)
+        return connection.hdel(key, field) == 1L
+    }
+
+    /**
+     * Remove the invitation from the import invitation list.
+     * @param connection Cache connection.
+     * @param guildId ID of the guild where the invitation was imported.
+     * @param entityId ID of the entity that was invited.
+     * @return `true` if the invitation was removed from the import invitation list, `false` otherwise.
+     */
+    private suspend fun removeImportedInvitation(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        guildId: Int,
+        entityId: String
+    ): Boolean {
+        val key = createImportInvitationKey(guildId.toString())
+        val field = encodeKey(entityId)
+        return connection.hdel(key, field) == 1L
     }
 
     /**
@@ -983,6 +1044,15 @@ public class GuildCacheService(
         guildId: String
     ): ByteArray? = connection.get(createImportGuildKey(guildId)) ?: connection.get(createAddGuildKey(guildId))
 
+    override fun getInvitations(guildId: Int): Flow<GuildInvite> {
+        val guildIdString = guildId.toString()
+        return if (isCacheGuild(guildId)) {
+            getAllAddedInvitations(guildIdString)
+        } else {
+            getAllImportedAndAddedInvitations(guildIdString)
+        }.filter { !it.isExpired() }
+    }
+
     override fun getMembers(guildId: Int): Flow<String> {
         val idString = guildId.toString()
         return flow {
@@ -999,22 +1069,14 @@ public class GuildCacheService(
         }
     }
 
-    override fun getInvitations(guildId: Int): Flow<GuildInvite> {
-        val guildIdString = guildId.toString()
-        return if (isCacheGuild(guildId)) {
-            getAllAddedInvitations(guildIdString)
-        } else {
-            getAllImportedAndAddedInvitations(guildIdString)
-        }.filter { !it.isExpired() }
-    }
-
     /**
      * Get all invitations that were imported and added linked to the guild.
      * @param guildId ID of the guild.
      * @return Flow of all invitations that were imported and added.
      */
-    private fun getAllImportedAndAddedInvitations(guildId: String): Flow<GuildInvite> =
-        listOf(getAllImportedInvitations(guildId), getAllAddedInvitations(guildId)).merge()
+    private fun getAllImportedAndAddedInvitations(
+        guildId: String
+    ): Flow<GuildInvite> = listOf(getAllImportedInvitations(guildId), getAllAddedInvitations(guildId)).merge()
 
     /**
      * Get all invitations that were added linked to the guild.
@@ -1022,7 +1084,7 @@ public class GuildCacheService(
      * @return Flow of all invitations that were added.
      */
     private fun getAllAddedInvitations(guildId: String): Flow<GuildInvite> =
-        getAllKeyValues(createWildcardEntityForAddInvitationKey(guildId))
+        getAllValuesOfMap(createAddInvitationKey(guildId))
             .mapNotNull { decodeFromByteArrayOrNull(GuildInvite.serializer(), it) }
 
     /**
@@ -1031,8 +1093,21 @@ public class GuildCacheService(
      * @return Flow of all invitations that were imported.
      */
     private fun getAllImportedInvitations(guildId: String): Flow<GuildInvite> =
-        getAllKeyValues(createWildcardEntityForImportInvitationKey(guildId))
+        getAllValuesOfMap(createImportInvitationKey(guildId))
             .mapNotNull { decodeFromByteArrayOrNull(GuildInvite.serializer(), it) }
+
+    /**
+     * Get all values of a map.
+     * @param key Key of the map.
+     * @return Flow of all values of the map.
+     */
+    private fun getAllValuesOfMap(key: ByteArray): Flow<ByteArray> = flow {
+        cacheClient.connect { connection ->
+            connection.hgetall(key)
+                .mapNotNull { it.getValueOrElse(null) }
+                .let { emitAll(it) }
+        }
+    }
 
     /**
      * Delete all data related to guild.
@@ -1092,6 +1167,12 @@ public class GuildCacheService(
         value: ByteArray,
     ): Boolean = connection.sismember(cacheKey, value) == true
 
+    private suspend fun isFieldOfMap(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        key: ByteArray,
+        field: ByteArray,
+    ): Boolean = connection.hexists(key, field) == true
+
     /**
      * Returns all members of the set.
      * @param key Key of the set.
@@ -1103,29 +1184,6 @@ public class GuildCacheService(
         cacheClient.connect { connection ->
             emitAll(connection.smembers(key))
         }
-    }
-
-    /**
-     * Set or update a value for a given key.
-     * If the value is different it will be updated.
-     * If the value does not exist, it will be created.
-     * @param connection Cache connection.
-     * @param key Key of the value.
-     * @param value Guild invitation.
-     * @param serializer Serializer of the value.
-     * @return `true` if the value was created or updated, `false` otherwise.
-     */
-    private suspend fun <T> setOrUpdateValue(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        key: ByteArray,
-        value: T,
-        serializer: KSerializer<T>
-    ): Boolean {
-        val oldInvite = connection.get(key)?.let { decodeFromByteArrayOrNull(serializer, it) }
-        return if (oldInvite == null || oldInvite != value) {
-            val newInviteEncoded = encodeToByteArray(serializer, value)
-            connection.set(key, newInviteEncoded) == "OK"
-        } else false
     }
 
     /**
@@ -1215,23 +1273,11 @@ public class GuildCacheService(
      * @return Encoded key.
      */
     private fun createImportInvitationKey(
-        guildId: String,
-        entityId: String
+        guildId: String
     ): ByteArray = encodeFormattedKeyWithPrefix(
         Type.IMPORT_INVITATION.key,
-        guildId,
-        entityId
+        guildId
     )
-
-    /**
-     * Create the key to find all entities invited by importing an invitation in the given guild.
-     * The format of the key is `guild:[guildId]:invite:import:*`.
-     * @param guildId Guild ID.
-     * @return Key.
-     */
-    private fun createWildcardEntityForImportInvitationKey(
-        guildId: String
-    ): String = formattedKeyWithPrefix(Type.IMPORT_INVITATION.key, guildId, "*")
 
     /**
      * Create the key for the add invitation operation.
@@ -1241,23 +1287,11 @@ public class GuildCacheService(
      * @return Encoded key.
      */
     private fun createAddInvitationKey(
-        guildId: String,
-        entityId: String
+        guildId: String
     ): ByteArray = encodeFormattedKeyWithPrefix(
         Type.ADD_INVITATION.key,
-        guildId,
-        entityId
+        guildId
     )
-
-    /**
-     * Create the key to find all entities invited by adding an invitation in the given guild.
-     * The format of the key is `guild:[guildId]:invite:add:*`.
-     * @param guildId Guild ID.
-     * @return Key.
-     */
-    private fun createWildcardEntityForAddInvitationKey(
-        guildId: String
-    ): String = formattedKeyWithPrefix(Type.ADD_INVITATION.key, guildId, "*")
 
     /**
      * Create the key for the remove invitation operation.
