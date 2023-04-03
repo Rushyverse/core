@@ -824,14 +824,17 @@ public class GuildCacheService(
             requireValidInvitation(it.entityId, it.expiredAt)
         }
 
+        val guildIds = invites.asSequence().map { it.guildId }.distinct().toList()
+
+        guildIds.forEach {
+            require(!isCacheGuild(it)) { "Unable to import invitation for guild ${it} because it is created by the cache service" }
+        }
+
         val result = cacheClient.connect { connection ->
             // Before importing invitations, we check if the guilds exist
-            invites.asSequence()
-                .map { it.guildId }
-                .distinct()
-                .forEach { guildId ->
-                    checkHasGuild(connection, guildId)
-                }
+            guildIds.forEach {
+                checkHasGuild(connection, it)
+            }
 
             invites.asFlow()
                 .filterNot {
