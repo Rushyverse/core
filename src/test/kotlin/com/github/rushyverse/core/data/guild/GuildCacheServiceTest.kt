@@ -755,6 +755,21 @@ class GuildCacheServiceTest {
             }
         }
 
+        @Test
+        fun `when entity is already invited by an imported invitation`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+
+            val invite = GuildInvite(guildId, getRandomString(), null)
+            service.importInvitations(listOf(invite))
+
+            assertFalse { service.addInvitation(invite.guildId, invite.entityId, invite.expiredAt) }
+            assertThat(getAllAddedInvites(guildId.toString())).isEmpty()
+            assertThat(getAllImportedInvites(guildId.toString())).containsExactly(invite)
+            assertThat(getAllRemovedInvites(guildId.toString())).isEmpty()
+        }
+
         @ParameterizedTest
         @ValueSource(strings = ["", " ", "  ", "   "])
         fun `when entity id is blank`(id: String) = runTest {
@@ -1069,6 +1084,89 @@ class GuildCacheServiceTest {
                 assertThat(getAllImportedInvites(guildIdString)).isEmpty()
                 assertThat(getAllAddedInvites(guildIdString)).isEmpty()
             }
+        }
+
+        @Test
+        fun `should filter out invitation marked as deleted`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+            val guildIdString = guildId.toString()
+
+            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
+            assertTrue { service.importInvitations(invites) }
+            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
+            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+            assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
+
+            val invitesToDelete = invites.take(3)
+            val invitesEntitiesDeleted = invitesToDelete.map { it.entityId }
+            val invitesToKeep = invites.drop(3)
+
+            invitesToDelete.forEach { invite ->
+                service.removeInvitation(guildId, invite.entityId)
+            }
+            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
+            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesToKeep)
+            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+
+            val inviteShouldBeImported = GuildInvite(guildId, getRandomString(), null)
+            val newInvites = invitesToDelete + inviteShouldBeImported
+            assertTrue { service.importInvitations(newInvites) }
+            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesToKeep + inviteShouldBeImported)
+            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
+            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+        }
+
+        @Test
+        fun `should return false when all imported invitations are marked as deleted`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+            val guildIdString = guildId.toString()
+
+            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
+            assertTrue { service.importInvitations(invites) }
+            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
+            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+            assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
+
+            invites.forEach { invite ->
+                service.removeInvitation(guildId, invite.entityId)
+            }
+            val invitesEntitiesDeleted = invites.map { it.entityId }
+            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
+            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+
+            assertFalse { service.importInvitations(invites) }
+            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
+            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+        }
+
+        @Test
+        fun `should set as imported the added invitations`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+            val guildIdString = guildId.toString()
+
+            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
+            val invitesToAdd = invites.take(3)
+            val invitesToImport = invites.drop(3)
+
+            invitesToAdd.forEach { invite ->
+                assertTrue { service.addInvitation(invite.guildId, invite.entityId, invite.expiredAt) }
+            }
+            assertTrue { service.importInvitations(invitesToImport) }
+
+            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesToImport)
+            assertThat(getAllAddedInvites(guildIdString)).containsOnlyOnceElementsOf(invitesToAdd)
+
+            assertTrue { service.importInvitations(invitesToAdd) }
+            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
+            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
         }
     }
 
