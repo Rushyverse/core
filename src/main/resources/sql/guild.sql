@@ -42,10 +42,10 @@ CREATE INDEX idx_guild_invite_expired_at ON guild_invite (expired_at);
 
 -- Create view to get guilds with members with owner
 CREATE OR REPLACE VIEW guild_members_with_owner AS
-SELECT g.id as guild_id, g.owner_id as member_id, g.created_at as created_at
+SELECT g.id as guild_id, g.owner_id as entity_id, g.created_at as created_at
 FROM guild g
 UNION ALL
-SELECT gm.guild_id as guild_id, gm.entity_id as member_id, gm.created_at as created_at
+SELECT gm.guild_id as guild_id, gm.entity_id as entity_id, gm.created_at as created_at
 FROM guild_member gm;
 
 -- Function to check if member is the owner of the guild
@@ -106,7 +106,7 @@ BEGIN
     RETURN QUERY (SELECT 1
                   FROM guild_members_with_owner g
                   WHERE g.guild_id = guild
-                    AND g.member_id = entity);
+                    AND g.entity_id = entity);
 END
 $$ LANGUAGE plpgsql;
 
