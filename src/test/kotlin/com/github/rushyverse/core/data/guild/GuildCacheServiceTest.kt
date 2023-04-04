@@ -1262,6 +1262,21 @@ class GuildCacheServiceTest {
         }
 
         @Test
+        fun `should keep integrity of invitation data`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+
+            val expiredAt = Instant.now().plusSeconds(10).truncatedTo(ChronoUnit.MILLIS)
+            val invites = listOf(GuildInvite(guildId, getRandomString(), expiredAt))
+            service.importInvitations(invites)
+
+            val guildIdString = guildId.toString()
+            val importedInvites = getAllImportedInvites(guildIdString)
+            assertThat(importedInvites).containsExactlyInAnyOrderElementsOf(invites)
+        }
+
+        @Test
         fun `with one invitation with a non existing guild`() = runTest {
             val invites = listOf(GuildInvite(0, getRandomString(), null))
             assertThrows<GuildNotFoundException> {
