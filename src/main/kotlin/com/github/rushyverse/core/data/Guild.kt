@@ -16,6 +16,8 @@ import org.komapper.core.dsl.operator.literal
 import org.komapper.core.dsl.query.bind
 import org.komapper.r2dbc.R2dbcDatabase
 import java.time.Instant
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 
 /**
  * Exception about guilds information.
@@ -728,6 +730,12 @@ public class GuildCacheService(
         removeKey: (String) -> ByteArray,
         importKey: (String) -> ByteArray,
     ): Boolean {
+        contract {
+            callsInPlace(addKey, InvocationKind.AT_MOST_ONCE)
+            callsInPlace(removeKey, InvocationKind.UNKNOWN)
+            callsInPlace(importKey, InvocationKind.AT_MOST_ONCE)
+        }
+
         val guildEntities = entities.groupBy { it.guildId }
         guildEntities.keys.forEach {
             requireImportedGuild(it)
@@ -857,6 +865,11 @@ public class GuildCacheService(
         addKey: (String) -> ByteArray,
         importKey: (String) -> ByteArray
     ): Boolean {
+        contract {
+            callsInPlace(addKey, InvocationKind.AT_MOST_ONCE)
+            callsInPlace(importKey, InvocationKind.AT_MOST_ONCE)
+        }
+
         val guildId = value.guildId
         val guildIdString = guildId.toString()
         return cacheClient.connect { connection ->
@@ -920,6 +933,12 @@ public class GuildCacheService(
         removeKey: (String) -> ByteArray,
         importKey: (String) -> ByteArray
     ): Boolean {
+        contract {
+            callsInPlace(addKey, InvocationKind.AT_MOST_ONCE)
+            callsInPlace(removeKey, InvocationKind.AT_MOST_ONCE)
+            callsInPlace(importKey, InvocationKind.AT_MOST_ONCE)
+        }
+
         val guildIdString = guildId.toString()
         return cacheClient.connect { connection ->
             if (isCacheGuild(guildId)) {
@@ -961,6 +980,11 @@ public class GuildCacheService(
         addKey: (String) -> ByteArray,
         importKey: (String) -> ByteArray,
     ): Boolean {
+        contract {
+            callsInPlace(addKey, InvocationKind.AT_MOST_ONCE)
+            callsInPlace(importKey, InvocationKind.AT_MOST_ONCE)
+        }
+
         val guildIdString = guildId.toString()
 
         return cacheClient.connect { connection ->
@@ -1043,6 +1067,11 @@ public class GuildCacheService(
         addKey: (String) -> ByteArray,
         importKey: (String) -> ByteArray,
     ): Flow<ByteArray> {
+        contract {
+            callsInPlace(addKey, InvocationKind.EXACTLY_ONCE)
+            callsInPlace(importKey, InvocationKind.AT_MOST_ONCE)
+        }
+
         val guildIdString = guildId.toString()
         return if (isCacheGuild(guildId)) {
             getAllValuesOfMap(addKey(guildIdString))
