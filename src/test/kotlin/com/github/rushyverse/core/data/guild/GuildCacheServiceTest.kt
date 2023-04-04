@@ -1151,6 +1151,11 @@ class GuildCacheServiceTest {
         }
 
         @Test
+        fun `should ignore empty value for entities`() = runTest {
+            TODO()
+        }
+
+        @Test
         fun `when an entity is member but not invited`() = runTest {
             val guild = Guild(0, getRandomString(), getRandomString())
             service.importGuild(guild)
@@ -1262,6 +1267,27 @@ class GuildCacheServiceTest {
             assertThrows<GuildNotFoundException> {
                 service.importInvitations(invites)
             }
+        }
+
+        @Test
+        fun `should throw exception if at least one invited entity is member`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+            val invites = listOf(
+                GuildInvite(guildId, getRandomString(), null),
+                GuildInvite(guildId, getRandomString(), null)
+            )
+
+            service.addMember(guildId, invites[0].entityId)
+
+            assertThrows<GuildInvitedIsAlreadyMemberException> {
+                service.importInvitations(invites)
+            }
+
+            val guildIdString = guildId.toString()
+            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
         }
 
         @Test
