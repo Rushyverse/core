@@ -23,7 +23,7 @@ dependencies {
     val testContainersVersion = "1.17.6"
     val lettuceVersion = "6.2.3.RELEASE"
     val kotlinMojangApi = "2.2.0"
-    val nettyCodecVersion = "4.1.90.Final"
+    val nettyCodecVersion = "4.1.91.Final"
     val assertJcoreVersion = "3.24.2"
     val komapperVersion = "1.8.0"
 
