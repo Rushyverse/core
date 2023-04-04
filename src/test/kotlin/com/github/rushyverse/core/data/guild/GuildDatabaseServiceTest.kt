@@ -7,6 +7,7 @@ import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptio
 import com.github.rushyverse.core.data.utils.MicroClockProvider
 import com.github.rushyverse.core.utils.getRandomString
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -32,6 +33,10 @@ import kotlin.test.*
 fun GuildInvite.defaultTime() = copy(
     createdAt = Instant.EPOCH,
     expiredAt = null
+)
+
+fun GuildMember.defaultTime() = copy(
+    createdAt = Instant.EPOCH
 )
 
 @Testcontainers
@@ -401,8 +406,11 @@ class GuildDatabaseServiceTest {
             val entityId = getRandomString()
             assertTrue { service.addMember(guild.id, entityId) }
 
-            val members = service.getMembers(guild.id).toList()
-            assertThat(members).containsExactlyInAnyOrder(owner, entityId)
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrder(
+                GuildMember(guild.id, owner),
+                GuildMember(guild.id, entityId)
+            )
         }
 
         @Test
@@ -413,8 +421,11 @@ class GuildDatabaseServiceTest {
             assertTrue { service.addMember(guild.id, entityId) }
             assertFalse { service.addMember(guild.id, entityId) }
 
-            val members = service.getMembers(guild.id).toList()
-            assertThat(members).containsExactlyInAnyOrder(owner, entityId)
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrder(
+                GuildMember(guild.id, owner),
+                GuildMember(guild.id, entityId)
+            )
         }
 
         @Test
@@ -425,8 +436,10 @@ class GuildDatabaseServiceTest {
                 service.addMember(guild.id, owner)
             }
 
-            val members = service.getMembers(guild.id).toList()
-            assertThat(members).containsExactlyInAnyOrder(owner)
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrder(
+                GuildMember(guild.id, owner)
+            )
         }
 
         @Test
@@ -437,8 +450,11 @@ class GuildDatabaseServiceTest {
             assertTrue { service.addInvitation(guild.id, entityId, null) }
             assertTrue { service.addMember(guild.id, entityId) }
 
-            val members = service.getMembers(guild.id).toList()
-            assertThat(members).containsExactlyInAnyOrder(owner, entityId)
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrder(
+                GuildMember(guild.id, owner),
+                GuildMember(guild.id, entityId)
+            )
 
             val pendingMembers = service.getInvitations(guild.id).toList()
             assertThat(pendingMembers).isEmpty()
@@ -749,8 +765,10 @@ class GuildDatabaseServiceTest {
             service.addMember(guild.id, entityId)
             assertTrue { service.removeMember(guild.id, entityId) }
 
-            val members = service.getMembers(guild.id).toList()
-            assertContentEquals(listOf(owner), members)
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrder(
+                GuildMember(guild.id, owner)
+            )
         }
 
         @Test
@@ -760,8 +778,10 @@ class GuildDatabaseServiceTest {
             val entityId = getRandomString()
             assertFalse { service.removeMember(guild.id, entityId) }
 
-            val members = service.getMembers(guild.id).toList()
-            assertContentEquals(listOf(owner), members)
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrder(
+                GuildMember(guild.id, owner)
+            )
         }
 
         @Test
@@ -774,8 +794,11 @@ class GuildDatabaseServiceTest {
             val entityId2 = getRandomString()
             assertFalse { service.removeMember(guild.id, entityId2) }
 
-            val members = service.getMembers(guild.id).toList()
-            assertThat(members).containsExactlyInAnyOrder(owner, entityId)
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrder(
+                GuildMember(guild.id, owner),
+                GuildMember(guild.id, entityId)
+            )
         }
 
         @Test
@@ -797,8 +820,10 @@ class GuildDatabaseServiceTest {
             val guild = service.createGuild(getRandomString(), owner)
             assertFalse { service.removeMember(guild.id, owner) }
 
-            val members = service.getMembers(guild.id).toList()
-            assertContentEquals(listOf(owner), members)
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrder(
+                GuildMember(guild.id, owner)
+            )
         }
     }
 
@@ -868,8 +893,10 @@ class GuildDatabaseServiceTest {
         fun `when guild has no members except the owner`() = runTest {
             val owner = getRandomString()
             val guild = service.createGuild(getRandomString(), owner)
-            val members = service.getMembers(guild.id).toList()
-            assertContentEquals(listOf(owner), members)
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrder(
+                GuildMember(guild.id, owner)
+            )
         }
 
         @Test
@@ -879,8 +906,10 @@ class GuildDatabaseServiceTest {
             val membersToAdd = listOf(getRandomString(), getRandomString())
             membersToAdd.forEach { service.addMember(guild.id, it) }
 
-            val members = service.getMembers(guild.id).toList()
-            assertThat(members).containsExactlyInAnyOrderElementsOf(membersToAdd + owner)
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrderElementsOf(
+                membersToAdd.map { GuildMember(guild.id, it) } + GuildMember(guild.id, owner)
+            )
         }
 
         @Test
@@ -889,8 +918,10 @@ class GuildDatabaseServiceTest {
             val guild = service.createGuild(getRandomString(), owner)
             service.addInvitation(guild.id, getRandomString(), null)
 
-            val members = service.getMembers(guild.id).toList()
-            assertThat(members).containsExactlyInAnyOrder(owner)
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrder(
+                GuildMember(guild.id, owner)
+            )
         }
 
         @Test
@@ -920,7 +951,7 @@ class GuildDatabaseServiceTest {
                 service.addInvitation(it.guildId, it.entityId, it.expiredAt)
             }
 
-            val members = service.getInvitations(guild.id).toList().map { it.defaultTime() }
+            val members = service.getInvitations(guild.id).map(GuildInvite::defaultTime).toList()
             assertThat(members).containsExactlyInAnyOrderElementsOf(invites)
         }
 

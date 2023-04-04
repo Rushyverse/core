@@ -8,6 +8,7 @@ import io.lettuce.core.FlushMode
 import io.lettuce.core.KeyScanArgs
 import io.lettuce.core.KeyValue
 import io.lettuce.core.RedisURI
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
@@ -735,28 +736,27 @@ class GuildCacheServiceTest {
             val guildIdString = guildId.toString()
 
             val members = List(5) { GuildMember(guildId, getRandomString()) }
-            val memberIds = members.map { it.entityId }
             assertTrue { service.importMembers(members) }
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(memberIds)
+            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
             assertThat(getAllAddedMembers(guildIdString)).isEmpty()
             assertThat(getAllRemovedMembers(guildIdString)).isEmpty()
 
-            val membersToDelete = memberIds.take(3)
-            val membersToKeep = memberIds.drop(3)
+            val membersToDelete = members.take(3)
+            val membersToKeep = members.drop(3)
 
             membersToDelete.forEach {
-                service.removeMember(guildId, it)
+                service.removeMember(guildId, it.entityId)
             }
             assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToKeep)
             assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToDelete)
+            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToDelete.map { it.entityId })
 
-            val memberShouldBeImported = getRandomString()
-            val newMembers = (membersToDelete + memberShouldBeImported).map { GuildMember(guildId, it) }
+            val memberShouldBeImported = GuildMember(guildId, getRandomString())
+            val newMembers = (membersToDelete + memberShouldBeImported)
             assertTrue { service.importMembers(newMembers) }
             assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToKeep + memberShouldBeImported)
             assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToDelete)
+            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToDelete.map { it.entityId })
         }
 
         @Test
@@ -767,28 +767,26 @@ class GuildCacheServiceTest {
             val guildIdString = guildId.toString()
 
             val members = List(1000) { GuildMember(guildId, getRandomString()) }
-            val memberIds = members.map { it.entityId }
             assertTrue { service.importMembers(members) }
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(memberIds)
+            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
             assertThat(getAllAddedMembers(guildIdString)).isEmpty()
 
             assertThat(getAllRemovedMembers(guildIdString)).isEmpty()
 
-            memberIds.forEach {
+            val membersDeleted = members.map { it.entityId }
+            membersDeleted.forEach {
                 service.removeMember(guildId, it)
             }
 
             assertThat(getAllImportedMembers(guildIdString)).isEmpty()
             assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(memberIds)
+            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersDeleted)
 
             assertFalse { service.importMembers(members) }
 
             assertThat(getAllImportedMembers(guildIdString)).isEmpty()
-
             assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-
-            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(memberIds)
+            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersDeleted)
         }
 
         @Test
@@ -799,21 +797,20 @@ class GuildCacheServiceTest {
             val guildIdString = guildId.toString()
 
             val members = List(5) { GuildMember(guildId, getRandomString()) }
-            val memberIds = members.map { it.entityId }
-            val membersToAdd = memberIds.take(3)
-            val membersToImport = memberIds.drop(3)
+            val membersToAdd = members.take(3)
+            val membersToImport = members.drop(3)
 
             membersToAdd.forEach {
-                assertTrue { service.addMember(guildId, it) }
+                assertTrue { service.addMember(guildId, it.entityId) }
             }
 
-            assertTrue { service.importMembers(membersToImport.map { GuildMember(guildId, it) }) }
+            assertTrue { service.importMembers(membersToImport) }
 
             assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToImport)
             assertThat(getAllAddedMembers(guildIdString)).containsOnlyOnceElementsOf(membersToAdd)
 
-            assertTrue { service.importMembers(membersToAdd.map { GuildMember(guildId, it) }) }
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(memberIds)
+            assertTrue { service.importMembers(membersToAdd) }
+            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
             assertThat(getAllAddedMembers(guildIdString)).isEmpty()
         }
 
@@ -1155,14 +1152,13 @@ class GuildCacheServiceTest {
 
         @Test
         fun `when an entity is member but not invited`() = runTest {
-            withGuildImportedAndCreated {
-                val guild = service.createGuild(getRandomString(), it.ownerId)
-                service.addMember(guild.id, getRandomString())
-                service.importMembers(listOf(GuildMember(guild.id, getRandomString())))
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            service.addMember(guild.id, getRandomString())
+            service.importMembers(listOf(GuildMember(guild.id, getRandomString())))
 
-                val invitations = service.getInvitations(guild.id).toList()
-                assertThat(invitations).isEmpty()
-            }
+            val invitations = service.getInvitations(guild.id).toList()
+            assertThat(invitations).isEmpty()
         }
 
         @Test
@@ -1451,20 +1447,27 @@ class GuildCacheServiceTest {
     }
 
     private suspend fun getAllImportedInvites(guildId: String): List<GuildInvite> {
-        return getAllInvites(GuildCacheService.Type.IMPORT_INVITATION, guildId)
+        return getAllMapValues(GuildCacheService.Type.IMPORT_INVITATION, guildId)
+            .map { keyValue ->
+                cacheClient.binaryFormat.decodeFromByteArray(GuildInvite.serializer(), keyValue.value)
+            }.toList()
     }
 
     private suspend fun getAllAddedInvites(guildId: String): List<GuildInvite> {
-        return getAllInvites(GuildCacheService.Type.ADD_INVITATION, guildId)
+        return getAllMapValues(GuildCacheService.Type.ADD_INVITATION, guildId)
+            .map { keyValue ->
+                cacheClient.binaryFormat.decodeFromByteArray(GuildInvite.serializer(), keyValue.value)
+            }.toList()
     }
 
-    private suspend fun getAllInvites(type: GuildCacheService.Type, guildId: String): List<GuildInvite> {
+    private suspend fun getAllMapValues(
+        type: GuildCacheService.Type,
+        guildId: String
+    ): Flow<KeyValue<ByteArray, ByteArray>> {
         return cacheClient.connect {
             val searchKey = service.prefixKey.format(guildId) + type.key
             it.hgetall(searchKey.encodeToByteArray())
-        }.map { keyValue ->
-            cacheClient.binaryFormat.decodeFromByteArray(GuildInvite.serializer(), keyValue.value)
-        }.toList()
+        }
     }
 
     private suspend fun getAllRemovedInvites(guildId: String): List<String> {
@@ -1473,16 +1476,18 @@ class GuildCacheServiceTest {
         }
     }
 
-    private suspend fun getAllImportedMembers(guildId: String): List<String> {
-        return getAllValuesOfSet(GuildCacheService.Type.IMPORT_MEMBER, guildId).map {
-            cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), it)
-        }
+    private suspend fun getAllImportedMembers(guildId: String): List<GuildMember> {
+        return getAllMapValues(GuildCacheService.Type.IMPORT_MEMBER, guildId)
+            .map { keyValue ->
+                cacheClient.binaryFormat.decodeFromByteArray(GuildMember.serializer(), keyValue.value)
+            }.toList()
     }
 
-    private suspend fun getAllAddedMembers(guildId: String): List<String> {
-        return getAllValuesOfSet(GuildCacheService.Type.ADD_MEMBER, guildId).map {
-            cacheClient.binaryFormat.decodeFromByteArray(String.serializer(), it)
-        }
+    private suspend fun getAllAddedMembers(guildId: String): List<GuildMember> {
+        return getAllMapValues(GuildCacheService.Type.ADD_MEMBER, guildId)
+            .map { keyValue ->
+                cacheClient.binaryFormat.decodeFromByteArray(GuildMember.serializer(), keyValue.value)
+            }.toList()
     }
 
     private suspend fun getAllRemovedMembers(guildId: String): List<String> {
