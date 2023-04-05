@@ -550,10 +550,21 @@ public class GuildCacheService(
     }
 
     override suspend fun getGuild(id: Int): Guild? {
-        val idString = id.toString()
         return cacheClient.connect { connection ->
-            getGuildValue(connection, idString)
-        }?.let {
+            getGuild(connection, id)
+        }
+    }
+
+    /**
+     * Get a guild by its ID.
+     * @param connection Cache connection.
+     * @param id ID of the guild.
+     * @return The guild, or `null` if it does not exist.
+     */
+    private suspend fun getGuild(connection: RedisCoroutinesCommands<ByteArray, ByteArray>, id: Int): Guild? {
+        val guildIdString = id.toString()
+        return (connection.get(createImportGuildKey(guildIdString)) ?: connection.get(createAddGuildKey(guildIdString)))
+        ?.let {
             decodeFromByteArrayOrNull(Guild.serializer(), it)
         }
     }
@@ -682,18 +693,6 @@ public class GuildCacheService(
         }
     }
 
-    /**
-     * Get the value of the guild in the cache.
-     * Will retrieve the value in [Type.IMPORT_GUILD] and if it is not present, in [Type.ADD_GUILD].
-     * @param connection Cache connection.
-     * @param guildId ID of the guild.
-     * @return Value of the guild in the cache, `null` if the guild is not in the cache.
-     */
-    private suspend fun getGuildValue(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        guildId: String
-    ): ByteArray? = connection.get(createImportGuildKey(guildId)) ?: connection.get(createAddGuildKey(guildId))
-
     override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
         return getGuild(guildId)?.ownerId == entityId
@@ -758,7 +757,7 @@ public class GuildCacheService(
         guildId: Int,
         entityId: String
     ): Boolean {
-        val guild = getGuild(guildId)
+        val guild = getGuild(connection, guildId)
         return guild?.ownerId == entityId || entityIsAddedOrImported(
             connection,
             guildId,
