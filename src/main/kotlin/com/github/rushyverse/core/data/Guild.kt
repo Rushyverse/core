@@ -249,7 +249,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun deleteGuild(id: Int): Boolean {
-        val meta = _Guild.guild
+        val meta = guild
         val query = QueryDsl.delete(meta).where {
             meta.id eq id
         }
@@ -257,7 +257,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     }
 
     override suspend fun getGuild(id: Int): Guild? {
-        val meta = _Guild.guild
+        val meta = guild
         val query = QueryDsl.from(meta).where {
             meta.id eq id
         }
@@ -267,7 +267,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     override fun getGuild(name: String): Flow<Guild> {
         requireGuildNameNotBlank(name)
 
-        val meta = _Guild.guild
+        val meta = guild
         val query = QueryDsl.from(meta).where {
             meta.name eq name
         }
@@ -277,7 +277,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildSe
     override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
-        val meta = _Guild.guild
+        val meta = guild
         val query = QueryDsl.from(meta).where {
             meta.id eq guildId
             meta.ownerId eq entityId
