@@ -840,7 +840,6 @@ public class GuildCacheService(
 
             guildEntities.map { (guildId, entities) ->
                 val guildIdString = guildId.toString()
-
                 val toAdd = entities.filterNot {
                     entityIsMarkedAsDeleted(connection, removeKey(guildIdString), it.entityId)
                 }
@@ -931,10 +930,10 @@ public class GuildCacheService(
             callsInPlace(importKey, InvocationKind.AT_MOST_ONCE)
         }
 
-        val guildId = value.guildId
         return cacheClient.connect { connection ->
             requirement(connection)
 
+            val guildId = value.guildId
             if (isCacheGuild(guildId)) {
                 setEntityValueIfNotEquals(connection, addKey, value, serializer)
             } else {
