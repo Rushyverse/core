@@ -924,7 +924,9 @@ class GuildCacheServiceTest {
         @Test
         fun `should return false if the entity is the owner`() = runTest {
             withGuildImportedAndCreated {
-                assertFalse { service.addMember(it.id, it.ownerId) }
+                assertThrows<GuildMemberIsOwnerOfGuildException> {
+                    service.addMember(it.id, it.ownerId)
+                }
                 assertThat(getAllAddedMembers(it.id.toString())).isEmpty()
             }
         }
