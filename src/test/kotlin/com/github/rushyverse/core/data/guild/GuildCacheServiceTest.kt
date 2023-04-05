@@ -692,6 +692,13 @@ class GuildCacheServiceTest {
             }
         }
 
+        @Test
+        fun `when entity is owner of the guild`() = runTest {
+            withGuildImportedAndCreated {
+                assertTrue { service.isMember(it.id, it.ownerId) }
+            }
+        }
+
         @ParameterizedTest
         @ValueSource(ints = [-1, 0, 1])
         fun `when guild does not exist`(id: Int) = runTest {
