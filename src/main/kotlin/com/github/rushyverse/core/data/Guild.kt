@@ -693,20 +693,27 @@ public class GuildCacheService(
 
     override suspend fun isMember(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
-        return entityIsAddedOrImported(
-            guildId,
-            entityId,
-            this::createAddMemberKey,
-            this::createImportMemberKey
-        )
+        return cacheClient.connect {
+            isMember(it, guildId, entityId)
+        }
     }
 
+    /**
+     * Check if entity is a member of the guild.
+     * If the entity is the owner of the guild, it is a member.
+     * If the entity is added or imported, it is a member.
+     * @param connection Redis connection.
+     * @param guildId Guild ID.
+     * @param entityId Entity ID.
+     * @return `true` if entity is a member, `false` otherwise.
+     */
     private suspend inline fun isMember(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         guildId: Int,
         entityId: String
     ): Boolean {
-        return entityIsAddedOrImported(
+        val guild = getGuild(guildId)
+        return guild?.ownerId == entityId || entityIsAddedOrImported(
             connection,
             guildId,
             entityId,
@@ -750,7 +757,7 @@ public class GuildCacheService(
         addKey: (String) -> ByteArray,
         removeKey: (String) -> ByteArray,
         importKey: (String) -> ByteArray,
-        checkValid: (RedisCoroutinesCommands<ByteArray, ByteArray>, Int, List<T>) -> Unit = { _, _, _ -> }
+        requirement: (RedisCoroutinesCommands<ByteArray, ByteArray>, Int, List<T>) -> Unit = { _, _, _ -> }
     ): Boolean {
         contract {
             callsInPlace(addKey, InvocationKind.AT_MOST_ONCE)
@@ -767,7 +774,7 @@ public class GuildCacheService(
             // Before importing invitations, we check if the guilds exist
             guildEntities.forEach { (guild, entities) ->
                 requireGuildExists(connection, guild)
-                checkValid(connection, guild, entities)
+                requirement(connection, guild, entities)
             }
 
             guildEntities.map { (guildId, entities) ->
@@ -864,12 +871,18 @@ public class GuildCacheService(
             this::createAddInvitationKey,
             this::createImportInvitationKey
         ) { connection ->
-            requireGuildExists(connection, guildId)
             requireEntityIsNotMember(connection, guildId, entityId)
         }
     }
 
-    private suspend fun GuildCacheService.requireEntityIsNotMember(
+    /**
+     * Check if the entity is not a member of the guild.
+     * If the entity is a member, a [GuildInvitedIsAlreadyMemberException] will be thrown.
+     * @param connection Cache connection.
+     * @param guildId Guild where the entity could be a member.
+     * @param entityId ID of the entity.
+     */
+    private suspend fun requireEntityIsNotMember(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         guildId: Int,
         entityId: String
@@ -905,6 +918,7 @@ public class GuildCacheService(
         val guildId = value.guildId
         val guildIdString = guildId.toString()
         return cacheClient.connect { connection ->
+            requireGuildExists(connection, guildId)
             requirement(connection)
 
             if (isCacheGuild(guildId)) {
