@@ -564,9 +564,9 @@ public class GuildCacheService(
     private suspend fun getGuild(connection: RedisCoroutinesCommands<ByteArray, ByteArray>, id: Int): Guild? {
         val guildIdString = id.toString()
         return (connection.get(createImportGuildKey(guildIdString)) ?: connection.get(createAddGuildKey(guildIdString)))
-        ?.let {
-            decodeFromByteArrayOrNull(Guild.serializer(), it)
-        }
+            ?.let {
+                decodeFromByteArrayOrNull(Guild.serializer(), it)
+            }
     }
 
     override fun getGuild(name: String): Flow<Guild> {
@@ -711,7 +711,14 @@ public class GuildCacheService(
             this::createAddMemberKey,
             this::createRemoveMemberKey,
             this::createImportMemberKey
-        )
+        ) { connection, guildId, entities ->
+            val guild = getGuild(connection, guildId) ?: throwGuildNotFoundException(guildId)
+            entities.forEach { member ->
+                if (member.entityId == guild.ownerId) {
+                    throw GuildMemberIsOwnerOfGuildException(guild.id, member.entityId)
+                }
+            }
+        }
     }
 
     override suspend fun addMember(guildId: Int, entityId: String): Boolean {
@@ -780,9 +787,14 @@ public class GuildCacheService(
             this::createAddInvitationKey,
             this::createRemoveInvitationKey,
             this::createImportInvitationKey
-        ) { connection, guild, invitations ->
-            invitations.forEach {
-                requireEntityIsNotMember(connection, guild, it.entityId)
+        ) { connection, guildId, invitations ->
+            val guild = getGuild(connection, guildId) ?: throwGuildNotFoundException(guildId)
+            invitations.forEach { invite ->
+                val entityId = invite.entityId
+                if (entityId == guild.ownerId) {
+                    throw GuildInvitedIsAlreadyMemberException(guild.id, entityId)
+                }
+                requireEntityIsNotMember(connection, guildId, entityId)
             }
         }
     }
@@ -818,7 +830,6 @@ public class GuildCacheService(
         val result = cacheClient.connect { connection ->
             // Before importing invitations, we check if the guilds exist
             guildEntities.forEach { (guild, entities) ->
-                requireGuildExists(connection, guild)
                 requirement(connection, guild, entities)
             }
 
