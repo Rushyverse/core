@@ -1544,8 +1544,10 @@ class GuildCacheServiceTest {
             service.importGuild(guild)
             val guildId = guild.id
 
-            val expiredAt = Instant.now().plusSeconds(10).truncatedTo(ChronoUnit.MILLIS)
-            val invites = listOf(GuildInvite(guildId, getRandomString(), expiredAt))
+            val now = Instant.now()
+            val expiredAt = now.plusSeconds(10).truncatedTo(ChronoUnit.MILLIS)
+            val createdAt = now.minusSeconds(10).truncatedTo(ChronoUnit.MILLIS)
+            val invites = listOf(GuildInvite(guildId, getRandomString(), expiredAt, createdAt))
             service.importInvitations(invites)
 
             val guildIdString = guildId.toString()
