@@ -648,6 +648,52 @@ public class GuildCacheService(
         guildId: Int
     ): Boolean = connection.sismember(createRemoveGuildKey(), encodeToByteArray(Int.serializer(), guildId)) == true
 
+    /**
+     * Delete all data related to guild.
+     * Will delete the keys based on the [Guild.id].
+     * @param guildId Guild to delete.
+     * @return `true` if at least one key was deleted, `false` otherwise.
+     */
+    private suspend fun deleteGuildData(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        guildId: Int
+    ): Boolean {
+        val keys = getAllKeysLinkedToGuild(guildId.toString()).toList()
+        if (keys.isEmpty()) {
+            return false
+        }
+
+        val result = connection.del(*keys.toTypedArray())
+        return result != null && result > 0
+    }
+
+    /**
+     * Check if the guild exists in cache.
+     * If the guild does not exist, a [GuildNotFoundException] will be thrown.
+     * @param connection Redis connection.
+     * @param id Guild ID.
+     */
+    private suspend fun requireGuildExists(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        id: Int
+    ) {
+        if (!hasGuild(connection, id)) {
+            throwGuildNotFoundException(id)
+        }
+    }
+
+    /**
+     * Get the value of the guild in the cache.
+     * Will retrieve the value in [Type.IMPORT_GUILD] and if it is not present, in [Type.ADD_GUILD].
+     * @param connection Cache connection.
+     * @param guildId ID of the guild.
+     * @return Value of the guild in the cache, `null` if the guild is not in the cache.
+     */
+    private suspend fun getGuildValue(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        guildId: String
+    ): ByteArray? = connection.get(createImportGuildKey(guildId)) ?: connection.get(createAddGuildKey(guildId))
+
     override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
         return getGuild(guildId)?.ownerId == entityId
@@ -815,52 +861,6 @@ public class GuildCacheService(
         val result = connection.hdel(addKey, *fields)
         return result != null && result > 0
     }
-
-    /**
-     * Delete all data related to guild.
-     * Will delete the keys based on the [Guild.id].
-     * @param guildId Guild to delete.
-     * @return `true` if at least one key was deleted, `false` otherwise.
-     */
-    private suspend fun deleteGuildData(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        guildId: Int
-    ): Boolean {
-        val keys = getAllKeysLinkedToGuild(guildId.toString()).toList()
-        if (keys.isEmpty()) {
-            return false
-        }
-
-        val result = connection.del(*keys.toTypedArray())
-        return result != null && result > 0
-    }
-
-    /**
-     * Check if the guild exists in cache.
-     * If the guild does not exist, a [GuildNotFoundException] will be thrown.
-     * @param connection Redis connection.
-     * @param id Guild ID.
-     */
-    private suspend fun requireGuildExists(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        id: Int
-    ) {
-        if (!hasGuild(connection, id)) {
-            throwGuildNotFoundException(id)
-        }
-    }
-
-    /**
-     * Get the value of the guild in the cache.
-     * Will retrieve the value in [Type.IMPORT_GUILD] and if it is not present, in [Type.ADD_GUILD].
-     * @param connection Cache connection.
-     * @param guildId ID of the guild.
-     * @return Value of the guild in the cache, `null` if the guild is not in the cache.
-     */
-    private suspend fun getGuildValue(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        guildId: String
-    ): ByteArray? = connection.get(createImportGuildKey(guildId)) ?: connection.get(createAddGuildKey(guildId))
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
         requireValidInvitation(entityId, expiredAt)
@@ -1038,6 +1038,15 @@ public class GuildCacheService(
         }
     }
 
+    /**
+     * Check if the entity is added or imported.
+     * @param connection Cache connection.
+     * @param guildId Guild ID.
+     * @param entityId Entity ID.
+     * @param addKey Function to create the key of the added entity.
+     * @param importKey Function to create the key of the imported entity.
+     * @return `true` if the entity is added or imported, `false` otherwise.
+     */
     private suspend inline fun entityIsAddedOrImported(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         guildId: Int,
