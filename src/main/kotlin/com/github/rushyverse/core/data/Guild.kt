@@ -724,12 +724,17 @@ public class GuildCacheService(
     override suspend fun addMember(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
-        return setEntityValueIfNotImported(
+        return setEntityValueIfNotEqualsAndNotImported(
             GuildMember(guildId, entityId),
             GuildMember.serializer(),
             this::createAddMemberKey,
             this::createImportMemberKey,
-        )
+        ) {
+            val guild = getGuild(guildId) ?: throwGuildNotFoundException(guildId)
+            if (entityId == guild.ownerId) {
+                throw GuildMemberIsOwnerOfGuildException(guildId, entityId)
+            }
+        }
     }
 
     override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
@@ -875,12 +880,13 @@ public class GuildCacheService(
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
         requireValidInvitation(entityId, expiredAt)
 
-        return setEntityValueIfNotImported(
+        return setEntityValueIfNotEqualsAndNotImported(
             GuildInvite(guildId, entityId, expiredAt),
             GuildInvite.serializer(),
             this::createAddInvitationKey,
             this::createImportInvitationKey
         ) { connection ->
+            requireGuildExists(connection, guildId)
             requireEntityIsNotMember(connection, guildId, entityId)
         }
     }
@@ -913,7 +919,7 @@ public class GuildCacheService(
      * @param importKey Function to create the key of the imported entity.
      * @return `true` if the value was set, `false` otherwise.
      */
-    private suspend inline fun <T : GuildEntityIds> setEntityValueIfNotImported(
+    private suspend inline fun <T : GuildEntityIds> setEntityValueIfNotEqualsAndNotImported(
         value: T,
         serializer: KSerializer<T>,
         addKey: (String) -> ByteArray,
@@ -926,21 +932,44 @@ public class GuildCacheService(
         }
 
         val guildId = value.guildId
-        val guildIdString = guildId.toString()
         return cacheClient.connect { connection ->
-            requireGuildExists(connection, guildId)
             requirement(connection)
 
             if (isCacheGuild(guildId)) {
-                setEntityValue(connection, addKey(guildIdString), value, serializer)
+                setEntityValueIfNotEquals(connection, addKey, value, serializer)
             } else {
-                if (connection.hexists(importKey(guildIdString), encodeKey(value.entityId)) == true) {
+                if (connection.hexists(importKey(guildId.toString()), encodeKey(value.entityId)) == true) {
                     return@connect false
                 }
-                setEntityValue(connection, addKey(guildIdString), value, serializer)
+                setEntityValueIfNotEquals(connection, addKey, value, serializer)
             }
-            true
         }
+    }
+
+    /**
+     * Set the value of an entity in the cache.
+     * If the value is not equal to the current value, the value will be set.
+     * The value will be set in the map referenced by the key [addKey] with the field [GuildEntityIds.entityId].
+     * @param connection Cache connection.
+     * @param addKey Function to create the key of the added entity.
+     * @param value Value to set.
+     * @param serializer Serializer of the value.
+     * @return `true` if the value was set or updated, `false` if the same value is present.
+     */
+    private suspend inline fun <T : GuildEntityIds> setEntityValueIfNotEquals(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        addKey: (String) -> ByteArray,
+        value: T,
+        serializer: KSerializer<T>
+    ): Boolean {
+        val guildIdString = value.guildId.toString()
+        val key = addKey(guildIdString)
+        val currentValue = getEntityValue(connection, key, value.entityId, serializer)
+        if (currentValue == value) {
+            return false
+        }
+        setEntityValue(connection, key, value, serializer)
+        return true
     }
 
     /**
@@ -960,6 +989,24 @@ public class GuildCacheService(
     ): Boolean {
         val encodedField = encodeKey(value.entityId)
         return connection.hset(key, encodedField, encodeToByteArray(serializer, value)) == true
+    }
+
+    /**
+     * Get the value of an entity in the cache.
+     * @param connection Cache connection.
+     * @param key Key of the map.
+     * @param entityId ID of the entity.
+     * @param serializer Serializer of the value.
+     * @return Value of the entity, or `null` if the entity is not in the cache.
+     */
+    private suspend fun <T : GuildEntityIds> getEntityValue(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        key: ByteArray,
+        entityId: String,
+        serializer: KSerializer<T>
+    ): T? {
+        val encodedField = encodeKey(entityId)
+        return connection.hget(key, encodedField)?.let { decodeFromByteArrayOrNull(serializer, it) }
     }
 
     override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
