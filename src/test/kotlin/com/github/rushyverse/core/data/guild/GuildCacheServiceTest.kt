@@ -837,6 +837,40 @@ class GuildCacheServiceTest {
         }
 
         @Test
+        fun `should return true when members are updated`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+            val guildIdString = guildId.toString()
+
+            val members = List(5) { GuildMember(guildId, getRandomString()) }
+            assertTrue { service.importMembers(members) }
+
+            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
+
+            val newMembers = members.map {
+                it.copy(createdAt = Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS))
+            }
+            assertTrue { service.importMembers(newMembers) }
+            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(newMembers)
+            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+        }
+
+        @Test
+        fun `should return false when members are already imported with the same values`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+            val guildIdString = guildId.toString()
+
+            val members = List(5) { GuildMember(guildId, getRandomString()) }
+            assertTrue { service.importMembers(members) }
+            assertFalse { service.importMembers(members) }
+            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
+            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+        }
+
+        @Test
         fun `should import members in each targeted guild`() = runTest {
             val guild1 = Guild(0, getRandomString(), getRandomString())
             val guild2 = Guild(1, getRandomString(), getRandomString())
@@ -1073,7 +1107,7 @@ class GuildCacheServiceTest {
             assertThat(getAllRemovedMembers(guildIdString)).isEmpty()
             assertThat(getAllImportedMembers(guildIdString)).isEmpty()
         }
-        
+
         @Test
         fun `should return false if guild doesn't exist`() = runTest {
             assertFalse { service.removeMember(0, getRandomString()) }
@@ -1732,6 +1766,40 @@ class GuildCacheServiceTest {
             assertThat(getAllAddedInvites(guildIdString)).containsOnlyOnceElementsOf(invitesToAdd)
 
             assertTrue { service.importInvitations(invitesToAdd) }
+            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
+            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+        }
+
+        @Test
+        fun `should return true when invitations are updated`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+            val guildIdString = guildId.toString()
+
+            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
+            assertTrue { service.importInvitations(invites) }
+
+            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
+
+            val newInvites = invites.map {
+                it.copy(expiredAt = Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS))
+            }
+            assertTrue { service.importInvitations(newInvites) }
+            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(newInvites)
+            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+        }
+
+        @Test
+        fun `should return false when invitations are already imported with the same values`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+            val guildIdString = guildId.toString()
+
+            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
+            assertTrue { service.importInvitations(invites) }
+            assertFalse { service.importInvitations(invites) }
             assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
             assertThat(getAllAddedInvites(guildIdString)).isEmpty()
         }

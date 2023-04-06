@@ -838,19 +838,18 @@ public class GuildCacheService(
                 requirement(connection, guild, entities)
             }
 
-            guildEntities.map { (guildId, entities) ->
+            guildEntities.flatMap { (guildId, entities) ->
                 val guildIdString = guildId.toString()
                 val toAdd = entities.filterNot {
                     entityIsMarkedAsDeleted(connection, removeKey(guildIdString), it.entityId)
                 }
 
-                if (toAdd.isEmpty()) return@map false
+                if (toAdd.isEmpty()) return@flatMap emptyList()
 
                 bulkDeleteAddedEntities(connection, addKey(guildIdString), toAdd.map { it.entityId })
-                toAdd.forEach {
-                    setEntityValue(connection, importKey(guildIdString), it, serializer)
+                toAdd.map {
+                    setEntityValueIfNotEquals(connection, importKey, it, serializer)
                 }
-                true
             }
         }
 
@@ -959,6 +958,9 @@ public class GuildCacheService(
         value: T,
         serializer: KSerializer<T>
     ): Boolean {
+        contract {
+            callsInPlace(addKey, InvocationKind.EXACTLY_ONCE)
+        }
         val guildIdString = value.guildId.toString()
         val key = addKey(guildIdString)
         val currentValue = getEntityValue(connection, key, value.entityId, serializer)
