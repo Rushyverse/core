@@ -848,9 +848,7 @@ public class GuildCacheService(
 
                 bulkDeleteAddedEntities(connection, addKey(guildIdString), toAdd.map { it.entityId })
                 toAdd.forEach {
-                    val mapKey = importKey(it.guildId.toString())
-                    val encodedField = encodeKey(it.entityId)
-                    connection.hset(mapKey, encodedField, encodeToByteArray(serializer, it))
+                    setEntityValue(connection, importKey(guildIdString), it, serializer)
                 }
                 true
             }
