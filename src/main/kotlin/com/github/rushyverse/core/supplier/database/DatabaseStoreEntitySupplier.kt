@@ -1,6 +1,10 @@
 package com.github.rushyverse.core.supplier.database
 
+import com.github.rushyverse.core.data.Guild
+import com.github.rushyverse.core.data.GuildInvite
+import com.github.rushyverse.core.data.GuildMember
 import kotlinx.coroutines.flow.*
+import java.time.Instant
 import java.util.*
 
 /**
@@ -73,5 +77,87 @@ public class DatabaseStoreEntitySupplier(
 
     override suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean {
         return supplier.isPendingFriend(uuid, friend)
+    }
+
+    override suspend fun createGuild(name: String, ownerId: String): Guild {
+        return supplier.createGuild(name, ownerId).also {
+            cache.importGuild(it)
+        }
+    }
+
+    override suspend fun deleteGuild(id: Int): Boolean {
+        return supplier.deleteGuild(id).or(cache.deleteGuild(id))
+    }
+
+    override suspend fun getGuild(id: Int): Guild? {
+        return supplier.getGuild(id)?.also {
+            cache.importGuild(it)
+        }
+    }
+
+    override fun getGuild(name: String): Flow<Guild> {
+        return supplier.getGuild(name).onEach {
+            cache.importGuild(it)
+        }
+    }
+
+    override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
+        return supplier.isOwner(guildId, entityId)
+    }
+
+    override suspend fun isMember(guildId: Int, entityId: String): Boolean {
+        return supplier.isMember(guildId, entityId)
+    }
+
+    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+        return supplier.hasInvitation(guildId, entityId)
+    }
+
+    override suspend fun addMember(guildId: Int, entityId: String): Boolean {
+        return if (supplier.addMember(guildId, entityId)) {
+            cache.addMember(guildId, entityId)
+            true
+        } else {
+            false
+        }
+    }
+
+    override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
+        return if (supplier.addInvitation(guildId, entityId, expiredAt)) {
+            cache.addInvitation(guildId, entityId, expiredAt)
+            true
+        } else {
+            false
+        }
+    }
+
+    override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
+        return if(supplier.removeMember(guildId, entityId)) {
+            cache.removeMember(guildId, entityId)
+            true
+        } else {
+            false
+        }
+    }
+
+    override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
+        return if (supplier.removeInvitation(guildId, entityId)) {
+            cache.removeInvitation(guildId, entityId)
+            true
+        } else {
+            false
+        }
+    }
+
+    override fun getMembers(guildId: Int): Flow<GuildMember> = flow {
+        val requests = supplier.getMembers(guildId).toList()
+        cache.importMembers(requests)
+        emitAll(requests.asFlow())
+    }
+
+    override fun getInvitations(guildId: Int): Flow<GuildInvite> = flow {
+        val requests = supplier.getInvitations(guildId).toList()
+        cache.importInvitations(requests)
+        emitAll(requests.asFlow())
     }
 }

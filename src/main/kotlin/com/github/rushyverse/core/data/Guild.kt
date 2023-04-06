@@ -4,6 +4,9 @@ import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.data._Guild.Companion.guild
 import com.github.rushyverse.core.serializer.InstantSerializer
+import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
+import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
+import com.github.rushyverse.core.supplier.database.IDatabaseStrategizable
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.flow.*
@@ -221,6 +224,8 @@ public interface IGuildService {
     public fun getInvitations(guildId: Int): Flow<GuildInvite>
 }
 
+public interface IGuildDatabaseService : IGuildService
+
 public interface IGuildCacheService : IGuildService {
 
     public suspend fun importGuild(guild: Guild): Boolean
@@ -231,7 +236,7 @@ public interface IGuildCacheService : IGuildService {
 
 }
 
-public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildService {
+public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDatabaseService {
 
     public companion object {
         private const val FOREIGN_KEY_VIOLATION_EXCEPTION_CODE = "23503"
@@ -1419,4 +1424,15 @@ private fun requireExpiredAtAfterNow(expiredAt: Instant) {
 private fun requireValidInvitation(entityId: String, expiredAt: Instant?) {
     requireEntityIdNotBlank(entityId)
     expiredAt?.let { requireExpiredAtAfterNow(it) }
+}
+
+/**
+ * Implementation of [IGuildService] to manage guilds according to a [IDatabaseEntitySupplier].
+ */
+public class GuildService(override val supplier: IDatabaseEntitySupplier) : IGuildService by supplier,
+    IDatabaseStrategizable {
+    override fun withStrategy(getStrategy: (DatabaseSupplierConfiguration) -> IDatabaseEntitySupplier): GuildService {
+        val newStrategy = getStrategy(supplier.configuration)
+        return GuildService(newStrategy)
+    }
 }
