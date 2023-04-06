@@ -132,7 +132,7 @@ public class DatabaseStoreEntitySupplier(
     }
 
     override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
-        return if(supplier.removeMember(guildId, entityId)) {
+        return if (supplier.removeMember(guildId, entityId)) {
             cache.removeMember(guildId, entityId)
             true
         } else {
@@ -149,15 +149,19 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override fun getMembers(guildId: Int): Flow<GuildMember> = flow {
-        val requests = supplier.getMembers(guildId).toList()
-        cache.importMembers(requests)
-        emitAll(requests.asFlow())
-    }
+    override fun getMembers(guildId: Int): Flow<GuildMember> = supplier.getMembers(guildId)
+        .onEach {
+            try {
+                cache.importMember(it)
+            } catch (_: Exception) {
+            }
+        }
 
-    override fun getInvitations(guildId: Int): Flow<GuildInvite> = flow {
-        val requests = supplier.getInvitations(guildId).toList()
-        cache.importInvitations(requests)
-        emitAll(requests.asFlow())
-    }
+    override fun getInvitations(guildId: Int): Flow<GuildInvite> = supplier.getInvitations(guildId)
+        .onEach {
+            try {
+                cache.importInvitation(it)
+            } catch (_: Exception) {
+            }
+        }
 }

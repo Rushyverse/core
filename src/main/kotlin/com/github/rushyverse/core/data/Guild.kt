@@ -226,12 +226,61 @@ public interface IGuildService {
 
 public interface IGuildDatabaseService : IGuildService
 
+/**
+ * Service for caching guilds.
+ */
 public interface IGuildCacheService : IGuildService {
 
+    /**
+     * Import a guild.
+     * Will not import if it's already imported or deleted.
+     * @param guild Guild to import.
+     * @return `true` if the guild was imported, `false` if it was not imported.
+     */
     public suspend fun importGuild(guild: Guild): Boolean
 
+    /**
+     * Import a guild member.
+     * Will not import if he's already imported or deleted.
+     * If the member is added, it will be imported.
+     * @param member Member to import.
+     * @return `true` if the member was imported, `false` if it was not imported.
+     * @throws GuildNotFoundException If the guild does not exist.
+     * @throws GuildMemberIsOwnerOfGuildException If the entity is the owner of the guild.
+     */
+    public suspend fun importMember(member: GuildMember): Boolean
+
+    /**
+     * Import a collection of guild members.
+     * Will not import members that already imported or deleted.
+     * All added members will be imported.
+     * @param members Members to import.
+     * @return `true` if at least one member was imported, `false` if none were imported.
+     * @throws GuildNotFoundException If at least one guild does not exist.
+     * @throws GuildMemberIsOwnerOfGuildException If at least one entity is the owner of the guild.
+     */
     public suspend fun importMembers(members: Collection<GuildMember>): Boolean
 
+    /**
+     * Import a guild invitation.
+     * Will not import if he's already imported or deleted.
+     * If the invitation is added, it will be imported.
+     * @param invite Invitation to import.
+     * @return `true` if the invitation was imported, `false` if it was not imported.
+     * @throws GuildNotFoundException If the guild does not exist.
+     * @throws GuildInvitedIsAlreadyMemberException If the entity is already a member of the guild.
+     */
+    public suspend fun importInvitation(invite: GuildInvite): Boolean
+
+    /**
+     * Import a collection of guild invitations.
+     * Will not import invitations that already imported or deleted.
+     * All added invitations will be imported.
+     * @param invites Invitations to import.
+     * @return `true` if at least one invitation was imported, `false` if none were imported.
+     * @throws GuildNotFoundException If at least one guild does not exist.
+     * @throws GuildInvitedIsAlreadyMemberException If at least one entity is already a member of the guild.
+     */
     public suspend fun importInvitations(invites: Collection<GuildInvite>): Boolean
 
 }
@@ -703,6 +752,24 @@ public class GuildCacheService(
         return getGuild(guildId)?.ownerId == entityId
     }
 
+    override suspend fun importMember(member: GuildMember): Boolean {
+        val entityId = member.entityId
+        requireEntityIdNotBlank(entityId)
+
+        return cacheClient.connect {
+            val guildId = member.guildId
+            val guild = getGuild(it, guildId) ?: throwGuildNotFoundException(guildId)
+            if (entityId == guild.ownerId) {
+                throw GuildMemberIsOwnerOfGuildException(guild.id, entityId)
+            }
+            if (entityIsMarkedAsDeleted(it, createRemoveMemberKey(guildId.toString()), entityId)) {
+                return@connect false
+            }
+
+            setEntityValue(it, createImportMemberKey(entityId), member, GuildMember.serializer())
+        }
+    }
+
     override suspend fun importMembers(members: Collection<GuildMember>): Boolean {
         if (members.isEmpty()) return false
 
@@ -784,6 +851,21 @@ public class GuildCacheService(
         )
     }
 
+    override suspend fun importInvitation(invite: GuildInvite): Boolean {
+        requireValidInvitation(invite.entityId, invite.expiredAt)
+
+        return cacheClient.connect {
+            val guildId = invite.guildId
+            requireGuildExists(it, guildId)
+            if (entityIsMarkedAsDeleted(it, createRemoveInvitationKey(guildId.toString()), invite.entityId)) {
+                return@connect false
+            }
+            requireEntityIsNotMember(it, guildId, invite.entityId)
+
+            setEntityValue(it, createImportInvitationKey(invite.entityId), invite, GuildInvite.serializer())
+        }
+    }
+
     override suspend fun importInvitations(invites: Collection<GuildInvite>): Boolean {
         if (invites.isEmpty()) return false
 
@@ -798,13 +880,9 @@ public class GuildCacheService(
             this::createRemoveInvitationKey,
             this::createImportInvitationKey
         ) { connection, guildId, invitations ->
-            val guild = getGuild(connection, guildId) ?: throwGuildNotFoundException(guildId)
+            requireGuildExists(connection, guildId)
             invitations.forEach { invite ->
-                val entityId = invite.entityId
-                if (entityId == guild.ownerId) {
-                    throw GuildInvitedIsAlreadyMemberException(guild.id, entityId)
-                }
-                requireEntityIsNotMember(connection, guildId, entityId)
+                requireEntityIsNotMember(connection, guildId, invite.entityId)
             }
         }
     }
