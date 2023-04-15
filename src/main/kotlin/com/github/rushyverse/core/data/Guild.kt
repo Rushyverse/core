@@ -814,8 +814,10 @@ public class GuildCacheService(
         val entityId = invite.entityId
         requireValidInvitation(entityId, invite.expiredAt)
 
+        val guildId = invite.guildId
+        requireImportedGuild(guildId)
+
         return cacheClient.connect {
-            val guildId = invite.guildId
             requireGuildExists(it, guildId)
             requireEntityIsNotMember(it, guildId, entityId)
             val guildIdString = guildId.toString()
@@ -824,7 +826,7 @@ public class GuildCacheService(
             }
 
             deleteAddedEntity(it, createAddInvitationKey(guildIdString), entityId)
-            setEntityValue(it, createImportInvitationKey(guildIdString), invite, GuildInvite.serializer())
+            setEntityValueIfNotEquals(it, this::createImportInvitationKey, invite, GuildInvite.serializer())
         }
     }
 
