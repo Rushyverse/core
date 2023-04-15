@@ -748,7 +748,7 @@ public class GuildCacheService(
             }
 
             deleteAddedEntity(it, createAddMemberKey(guildIdString), entityId)
-            setEntityValue(it, createImportMemberKey(guildIdString), member, GuildMember.serializer())
+            setEntityValueIfNotEquals(it, this::createImportMemberKey, member, GuildMember.serializer())
         }
     }
 
