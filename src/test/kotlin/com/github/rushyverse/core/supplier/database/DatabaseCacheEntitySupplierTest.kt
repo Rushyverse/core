@@ -438,7 +438,7 @@ class DatabaseCacheEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildCacheService.deleteGuild(any()) } returns result
-                assertFalse { cacheEntitySupplier.deleteGuild(mockk()) }
+                assertEquals(result, cacheEntitySupplier.deleteGuild(Random.nextInt()))
                 coVerify(exactly = 1) { guildCacheService.deleteGuild(any()) }
             }
 
@@ -465,7 +465,7 @@ class DatabaseCacheEntitySupplierTest {
             @Test
             fun `should return null when supplier returns null`() = runTest {
                 coEvery { guildCacheService.getGuild(any<Int>()) } returns null
-                assertNull(cacheEntitySupplier.getGuild(mockk<Int>()))
+                assertNull(cacheEntitySupplier.getGuild(Random.nextInt()))
                 coVerify(exactly = 1) { guildCacheService.getGuild(any<Int>()) }
             }
         }
@@ -512,127 +512,127 @@ class DatabaseCacheEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildCacheService.isOwner(any(), any()) } returns result
-                assertEquals(result, cacheEntitySupplier.isOwner(mockk(), mockk()))
+                assertEquals(result, cacheEntitySupplier.isOwner(Random.nextInt(), getRandomString()))
                 coVerify(exactly = 1) { guildCacheService.isOwner(any(), any()) }
             }
 
         }
 
-    }
+        @Nested
+        inner class IsMember {
 
-    @Nested
-    inner class IsMember {
+            @Test
+            fun `should get in supplier`() = runTest {
+                val slot1 = slot<Int>()
+                val slot2 = slot<String>()
 
-        @Test
-        fun `should get in supplier`() = runTest {
-            val slot1 = slot<Int>()
-            val slot2 = slot<String>()
+                coEvery { guildCacheService.isMember(capture(slot1), capture(slot2)) } returns true
 
-            coEvery { guildCacheService.isMember(capture(slot1), capture(slot2)) } returns true
+                val guildId = Random.nextInt()
+                val entityId = getRandomString()
+                assertTrue { cacheEntitySupplier.isMember(guildId, entityId) }
+                coVerify(exactly = 1) { guildCacheService.isMember(any(), any()) }
 
-            val guildId = Random.nextInt()
-            val entityId = getRandomString()
-            assertTrue { cacheEntitySupplier.isMember(guildId, entityId) }
-            coVerify(exactly = 1) { guildCacheService.isMember(any(), any()) }
+                assertEquals(guildId, slot1.captured)
+                assertEquals(entityId, slot2.captured)
+            }
 
-            assertEquals(guildId, slot1.captured)
-            assertEquals(entityId, slot2.captured)
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return supplier result`(result: Boolean) = runTest {
+                coEvery { guildCacheService.isMember(any(), any()) } returns result
+                assertEquals(result, cacheEntitySupplier.isMember(Random.nextInt(), getRandomString()))
+                coVerify(exactly = 1) { guildCacheService.isMember(any(), any()) }
+            }
         }
 
-        @ParameterizedTest
-        @ValueSource(booleans = [true, false])
-        fun `should return supplier result`(result: Boolean) = runTest {
-            coEvery { guildCacheService.isMember(any(), any()) } returns result
-            assertEquals(result, cacheEntitySupplier.isMember(mockk(), mockk()))
-            coVerify(exactly = 1) { guildCacheService.isMember(any(), any()) }
-        }
-    }
+        @Nested
+        inner class HasInvitation {
 
-    @Nested
-    inner class HasInvitation {
+            @Test
+            fun `should get in supplier`() = runTest {
+                val slot1 = slot<Int>()
+                val slot2 = slot<String>()
 
-        @Test
-        fun `should get in supplier`() = runTest {
-            val slot1 = slot<Int>()
-            val slot2 = slot<String>()
+                coEvery { guildCacheService.hasInvitation(capture(slot1), capture(slot2)) } returns true
 
-            coEvery { guildCacheService.hasInvitation(capture(slot1), capture(slot2)) } returns true
+                val guildId = Random.nextInt()
+                val entityId = getRandomString()
+                assertTrue { cacheEntitySupplier.hasInvitation(guildId, entityId) }
+                coVerify(exactly = 1) { guildCacheService.hasInvitation(any(), any()) }
 
-            val guildId = Random.nextInt()
-            val entityId = getRandomString()
-            assertTrue { cacheEntitySupplier.hasInvitation(guildId, entityId) }
-            coVerify(exactly = 1) { guildCacheService.hasInvitation(any(), any()) }
+                assertEquals(guildId, slot1.captured)
+                assertEquals(entityId, slot2.captured)
+            }
 
-            assertEquals(guildId, slot1.captured)
-            assertEquals(entityId, slot2.captured)
-        }
-
-        @ParameterizedTest
-        @ValueSource(booleans = [true, false])
-        fun `should return supplier result`(result: Boolean) = runTest {
-            coEvery { guildCacheService.hasInvitation(any(), any()) } returns result
-            assertEquals(result, cacheEntitySupplier.hasInvitation(mockk(), mockk()))
-            coVerify(exactly = 1) { guildCacheService.hasInvitation(any(), any()) }
-        }
-    }
-
-    @Nested
-    inner class AddMember {
-
-        @Test
-        fun `should add in supplier`() = runTest {
-            val slot1 = slot<Int>()
-            val slot2 = slot<String>()
-
-            coEvery { guildCacheService.addMember(capture(slot1), capture(slot2)) } returns true
-
-            val guildId = Random.nextInt()
-            val entityId = getRandomString()
-            assertTrue { cacheEntitySupplier.addMember(guildId, entityId) }
-            coVerify(exactly = 1) { guildCacheService.addMember(any(), any()) }
-
-            assertEquals(guildId, slot1.captured)
-            assertEquals(entityId, slot2.captured)
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return supplier result`(result: Boolean) = runTest {
+                coEvery { guildCacheService.hasInvitation(any(), any()) } returns result
+                assertEquals(result, cacheEntitySupplier.hasInvitation(Random.nextInt(), getRandomString()))
+                coVerify(exactly = 1) { guildCacheService.hasInvitation(any(), any()) }
+            }
         }
 
-        @ParameterizedTest
-        @ValueSource(booleans = [true, false])
-        fun `should return supplier result`(result: Boolean) = runTest {
-            coEvery { guildCacheService.addMember(any(), any()) } returns result
-            assertEquals(result, cacheEntitySupplier.addMember(mockk(), mockk()))
-            coVerify(exactly = 1) { guildCacheService.addMember(any(), any()) }
+        @Nested
+        inner class AddMember {
+
+            @Test
+            fun `should add in supplier`() = runTest {
+                val slot1 = slot<Int>()
+                val slot2 = slot<String>()
+
+                coEvery { guildCacheService.addMember(capture(slot1), capture(slot2)) } returns true
+
+                val guildId = Random.nextInt()
+                val entityId = getRandomString()
+                assertTrue { cacheEntitySupplier.addMember(guildId, entityId) }
+                coVerify(exactly = 1) { guildCacheService.addMember(any(), any()) }
+
+                assertEquals(guildId, slot1.captured)
+                assertEquals(entityId, slot2.captured)
+            }
+
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return supplier result`(result: Boolean) = runTest {
+                coEvery { guildCacheService.addMember(any(), any()) } returns result
+                assertEquals(result, cacheEntitySupplier.addMember(Random.nextInt(), getRandomString()))
+                coVerify(exactly = 1) { guildCacheService.addMember(any(), any()) }
+            }
+
         }
 
-    }
+        @Nested
+        inner class AddInvitation {
 
-    @Nested
-    inner class AddInvitation {
+            @Test
+            fun `should add in supplier`() = runTest {
+                val slot1 = slot<Int>()
+                val slot2 = slot<String>()
+                val slot3 = slot<Instant>()
 
-        @Test
-        fun `should add in supplier`() = runTest {
-            val slot1 = slot<Int>()
-            val slot2 = slot<String>()
-            val slot3 = slot<Instant>()
+                coEvery { guildCacheService.addInvitation(capture(slot1), capture(slot2), capture(slot3)) } returns true
 
-            coEvery { guildCacheService.addInvitation(capture(slot1), capture(slot2), capture(slot3)) } returns true
+                val guildId = Random.nextInt()
+                val entityId = getRandomString()
+                val instant = Instant.now()
+                assertTrue { cacheEntitySupplier.addInvitation(guildId, entityId, instant) }
+                coVerify(exactly = 1) { guildCacheService.addInvitation(any(), any(), any()) }
 
-            val guildId = Random.nextInt()
-            val entityId = getRandomString()
-            val instant = Instant.now()
-            assertTrue { cacheEntitySupplier.addInvitation(guildId, entityId, instant) }
-            coVerify(exactly = 1) { guildCacheService.addInvitation(any(), any(), any()) }
+                assertEquals(guildId, slot1.captured)
+                assertEquals(entityId, slot2.captured)
+                assertEquals(instant, slot3.captured)
+            }
 
-            assertEquals(guildId, slot1.captured)
-            assertEquals(entityId, slot2.captured)
-            assertEquals(instant, slot3.captured)
-        }
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return supplier result`(result: Boolean) = runTest {
+                coEvery { guildCacheService.addInvitation(any(), any(), any()) } returns result
+                assertEquals(result, cacheEntitySupplier.addInvitation(Random.nextInt(), getRandomString(), mockk()))
+                coVerify(exactly = 1) { guildCacheService.addInvitation(any(), any(), any()) }
+            }
 
-        @ParameterizedTest
-        @ValueSource(booleans = [true, false])
-        fun `should return supplier result`(result: Boolean) = runTest {
-            coEvery { guildCacheService.addInvitation(any(), any(), any()) } returns result
-            assertEquals(result, cacheEntitySupplier.addInvitation(mockk(), mockk(), mockk()))
-            coVerify(exactly = 1) { guildCacheService.addInvitation(any(), any(), any()) }
         }
 
     }
