@@ -4,8 +4,11 @@ import com.github.rushyverse.core.data.Guild
 import com.github.rushyverse.core.data.GuildInvite
 import com.github.rushyverse.core.data.GuildMember
 import kotlinx.coroutines.flow.*
+import mu.KotlinLogging
 import java.time.Instant
 import java.util.*
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * [IDatabaseEntitySupplier] that delegates to another [IDatabaseEntitySupplier] to resolve entities.
@@ -81,7 +84,7 @@ public class DatabaseStoreEntitySupplier(
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
         return supplier.createGuild(name, ownerId).also {
-            cache.importGuild(it)
+            importCatchFailure(it, cache::importGuild)
         }
     }
 
@@ -91,13 +94,13 @@ public class DatabaseStoreEntitySupplier(
 
     override suspend fun getGuild(id: Int): Guild? {
         return supplier.getGuild(id)?.also {
-            cache.importGuild(it)
+            importCatchFailure(it, cache::importGuild)
         }
     }
 
     override fun getGuild(name: String): Flow<Guild> {
         return supplier.getGuild(name).onEach {
-            cache.importGuild(it)
+            importCatchFailure(it, cache::importGuild)
         }
     }
 
@@ -114,54 +117,58 @@ public class DatabaseStoreEntitySupplier(
     }
 
     override suspend fun addMember(guildId: Int, entityId: String): Boolean {
-        return if (supplier.addMember(guildId, entityId)) {
-            cache.addMember(guildId, entityId)
-            true
-        } else {
-            false
+        return supplier.addMember(guildId, entityId).also {
+            if (it) {
+                cache.addMember(guildId, entityId)
+            }
         }
     }
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
-        return if (supplier.addInvitation(guildId, entityId, expiredAt)) {
-            cache.addInvitation(guildId, entityId, expiredAt)
-            true
-        } else {
-            false
+        return supplier.addInvitation(guildId, entityId, expiredAt).also {
+            if (it) {
+                cache.addInvitation(guildId, entityId, expiredAt)
+            }
         }
     }
 
     override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
-        return if (supplier.removeMember(guildId, entityId)) {
-            cache.removeMember(guildId, entityId)
-            true
-        } else {
-            false
+        return supplier.removeMember(guildId, entityId).also {
+            if (it) {
+                cache.removeMember(guildId, entityId)
+            }
         }
     }
 
     override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
-        return if (supplier.removeInvitation(guildId, entityId)) {
-            cache.removeInvitation(guildId, entityId)
-            true
-        } else {
-            false
+        return supplier.removeInvitation(guildId, entityId).also {
+            if (it) {
+                cache.removeInvitation(guildId, entityId)
+            }
         }
     }
 
     override fun getMembers(guildId: Int): Flow<GuildMember> = supplier.getMembers(guildId)
         .onEach {
-            try {
-                cache.importMember(it)
-            } catch (_: Exception) {
-            }
+            importCatchFailure(it, cache::importMember)
         }
 
     override fun getInvitations(guildId: Int): Flow<GuildInvite> = supplier.getInvitations(guildId)
         .onEach {
-            try {
-                cache.importInvitation(it)
-            } catch (_: Exception) {
-            }
+            importCatchFailure(it, cache::importInvitation)
         }
+
+    /**
+     * Calls the [action] with the [value] and catches any [Exception] that may occur.
+     * If an exception occurs, it will be logged.
+     * @param value Value to pass to the [action] and may be used in the log message.
+     * @param action Action to perform with the [value].
+     */
+    private suspend inline fun <T> importCatchFailure(value: T, action: suspend (T) -> Unit) {
+        try {
+            action(value)
+        } catch (e: Exception) {
+            logger.error(e) { "Error during import of the value $value into the cache." }
+        }
+    }
 }

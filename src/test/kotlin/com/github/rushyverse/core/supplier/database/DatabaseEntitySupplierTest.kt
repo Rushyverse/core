@@ -2,6 +2,7 @@ package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.data.FriendDatabaseService
 import com.github.rushyverse.core.data.IFriendCacheService
+import com.github.rushyverse.core.data.IGuildCacheService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -22,7 +23,10 @@ class DatabaseEntitySupplierTest {
     @BeforeTest
     fun onBefore() {
         service = mockk()
-        val configuration = DatabaseSupplierConfiguration(mockk<IFriendCacheService>() to service)
+        val configuration = DatabaseSupplierConfiguration(
+            mockk<IFriendCacheService>() to service,
+            mockk<IGuildCacheService>() to mockk(),
+            )
         databaseEntitySupplier = DatabaseEntitySupplier(configuration)
     }
 
