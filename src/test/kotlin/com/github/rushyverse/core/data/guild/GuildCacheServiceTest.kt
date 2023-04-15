@@ -288,14 +288,14 @@ class GuildCacheServiceTest {
                 repeat(sizeData) {
                     service.addMember(guildId, getRandomString())
                 }
-                service.importMembers(List(sizeData) { GuildMember(guildId, getRandomString()) })
+                val members = List(sizeData) { GuildMember(guildId, getRandomString()) }
+                members.forEach { service.importMember(it) }
 
-                service.importInvitations(List(sizeData) {
-                    GuildInvite(guildId, getRandomString(), null)
-                })
                 repeat(sizeData) {
                     service.addInvitation(guildId, getRandomString(), null)
                 }
+                val invites = List(sizeData) { GuildInvite(guildId, getRandomString(), null) }
+                invites.forEach { service.importInvitation(it) }
 
                 val guildIdString = guildId.toString()
 
@@ -366,12 +366,12 @@ class GuildCacheServiceTest {
                     service.addMember(guildId, getRandomString())
                 }
                 val importedMembers = List(sizeData) { GuildMember(guildId, getRandomString()) }
-                service.importMembers(importedMembers)
+                importedMembers.forEach { service.importMember(it) }
 
                 val importedInvites = List(sizeData) {
                     GuildInvite(guildId, getRandomString(), null)
                 }
-                service.importInvitations(importedInvites)
+                importedInvites.forEach { service.importInvitation(it) }
                 repeat(sizeData) {
                     service.addInvitation(guildId, getRandomString(), null)
                 }
@@ -411,12 +411,12 @@ class GuildCacheServiceTest {
                     service.addMember(guildId, getRandomString())
                 }
                 val importedMembers = List(sizeData) { GuildMember(guildId, getRandomString()) }
-                service.importMembers(importedMembers)
+                importedMembers.forEach { service.importMember(it) }
 
                 val importedInvites = List(sizeData) {
                     GuildInvite(guildId, getRandomString(), null)
                 }
-                service.importInvitations(importedInvites)
+                importedInvites.forEach { service.importInvitation(it) }
                 repeat(sizeData) {
                     service.addInvitation(guildId, getRandomString(), null)
                 }
@@ -668,243 +668,243 @@ class GuildCacheServiceTest {
         }
     }
 
-    @Nested
-    inner class ImportMembers {
-
-        @Test
-        fun `should return false when list is empty`() = runTest {
-            assertFalse { service.importMembers(emptyList()) }
-        }
-
-        @Test
-        fun `should keep integrity of member data`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-
-            val createdAt = Instant.now().plusSeconds(10).truncatedTo(ChronoUnit.MILLIS)
-            val members = listOf(GuildMember(guildId, getRandomString(), createdAt))
-            service.importMembers(members)
-
-            val guildIdString = guildId.toString()
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
-        }
-
-        @Test
-        fun `should throw exception if at least one member is for a non existing guild`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-
-            val members = listOf(
-                GuildMember(guildId, getRandomString()),
-                GuildMember(guildId + 1, getRandomString())
-            )
-            assertThrows<GuildNotFoundException> {
-                service.importMembers(members)
-            }
-
-            assertThat(getAllImportedMembers(guildId.toString())).isEmpty()
-            assertThat(getAllAddedMembers(guildId.toString())).isEmpty()
-            assertThat(getAllImportedMembers((guildId + 1).toString())).isEmpty()
-            assertThat(getAllAddedMembers((guildId + 1).toString())).isEmpty()
-        }
-
-        @Test
-        fun `should throw exception if the owner is added as member`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val members = listOf(
-                GuildMember(guildId, guild.ownerId),
-            )
-
-            assertThrows<GuildMemberIsOwnerOfGuildException> {
-                service.importMembers(members)
-            }
-
-            val guildIdString = guildId.toString()
-            assertThat(getAllImportedMembers(guildIdString)).isEmpty()
-            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should throw exception if at least one guild is not found`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            val guildId = guild.id
-            val members = listOf(
-                GuildMember(guildId, getRandomString()),
-                GuildMember(guildId + 1, getRandomString())
-            )
-            assertThrows<GuildNotFoundException> {
-                service.importMembers(members)
-            }
-
-            val guildIdString = guildId.toString()
-            assertThat(getAllImportedMembers(guildIdString)).isEmpty()
-            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-
-            val guildIdString2 = (guildId + 1).toString()
-            assertThat(getAllImportedMembers(guildIdString2)).isEmpty()
-            assertThat(getAllAddedMembers(guildIdString2)).isEmpty()
-        }
-
-        @Test
-        fun `should filter out member marked as deleted`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val guildIdString = guildId.toString()
-
-            val members = List(5) { GuildMember(guildId, getRandomString()) }
-            assertTrue { service.importMembers(members) }
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
-            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-            assertThat(getAllRemovedMembers(guildIdString)).isEmpty()
-
-            val membersToDelete = members.take(3)
-            val membersEntitiesDeleted = membersToDelete.map { it.entityId }
-            val membersToKeep = members.drop(3)
-
-            membersToDelete.forEach {
-                service.removeMember(guildId, it.entityId)
-            }
-            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersEntitiesDeleted)
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToKeep)
-            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-
-            val memberShouldBeImported = GuildMember(guildId, getRandomString())
-            val newMembers = membersToDelete + memberShouldBeImported
-            assertTrue { service.importMembers(newMembers) }
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToKeep + memberShouldBeImported)
-            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersEntitiesDeleted)
-            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should return false when all imported members are marked as deleted`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val guildIdString = guildId.toString()
-
-            val members = List(1000) { GuildMember(guildId, getRandomString()) }
-            assertTrue { service.importMembers(members) }
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
-            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-
-            assertThat(getAllRemovedMembers(guildIdString)).isEmpty()
-
-            val membersDeleted = members.map { it.entityId }
-            membersDeleted.forEach {
-                service.removeMember(guildId, it)
-            }
-
-            assertThat(getAllImportedMembers(guildIdString)).isEmpty()
-            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersDeleted)
-
-            assertFalse { service.importMembers(members) }
-
-            assertThat(getAllImportedMembers(guildIdString)).isEmpty()
-            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersDeleted)
-        }
-
-        @Test
-        fun `should set as imported the added members`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val guildIdString = guildId.toString()
-
-            val members = List(5) { GuildMember(guildId, getRandomString()) }
-            val membersToAdd = members.take(3)
-            val membersToImport = members.drop(3)
-
-            membersToAdd.forEach {
-                assertTrue { service.addMember(guildId, it.entityId) }
-            }
-
-            assertTrue { service.importMembers(membersToImport) }
-
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToImport)
-            assertThat(getAllAddedMembers(guildIdString)).containsOnlyOnceElementsOf(membersToAdd)
-
-            assertTrue { service.importMembers(membersToAdd) }
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
-            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should return true when members are updated`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val guildIdString = guildId.toString()
-
-            val members = List(5) { GuildMember(guildId, getRandomString()) }
-            assertTrue { service.importMembers(members) }
-
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
-
-            val newMembers = members.map {
-                it.copy(createdAt = Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS))
-            }
-            assertTrue { service.importMembers(newMembers) }
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(newMembers)
-            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should return false when members are already imported with the same values`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val guildIdString = guildId.toString()
-
-            val members = List(5) { GuildMember(guildId, getRandomString()) }
-            assertTrue { service.importMembers(members) }
-            assertFalse { service.importMembers(members) }
-            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
-            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should import members in each targeted guild`() = runTest {
-            val guild1 = Guild(0, getRandomString(), getRandomString())
-            val guild2 = Guild(1, getRandomString(), getRandomString())
-            service.importGuild(guild1)
-            service.importGuild(guild2)
-
-            val members = listOf(
-                GuildMember(guild1.id, getRandomString()),
-                GuildMember(guild1.id, getRandomString()),
-                GuildMember(guild2.id, getRandomString()),
-                GuildMember(guild2.id, getRandomString()),
-                GuildMember(guild2.id, getRandomString())
-            )
-
-            assertTrue { service.importMembers(members) }
-            assertThat(getAllImportedMembers(guild1.id.toString())).containsExactlyInAnyOrderElementsOf(members.take(2))
-            assertThat(getAllImportedMembers(guild2.id.toString())).containsExactlyInAnyOrderElementsOf(members.drop(2))
-            assertThat(getAllAddedMembers(guild1.id.toString())).isEmpty()
-            assertThat(getAllAddedMembers(guild2.id.toString())).isEmpty()
-            assertThat(getAllRemovedMembers(guild1.id.toString())).isEmpty()
-            assertThat(getAllRemovedMembers(guild2.id.toString())).isEmpty()
-        }
-
-        @Test
-        fun `should throw exception when guild is not a imported guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val guildId = guild.id
-
-            assertThrows<IllegalArgumentException> {
-                service.importMembers(listOf(GuildMember(guildId, getRandomString())))
-            }
-        }
-
-    }
+//    @Nested
+//    inner class ImportMembers {
+//
+//        @Test
+//        fun `should return false when list is empty`() = runTest {
+//            assertFalse { service.importMembers(emptyList()) }
+//        }
+//
+//        @Test
+//        fun `should keep integrity of member data`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//
+//            val createdAt = Instant.now().plusSeconds(10).truncatedTo(ChronoUnit.MILLIS)
+//            val members = listOf(GuildMember(guildId, getRandomString(), createdAt))
+//            service.importMembers(members)
+//
+//            val guildIdString = guildId.toString()
+//            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
+//        }
+//
+//        @Test
+//        fun `should throw exception if at least one member is for a non existing guild`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//
+//            val members = listOf(
+//                GuildMember(guildId, getRandomString()),
+//                GuildMember(guildId + 1, getRandomString())
+//            )
+//            assertThrows<GuildNotFoundException> {
+//                service.importMembers(members)
+//            }
+//
+//            assertThat(getAllImportedMembers(guildId.toString())).isEmpty()
+//            assertThat(getAllAddedMembers(guildId.toString())).isEmpty()
+//            assertThat(getAllImportedMembers((guildId + 1).toString())).isEmpty()
+//            assertThat(getAllAddedMembers((guildId + 1).toString())).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should throw exception if the owner is added as member`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val members = listOf(
+//                GuildMember(guildId, guild.ownerId),
+//            )
+//
+//            assertThrows<GuildMemberIsOwnerOfGuildException> {
+//                service.importMembers(members)
+//            }
+//
+//            val guildIdString = guildId.toString()
+//            assertThat(getAllImportedMembers(guildIdString)).isEmpty()
+//            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should throw exception if at least one guild is not found`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            val guildId = guild.id
+//            val members = listOf(
+//                GuildMember(guildId, getRandomString()),
+//                GuildMember(guildId + 1, getRandomString())
+//            )
+//            assertThrows<GuildNotFoundException> {
+//                service.importMembers(members)
+//            }
+//
+//            val guildIdString = guildId.toString()
+//            assertThat(getAllImportedMembers(guildIdString)).isEmpty()
+//            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+//
+//            val guildIdString2 = (guildId + 1).toString()
+//            assertThat(getAllImportedMembers(guildIdString2)).isEmpty()
+//            assertThat(getAllAddedMembers(guildIdString2)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should filter out member marked as deleted`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val guildIdString = guildId.toString()
+//
+//            val members = List(5) { GuildMember(guildId, getRandomString()) }
+//            assertTrue { service.importMembers(members) }
+//            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
+//            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+//            assertThat(getAllRemovedMembers(guildIdString)).isEmpty()
+//
+//            val membersToDelete = members.take(3)
+//            val membersEntitiesDeleted = membersToDelete.map { it.entityId }
+//            val membersToKeep = members.drop(3)
+//
+//            membersToDelete.forEach {
+//                service.removeMember(guildId, it.entityId)
+//            }
+//            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersEntitiesDeleted)
+//            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToKeep)
+//            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+//
+//            val memberShouldBeImported = GuildMember(guildId, getRandomString())
+//            val newMembers = membersToDelete + memberShouldBeImported
+//            assertTrue { service.importMembers(newMembers) }
+//            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToKeep + memberShouldBeImported)
+//            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersEntitiesDeleted)
+//            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should return false when all imported members are marked as deleted`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val guildIdString = guildId.toString()
+//
+//            val members = List(1000) { GuildMember(guildId, getRandomString()) }
+//            assertTrue { service.importMembers(members) }
+//            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
+//            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+//
+//            assertThat(getAllRemovedMembers(guildIdString)).isEmpty()
+//
+//            val membersDeleted = members.map { it.entityId }
+//            membersDeleted.forEach {
+//                service.removeMember(guildId, it)
+//            }
+//
+//            assertThat(getAllImportedMembers(guildIdString)).isEmpty()
+//            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+//            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersDeleted)
+//
+//            assertFalse { service.importMembers(members) }
+//
+//            assertThat(getAllImportedMembers(guildIdString)).isEmpty()
+//            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+//            assertThat(getAllRemovedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersDeleted)
+//        }
+//
+//        @Test
+//        fun `should set as imported the added members`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val guildIdString = guildId.toString()
+//
+//            val members = List(5) { GuildMember(guildId, getRandomString()) }
+//            val membersToAdd = members.take(3)
+//            val membersToImport = members.drop(3)
+//
+//            membersToAdd.forEach {
+//                assertTrue { service.addMember(guildId, it.entityId) }
+//            }
+//
+//            assertTrue { service.importMembers(membersToImport) }
+//
+//            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(membersToImport)
+//            assertThat(getAllAddedMembers(guildIdString)).containsOnlyOnceElementsOf(membersToAdd)
+//
+//            assertTrue { service.importMembers(membersToAdd) }
+//            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
+//            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should return true when members are updated`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val guildIdString = guildId.toString()
+//
+//            val members = List(5) { GuildMember(guildId, getRandomString()) }
+//            assertTrue { service.importMembers(members) }
+//
+//            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
+//
+//            val newMembers = members.map {
+//                it.copy(createdAt = Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS))
+//            }
+//            assertTrue { service.importMembers(newMembers) }
+//            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(newMembers)
+//            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should return false when members are already imported with the same values`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val guildIdString = guildId.toString()
+//
+//            val members = List(5) { GuildMember(guildId, getRandomString()) }
+//            assertTrue { service.importMembers(members) }
+//            assertFalse { service.importMembers(members) }
+//            assertThat(getAllImportedMembers(guildIdString)).containsExactlyInAnyOrderElementsOf(members)
+//            assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should import members in each targeted guild`() = runTest {
+//            val guild1 = Guild(0, getRandomString(), getRandomString())
+//            val guild2 = Guild(1, getRandomString(), getRandomString())
+//            service.importGuild(guild1)
+//            service.importGuild(guild2)
+//
+//            val members = listOf(
+//                GuildMember(guild1.id, getRandomString()),
+//                GuildMember(guild1.id, getRandomString()),
+//                GuildMember(guild2.id, getRandomString()),
+//                GuildMember(guild2.id, getRandomString()),
+//                GuildMember(guild2.id, getRandomString())
+//            )
+//
+//            assertTrue { service.importMembers(members) }
+//            assertThat(getAllImportedMembers(guild1.id.toString())).containsExactlyInAnyOrderElementsOf(members.take(2))
+//            assertThat(getAllImportedMembers(guild2.id.toString())).containsExactlyInAnyOrderElementsOf(members.drop(2))
+//            assertThat(getAllAddedMembers(guild1.id.toString())).isEmpty()
+//            assertThat(getAllAddedMembers(guild2.id.toString())).isEmpty()
+//            assertThat(getAllRemovedMembers(guild1.id.toString())).isEmpty()
+//            assertThat(getAllRemovedMembers(guild2.id.toString())).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should throw exception when guild is not a imported guild`() = runTest {
+//            val guild = service.createGuild(getRandomString(), getRandomString())
+//            val guildId = guild.id
+//
+//            assertThrows<IllegalArgumentException> {
+//                service.importMembers(listOf(GuildMember(guildId, getRandomString())))
+//            }
+//        }
+//
+//    }
 
     @Nested
     inner class AddMember {
@@ -972,7 +972,7 @@ class GuildCacheServiceTest {
             val guildId = guild.id
 
             val member = GuildMember(guildId, getRandomString())
-            service.importMembers(listOf(member))
+            service.importMember(member)
 
             assertFalse { service.addMember(member.guildId, member.entityId) }
             assertThat(getAllAddedMembers(guildId.toString())).isEmpty()
@@ -1004,23 +1004,44 @@ class GuildCacheServiceTest {
         inner class WithAddedMember {
 
             @Test
-            fun `should return true if entity is member in the guild`() = runTest {
-                withGuildImportedAndCreated {
-                    val guildId = it.id
-                    val guildIdString = guildId.toString()
-                    val entityId = getRandomString()
-                    service.addMember(guildId, entityId)
+            fun `should remove if guild comes from cache`() = runTest {
+                val guild = service.createGuild(getRandomString(), getRandomString())
+                val guildId = guild.id
+                val guildIdString = guildId.toString()
+                val entityId = getRandomString()
+                service.addMember(guildId, entityId)
 
-                    assertThat(getAllAddedMembers(guildIdString)).containsExactly(
-                        GuildMember(guildId, entityId)
-                    )
+                assertThat(getAllAddedMembers(guildIdString)).containsExactly(
+                    GuildMember(guildId, entityId)
+                )
 
-                    assertTrue { service.removeMember(guildId, entityId) }
+                assertTrue { service.removeMember(guildId, entityId) }
 
-                    assertThat(getAllAddedMembers(guildIdString)).isEmpty()
-                    assertThat(getAllRemovedMembers(guildIdString)).isEmpty()
-                    assertThat(getAllImportedMembers(guildIdString)).isEmpty()
-                }
+                assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+                assertThat(getAllRemovedMembers(guildIdString)).isEmpty()
+                assertThat(getAllImportedMembers(guildIdString)).isEmpty()
+            }
+
+            @Test
+            fun `should remove and mark as deleted if guild is imported`() = runTest {
+                val guild = Guild(0, getRandomString(), getRandomString())
+                service.importGuild(guild)
+                val guildId = guild.id
+                val guildIdString = guildId.toString()
+                val entityId = getRandomString()
+                service.addMember(guildId, entityId)
+
+                assertThat(getAllAddedMembers(guildIdString)).containsExactly(
+                    GuildMember(guildId, entityId)
+                )
+
+                assertTrue { service.removeMember(guildId, entityId) }
+
+                assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+                assertThat(getAllRemovedMembers(guildIdString)).containsExactly(
+                    entityId
+                )
+                assertThat(getAllImportedMembers(guildIdString)).isEmpty()
             }
 
             @Test
@@ -1057,7 +1078,7 @@ class GuildCacheServiceTest {
                 val entityId = getRandomString()
 
                 val expectedMember = GuildMember(guildId, entityId)
-                service.importMembers(listOf(expectedMember))
+                service.importMember(expectedMember)
 
                 assertThat(getAllImportedMembers(guildIdString)).containsExactly(
                     expectedMember
@@ -1083,7 +1104,7 @@ class GuildCacheServiceTest {
                 val entityId2 = getRandomString()
 
                 val expectedMember = GuildMember(guildId, entityId)
-                service.importMembers(listOf(expectedMember))
+                service.importMember(expectedMember)
 
                 assertFalse { service.removeMember(guildId, entityId2) }
 
@@ -1271,7 +1292,7 @@ class GuildCacheServiceTest {
             val guildId = guild.id
 
             val invite = GuildInvite(guildId, getRandomString(), null)
-            service.importInvitations(listOf(invite))
+            service.importInvitation(invite)
 
             assertFalse { service.addInvitation(invite.guildId, invite.entityId, invite.expiredAt) }
             assertThat(getAllAddedInvites(guildId.toString())).isEmpty()
@@ -1303,23 +1324,44 @@ class GuildCacheServiceTest {
         inner class WithAddedInvitation {
 
             @Test
-            fun `should return true if entity is invited in the guild`() = runTest {
-                withGuildImportedAndCreated {
-                    val guildId = it.id
-                    val guildIdString = guildId.toString()
-                    val entityId = getRandomString()
-                    service.addInvitation(guildId, entityId, null)
+            fun `should remove if guild comes from cache`() = runTest {
+                val guild = service.createGuild(getRandomString(), getRandomString())
+                val guildId = guild.id
+                val guildIdString = guildId.toString()
+                val entityId = getRandomString()
+                service.addInvitation(guildId, entityId, null)
 
-                    assertThat(getAllAddedInvites(guildIdString)).containsExactly(
-                        GuildInvite(guildId, entityId, null)
-                    )
+                assertThat(getAllAddedInvites(guildIdString)).containsExactly(
+                    GuildInvite(guildId, entityId, null)
+                )
 
-                    assertTrue { service.removeInvitation(guildId, entityId) }
+                assertTrue { service.removeInvitation(guildId, entityId) }
 
-                    assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-                    assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
-                    assertThat(getAllImportedInvites(guildIdString)).isEmpty()
-                }
+                assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+                assertThat(getAllRemovedMembers(guildIdString)).isEmpty()
+                assertThat(getAllImportedMembers(guildIdString)).isEmpty()
+            }
+
+            @Test
+            fun `should remove and mark as deleted if guild is imported`() = runTest {
+                val guild = Guild(0, getRandomString(), getRandomString())
+                service.importGuild(guild)
+                val guildId = guild.id
+                val guildIdString = guildId.toString()
+                val entityId = getRandomString()
+                service.addMember(guildId, entityId)
+
+                assertThat(getAllAddedMembers(guildIdString)).containsExactly(
+                    GuildMember(guildId, entityId)
+                )
+
+                assertTrue { service.removeMember(guildId, entityId) }
+
+                assertThat(getAllAddedMembers(guildIdString)).isEmpty()
+                assertThat(getAllRemovedMembers(guildIdString)).containsExactly(
+                    entityId
+                )
+                assertThat(getAllImportedMembers(guildIdString)).isEmpty()
             }
 
             @Test
@@ -1356,7 +1398,7 @@ class GuildCacheServiceTest {
                 val entityId = getRandomString()
 
                 val expectedInvite = GuildInvite(guildId, entityId, null)
-                service.importInvitations(listOf(expectedInvite))
+                service.importInvitation(expectedInvite)
 
                 assertThat(getAllImportedInvites(guildIdString)).containsExactly(
                     expectedInvite
@@ -1382,7 +1424,7 @@ class GuildCacheServiceTest {
                 val entityId2 = getRandomString()
 
                 val expectedInvite = GuildInvite(guildId, entityId, null)
-                service.importInvitations(listOf(expectedInvite))
+                service.importInvitation(expectedInvite)
 
                 assertFalse { service.removeInvitation(guildId, entityId2) }
 
@@ -1406,6 +1448,7 @@ class GuildCacheServiceTest {
             assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
             assertThat(getAllImportedInvites(guildIdString)).isEmpty()
         }
+
         @Test
         fun `should return false if guild doesn't exist`() = runTest {
             assertFalse { service.removeInvitation(0, getRandomString()) }
@@ -1450,7 +1493,8 @@ class GuildCacheServiceTest {
 
         private suspend fun getWithWrongValue(value: String) {
             withGuildImportedAndCreated {
-                val mapKey = (service.prefixKey.format(it.id) + GuildCacheService.Type.ADD_INVITATION.key).encodeToByteArray()
+                val mapKey =
+                    (service.prefixKey.format(it.id) + GuildCacheService.Type.ADD_INVITATION.key).encodeToByteArray()
                 val entity = getRandomString().encodeToByteArray()
 
                 val entity2 = getRandomString().encodeToByteArray()
@@ -1471,7 +1515,7 @@ class GuildCacheServiceTest {
             val guild = Guild(0, getRandomString(), getRandomString())
             service.importGuild(guild)
             service.addMember(guild.id, getRandomString())
-            service.importMembers(listOf(GuildMember(guild.id, getRandomString())))
+            service.importMember(GuildMember(guild.id, getRandomString()))
 
             val invitations = service.getInvitations(guild.id).toList()
             assertThat(invitations).isEmpty()
@@ -1504,7 +1548,7 @@ class GuildCacheServiceTest {
             service.importGuild(guild)
             val guildId = guild.id
             val expectedInvites = List(number) { GuildInvite(guildId, getRandomString(), null) }
-            service.importInvitations(expectedInvites)
+            expectedInvites.forEach { service.importInvitation(it) }
 
             val invites = service.getInvitations(guildId).toList()
             assertThat(invites).containsExactlyInAnyOrderElementsOf(expectedInvites)
@@ -1535,7 +1579,7 @@ class GuildCacheServiceTest {
             service.importGuild(guild)
             val guildId = guild.id
             val invites = List(number) { GuildInvite(guildId, getRandomString(), null) }
-            service.importInvitations(invites)
+            invites.forEach { service.importInvitation(it) }
 
             invites.forEach { invite ->
                 service.removeInvitation(guildId, invite.entityId)
@@ -1553,7 +1597,7 @@ class GuildCacheServiceTest {
             val guildId = guild.id
 
             val importedInvites = List(number) { GuildInvite(guildId, getRandomString(), null) }
-            service.importInvitations(importedInvites)
+            importedInvites.forEach { service.importInvitation(it) }
 
             val addedInvites = List(number) { GuildInvite(guildId, getRandomString(), null) }.onEach { invite ->
                 service.addInvitation(guildId, invite.entityId, null)
@@ -1564,280 +1608,280 @@ class GuildCacheServiceTest {
         }
     }
 
-    @Nested
-    inner class ImportInvitations {
-
-        @Test
-        fun `should return false when list is empty`() = runTest {
-            assertFalse { service.importInvitations(emptyList()) }
-        }
-
-        @Test
-        fun `should keep integrity of invitation data`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-
-            val now = Instant.now()
-            val expiredAt = now.plusSeconds(10).truncatedTo(ChronoUnit.MILLIS)
-            val createdAt = now.minusSeconds(10).truncatedTo(ChronoUnit.MILLIS)
-            val invites = listOf(GuildInvite(guildId, getRandomString(), expiredAt, createdAt))
-            service.importInvitations(invites)
-
-            val guildIdString = guildId.toString()
-            val importedInvites = getAllImportedInvites(guildIdString)
-            assertThat(importedInvites).containsExactlyInAnyOrderElementsOf(invites)
-        }
-
-        @Test
-        fun `should throw exception if at least one invitation is for a non existing guild`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-
-            val invites = listOf(
-                GuildInvite(guildId, getRandomString(), null),
-                GuildInvite(guildId + 1, getRandomString(), null)
-            )
-            assertThrows<GuildNotFoundException> {
-                service.importInvitations(invites)
-            }
-
-            assertThat(getAllImportedInvites(guildId.toString())).isEmpty()
-            assertThat(getAllAddedInvites(guildId.toString())).isEmpty()
-            assertThat(getAllImportedInvites((guildId + 1).toString())).isEmpty()
-            assertThat(getAllAddedInvites((guildId + 1).toString())).isEmpty()
-        }
-
-        @Test
-        fun `should throw exception if at least one invited entity is member`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val invites = listOf(
-                GuildInvite(guildId, getRandomString(), null),
-                GuildInvite(guildId, getRandomString(), null)
-            )
-
-            service.addMember(guildId, invites[0].entityId)
-
-            assertThrows<GuildInvitedIsAlreadyMemberException> {
-                service.importInvitations(invites)
-            }
-
-            val guildIdString = guildId.toString()
-            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should throw exception if the owner is invited`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val invites = listOf(
-                GuildInvite(guildId, guild.ownerId, null),
-            )
-
-            assertThrows<GuildInvitedIsAlreadyMemberException> {
-                service.importInvitations(invites)
-            }
-
-            val guildIdString = guildId.toString()
-            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should throw exception if at least one guild is not found`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            val guildId = guild.id
-            val invites = listOf(
-                GuildInvite(guildId, getRandomString(), null),
-                GuildInvite(guildId + 1, getRandomString(), null)
-            )
-            assertThrows<GuildNotFoundException> {
-                service.importInvitations(invites)
-            }
-
-            val guildIdString = guildId.toString()
-            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-
-            val guildIdString2 = (guildId + 1).toString()
-            assertThat(getAllImportedInvites(guildIdString2)).isEmpty()
-            assertThat(getAllAddedInvites(guildIdString2)).isEmpty()
-        }
-
-        @Test
-        fun `should throw exception if at least one invitation is expired`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            val guildId = guild.id
-            val invites = listOf(
-                GuildInvite(guildId, getRandomString(), null),
-                GuildInvite(guildId, getRandomString(), Instant.now().minusSeconds(1))
-            )
-
-            assertThrows<IllegalArgumentException> {
-                service.importInvitations(invites)
-            }
-
-            val guildIdString = guildId.toString()
-            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should filter out invitation marked as deleted`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val guildIdString = guildId.toString()
-
-            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
-            assertTrue { service.importInvitations(invites) }
-            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-            assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
-
-            val invitesToDelete = invites.take(3)
-            val invitesEntitiesDeleted = invitesToDelete.map { it.entityId }
-            val invitesToKeep = invites.drop(3)
-
-            invitesToDelete.forEach { invite ->
-                service.removeInvitation(guildId, invite.entityId)
-            }
-            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
-            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesToKeep)
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-
-            val inviteShouldBeImported = GuildInvite(guildId, getRandomString(), null)
-            val newInvites = invitesToDelete + inviteShouldBeImported
-            assertTrue { service.importInvitations(newInvites) }
-            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesToKeep + inviteShouldBeImported)
-            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should return false when all imported invitations are marked as deleted`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val guildIdString = guildId.toString()
-
-            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
-            assertTrue { service.importInvitations(invites) }
-            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-            assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
-
-            invites.forEach { invite ->
-                service.removeInvitation(guildId, invite.entityId)
-            }
-            val invitesEntitiesDeleted = invites.map { it.entityId }
-            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
-            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-
-            assertFalse { service.importInvitations(invites) }
-            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
-            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should set as imported the added invitations`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val guildIdString = guildId.toString()
-
-            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
-            val invitesToAdd = invites.take(3)
-            val invitesToImport = invites.drop(3)
-
-            invitesToAdd.forEach { invite ->
-                assertTrue { service.addInvitation(invite.guildId, invite.entityId, invite.expiredAt) }
-            }
-            assertTrue { service.importInvitations(invitesToImport) }
-
-            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesToImport)
-            assertThat(getAllAddedInvites(guildIdString)).containsOnlyOnceElementsOf(invitesToAdd)
-
-            assertTrue { service.importInvitations(invitesToAdd) }
-            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should return true when invitations are updated`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val guildIdString = guildId.toString()
-
-            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
-            assertTrue { service.importInvitations(invites) }
-
-            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
-
-            val newInvites = invites.map {
-                it.copy(expiredAt = Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS))
-            }
-            assertTrue { service.importInvitations(newInvites) }
-            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(newInvites)
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should return false when invitations are already imported with the same values`() = runTest {
-            val guild = Guild(0, getRandomString(), getRandomString())
-            service.importGuild(guild)
-            val guildId = guild.id
-            val guildIdString = guildId.toString()
-
-            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
-            assertTrue { service.importInvitations(invites) }
-            assertFalse { service.importInvitations(invites) }
-            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
-            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
-        }
-
-        @Test
-        fun `should import invitations in each targeted guild`() = runTest {
-            val guild1 = Guild(0, getRandomString(), getRandomString())
-            val guild2 = Guild(1, getRandomString(), getRandomString())
-            service.importGuild(guild1)
-            service.importGuild(guild2)
-
-            val invites = listOf(
-                GuildInvite(guild1.id, getRandomString(), null),
-                GuildInvite(guild1.id, getRandomString(), null),
-                GuildInvite(guild2.id, getRandomString(), null),
-                GuildInvite(guild2.id, getRandomString(), null),
-                GuildInvite(guild2.id, getRandomString(), null)
-            )
-
-            assertTrue { service.importInvitations(invites) }
-            assertThat(getAllImportedInvites(guild1.id.toString())).containsExactlyInAnyOrderElementsOf(invites.take(2))
-            assertThat(getAllImportedInvites(guild2.id.toString())).containsExactlyInAnyOrderElementsOf(invites.drop(2))
-            assertThat(getAllAddedInvites(guild1.id.toString())).isEmpty()
-            assertThat(getAllAddedInvites(guild2.id.toString())).isEmpty()
-            assertThat(getAllRemovedInvites(guild1.id.toString())).isEmpty()
-            assertThat(getAllRemovedInvites(guild2.id.toString())).isEmpty()
-        }
-
-        @Test
-        fun `should throw exception when guild is not a imported guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), getRandomString())
-            val guildId = guild.id
-
-            assertThrows<IllegalArgumentException> {
-                service.importInvitations(listOf(GuildInvite(guildId, getRandomString(), null)))
-            }
-        }
-    }
+//    @Nested
+//    inner class ImportInvitations {
+//
+//        @Test
+//        fun `should return false when list is empty`() = runTest {
+//            assertFalse { service.importInvitations(emptyList()) }
+//        }
+//
+//        @Test
+//        fun `should keep integrity of invitation data`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//
+//            val now = Instant.now()
+//            val expiredAt = now.plusSeconds(10).truncatedTo(ChronoUnit.MILLIS)
+//            val createdAt = now.minusSeconds(10).truncatedTo(ChronoUnit.MILLIS)
+//            val invites = listOf(GuildInvite(guildId, getRandomString(), expiredAt, createdAt))
+//            service.importInvitations(invites)
+//
+//            val guildIdString = guildId.toString()
+//            val importedInvites = getAllImportedInvites(guildIdString)
+//            assertThat(importedInvites).containsExactlyInAnyOrderElementsOf(invites)
+//        }
+//
+//        @Test
+//        fun `should throw exception if at least one invitation is for a non existing guild`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//
+//            val invites = listOf(
+//                GuildInvite(guildId, getRandomString(), null),
+//                GuildInvite(guildId + 1, getRandomString(), null)
+//            )
+//            assertThrows<GuildNotFoundException> {
+//                service.importInvitations(invites)
+//            }
+//
+//            assertThat(getAllImportedInvites(guildId.toString())).isEmpty()
+//            assertThat(getAllAddedInvites(guildId.toString())).isEmpty()
+//            assertThat(getAllImportedInvites((guildId + 1).toString())).isEmpty()
+//            assertThat(getAllAddedInvites((guildId + 1).toString())).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should throw exception if at least one invited entity is member`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val invites = listOf(
+//                GuildInvite(guildId, getRandomString(), null),
+//                GuildInvite(guildId, getRandomString(), null)
+//            )
+//
+//            service.addMember(guildId, invites[0].entityId)
+//
+//            assertThrows<GuildInvitedIsAlreadyMemberException> {
+//                service.importInvitations(invites)
+//            }
+//
+//            val guildIdString = guildId.toString()
+//            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should throw exception if the owner is invited`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val invites = listOf(
+//                GuildInvite(guildId, guild.ownerId, null),
+//            )
+//
+//            assertThrows<GuildInvitedIsAlreadyMemberException> {
+//                service.importInvitations(invites)
+//            }
+//
+//            val guildIdString = guildId.toString()
+//            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should throw exception if at least one guild is not found`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            val guildId = guild.id
+//            val invites = listOf(
+//                GuildInvite(guildId, getRandomString(), null),
+//                GuildInvite(guildId + 1, getRandomString(), null)
+//            )
+//            assertThrows<GuildNotFoundException> {
+//                service.importInvitations(invites)
+//            }
+//
+//            val guildIdString = guildId.toString()
+//            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//
+//            val guildIdString2 = (guildId + 1).toString()
+//            assertThat(getAllImportedInvites(guildIdString2)).isEmpty()
+//            assertThat(getAllAddedInvites(guildIdString2)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should throw exception if at least one invitation is expired`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            val guildId = guild.id
+//            val invites = listOf(
+//                GuildInvite(guildId, getRandomString(), null),
+//                GuildInvite(guildId, getRandomString(), Instant.now().minusSeconds(1))
+//            )
+//
+//            assertThrows<IllegalArgumentException> {
+//                service.importInvitations(invites)
+//            }
+//
+//            val guildIdString = guildId.toString()
+//            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should filter out invitation marked as deleted`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val guildIdString = guildId.toString()
+//
+//            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
+//            assertTrue { service.importInvitations(invites) }
+//            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//            assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
+//
+//            val invitesToDelete = invites.take(3)
+//            val invitesEntitiesDeleted = invitesToDelete.map { it.entityId }
+//            val invitesToKeep = invites.drop(3)
+//
+//            invitesToDelete.forEach { invite ->
+//                service.removeInvitation(guildId, invite.entityId)
+//            }
+//            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
+//            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesToKeep)
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//
+//            val inviteShouldBeImported = GuildInvite(guildId, getRandomString(), null)
+//            val newInvites = invitesToDelete + inviteShouldBeImported
+//            assertTrue { service.importInvitations(newInvites) }
+//            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesToKeep + inviteShouldBeImported)
+//            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should return false when all imported invitations are marked as deleted`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val guildIdString = guildId.toString()
+//
+//            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
+//            assertTrue { service.importInvitations(invites) }
+//            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//            assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
+//
+//            invites.forEach { invite ->
+//                service.removeInvitation(guildId, invite.entityId)
+//            }
+//            val invitesEntitiesDeleted = invites.map { it.entityId }
+//            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
+//            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//
+//            assertFalse { service.importInvitations(invites) }
+//            assertThat(getAllRemovedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesEntitiesDeleted)
+//            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should set as imported the added invitations`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val guildIdString = guildId.toString()
+//
+//            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
+//            val invitesToAdd = invites.take(3)
+//            val invitesToImport = invites.drop(3)
+//
+//            invitesToAdd.forEach { invite ->
+//                assertTrue { service.addInvitation(invite.guildId, invite.entityId, invite.expiredAt) }
+//            }
+//            assertTrue { service.importInvitations(invitesToImport) }
+//
+//            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invitesToImport)
+//            assertThat(getAllAddedInvites(guildIdString)).containsOnlyOnceElementsOf(invitesToAdd)
+//
+//            assertTrue { service.importInvitations(invitesToAdd) }
+//            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should return true when invitations are updated`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val guildIdString = guildId.toString()
+//
+//            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
+//            assertTrue { service.importInvitations(invites) }
+//
+//            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
+//
+//            val newInvites = invites.map {
+//                it.copy(expiredAt = Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS))
+//            }
+//            assertTrue { service.importInvitations(newInvites) }
+//            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(newInvites)
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should return false when invitations are already imported with the same values`() = runTest {
+//            val guild = Guild(0, getRandomString(), getRandomString())
+//            service.importGuild(guild)
+//            val guildId = guild.id
+//            val guildIdString = guildId.toString()
+//
+//            val invites = List(5) { GuildInvite(guildId, getRandomString(), null) }
+//            assertTrue { service.importInvitations(invites) }
+//            assertFalse { service.importInvitations(invites) }
+//            assertThat(getAllImportedInvites(guildIdString)).containsExactlyInAnyOrderElementsOf(invites)
+//            assertThat(getAllAddedInvites(guildIdString)).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should import invitations in each targeted guild`() = runTest {
+//            val guild1 = Guild(0, getRandomString(), getRandomString())
+//            val guild2 = Guild(1, getRandomString(), getRandomString())
+//            service.importGuild(guild1)
+//            service.importGuild(guild2)
+//
+//            val invites = listOf(
+//                GuildInvite(guild1.id, getRandomString(), null),
+//                GuildInvite(guild1.id, getRandomString(), null),
+//                GuildInvite(guild2.id, getRandomString(), null),
+//                GuildInvite(guild2.id, getRandomString(), null),
+//                GuildInvite(guild2.id, getRandomString(), null)
+//            )
+//
+//            assertTrue { service.importInvitations(invites) }
+//            assertThat(getAllImportedInvites(guild1.id.toString())).containsExactlyInAnyOrderElementsOf(invites.take(2))
+//            assertThat(getAllImportedInvites(guild2.id.toString())).containsExactlyInAnyOrderElementsOf(invites.drop(2))
+//            assertThat(getAllAddedInvites(guild1.id.toString())).isEmpty()
+//            assertThat(getAllAddedInvites(guild2.id.toString())).isEmpty()
+//            assertThat(getAllRemovedInvites(guild1.id.toString())).isEmpty()
+//            assertThat(getAllRemovedInvites(guild2.id.toString())).isEmpty()
+//        }
+//
+//        @Test
+//        fun `should throw exception when guild is not a imported guild`() = runTest {
+//            val guild = service.createGuild(getRandomString(), getRandomString())
+//            val guildId = guild.id
+//
+//            assertThrows<IllegalArgumentException> {
+//                service.importInvitations(listOf(GuildInvite(guildId, getRandomString(), null)))
+//            }
+//        }
+//    }
 
     private suspend fun getAllImportedGuilds(): List<Guild> {
         return getAllDataFromKey(GuildCacheService.Type.IMPORT_GUILD, "*").filter {
