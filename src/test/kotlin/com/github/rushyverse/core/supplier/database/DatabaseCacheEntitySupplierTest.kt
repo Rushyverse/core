@@ -1,8 +1,6 @@
 package com.github.rushyverse.core.supplier.database
 
-import com.github.rushyverse.core.data.Guild
-import com.github.rushyverse.core.data.IFriendCacheService
-import com.github.rushyverse.core.data.IGuildCacheService
+import com.github.rushyverse.core.data.*
 import com.github.rushyverse.core.utils.getRandomString
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -631,6 +629,130 @@ class DatabaseCacheEntitySupplierTest {
                 coEvery { guildCacheService.addInvitation(any(), any(), any()) } returns result
                 assertEquals(result, cacheEntitySupplier.addInvitation(Random.nextInt(), getRandomString(), mockk()))
                 coVerify(exactly = 1) { guildCacheService.addInvitation(any(), any(), any()) }
+            }
+
+        }
+
+        @Nested
+        inner class RemoveMember {
+
+            @Test
+            fun `should remove in supplier`() = runTest {
+                val slot1 = slot<Int>()
+                val slot2 = slot<String>()
+
+                coEvery { guildCacheService.removeMember(capture(slot1), capture(slot2)) } returns true
+
+                val guildId = Random.nextInt()
+                val entityId = getRandomString()
+                assertTrue { cacheEntitySupplier.removeMember(guildId, entityId) }
+                coVerify(exactly = 1) { guildCacheService.removeMember(any(), any()) }
+
+                assertEquals(guildId, slot1.captured)
+                assertEquals(entityId, slot2.captured)
+            }
+
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return supplier result`(result: Boolean) = runTest {
+                coEvery { guildCacheService.removeMember(any(), any()) } returns result
+                assertEquals(result, cacheEntitySupplier.removeMember(Random.nextInt(), getRandomString()))
+                coVerify(exactly = 1) { guildCacheService.removeMember(any(), any()) }
+            }
+
+        }
+
+        @Nested
+        inner class RemoveInvitation {
+
+            @Test
+            fun `should remove in supplier`() = runTest {
+                val slot1 = slot<Int>()
+                val slot2 = slot<String>()
+
+                coEvery { guildCacheService.removeInvitation(capture(slot1), capture(slot2)) } returns true
+
+                val guildId = Random.nextInt()
+                val entityId = getRandomString()
+                assertTrue { cacheEntitySupplier.removeInvitation(guildId, entityId) }
+                coVerify(exactly = 1) { guildCacheService.removeInvitation(any(), any()) }
+
+                assertEquals(guildId, slot1.captured)
+                assertEquals(entityId, slot2.captured)
+            }
+
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return supplier result`(result: Boolean) = runTest {
+                coEvery { guildCacheService.removeInvitation(any(), any()) } returns result
+                assertEquals(result, cacheEntitySupplier.removeInvitation(Random.nextInt(), getRandomString()))
+                coVerify(exactly = 1) { guildCacheService.removeInvitation(any(), any()) }
+            }
+
+        }
+
+        @Nested
+        inner class GetMembers {
+
+            @Test
+            fun `should get in supplier`() = runTest {
+                val slot = slot<Int>()
+
+                coEvery { guildCacheService.getMembers(capture(slot)) } returns emptyFlow()
+
+                val id = Random.nextInt()
+                assertEquals(emptyList(), cacheEntitySupplier.getMembers(id).toList())
+                coVerify(exactly = 1) { guildCacheService.getMembers(any()) }
+
+                assertEquals(id, slot.captured)
+            }
+
+            @Test
+            fun `should return empty collection when supplier returns empty collection`() = runTest {
+                coEvery { guildCacheService.getMembers(any()) } returns emptyFlow()
+                assertEquals(emptyList(), cacheEntitySupplier.getMembers(Random.nextInt()).toList())
+                coVerify(exactly = 1) { guildCacheService.getMembers(any()) }
+            }
+
+            @Test
+            fun `should return not empty collection when supplier returns not empty collection`() = runTest {
+                val expected = List(5) { GuildMember(Random.nextInt(), getRandomString(), mockk()) }
+                coEvery { guildCacheService.getMembers(any()) } returns expected.asFlow()
+                assertEquals(expected, cacheEntitySupplier.getMembers(Random.nextInt()).toList())
+                coVerify(exactly = 1) { guildCacheService.getMembers(any()) }
+            }
+
+        }
+
+        @Nested
+        inner class GetInvitations {
+
+            @Test
+            fun `should get in supplier`() = runTest {
+                val slot = slot<Int>()
+
+                coEvery { guildCacheService.getInvitations(capture(slot)) } returns emptyFlow()
+
+                val id = Random.nextInt()
+                assertEquals(emptyList(), cacheEntitySupplier.getInvitations(id).toList())
+                coVerify(exactly = 1) { guildCacheService.getInvitations(any()) }
+
+                assertEquals(id, slot.captured)
+            }
+
+            @Test
+            fun `should return empty collection when supplier returns empty collection`() = runTest {
+                coEvery { guildCacheService.getInvitations(any()) } returns emptyFlow()
+                assertEquals(emptyList(), cacheEntitySupplier.getInvitations(Random.nextInt()).toList())
+                coVerify(exactly = 1) { guildCacheService.getInvitations(any()) }
+            }
+
+            @Test
+            fun `should return not empty collection when supplier returns not empty collection`() = runTest {
+                val expected = List(5) { GuildInvite(Random.nextInt(), getRandomString(), mockk(), mockk()) }
+                coEvery { guildCacheService.getInvitations(any()) } returns expected.asFlow()
+                assertEquals(expected, cacheEntitySupplier.getInvitations(Random.nextInt()).toList())
+                coVerify(exactly = 1) { guildCacheService.getInvitations(any()) }
             }
 
         }
