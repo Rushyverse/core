@@ -16,7 +16,6 @@ import kotlinx.serialization.builtins.serializer
 import org.komapper.annotation.*
 import org.komapper.core.DryRunDatabaseConfig.id
 import org.komapper.core.dsl.QueryDsl
-import org.komapper.core.dsl.operator.literal
 import org.komapper.core.dsl.query.bind
 import org.komapper.r2dbc.R2dbcDatabase
 import java.time.Instant
@@ -387,8 +386,10 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         val query = QueryDsl.from(meta).where {
             meta.guildId eq guildId
             meta.entityId eq entityId
-        }.select(literal(1))
-        return database.runQuery(query).firstOrNull() != null
+        }
+
+        val invite = database.runQuery(query).firstOrNull() ?: return false
+        return !invite.isExpired()
     }
 
     override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
@@ -429,7 +430,9 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         val query = QueryDsl.from(meta).where {
             meta.guildId eq guildId
         }
-        return database.flowQuery(query).filterNotNull()
+        return database.flowQuery(query).filterNotNull().filter {
+            !it.isExpired()
+        }
     }
 
     /**
@@ -459,6 +462,9 @@ public class GuildCacheService(
     public val prefixCommonKey: String = "guild:",
     prefixKey: String = "$prefixCommonKey%s:"
 ) : AbstractCacheService(client, prefixKey), IGuildCacheService {
+
+    // TODO : Function to remove all guild data from cache.
+    // TODO : Function to remove all expired guild invitations from cache.
 
     private companion object {
         /**
@@ -1021,16 +1027,12 @@ public class GuildCacheService(
             callsInPlace(importKey, InvocationKind.AT_MOST_ONCE)
         }
 
-        val guildIdString = guildId.toString()
         return cacheClient.connect { connection ->
             if (isCacheGuild(guildId)) {
-                removeEntityValue(connection, addKey(guildIdString), entityId)
+                removeEntityValue(connection, addKey(guildId.toString()), entityId)
             } else {
-                if (
-                    removeEntityValue(connection, addKey(guildIdString), entityId) ||
-                    removeEntityValue(connection, importKey(guildIdString), entityId)
-                ) {
-                    markEntityAsDeleted(connection, removeKey(guildIdString), entityId)
+                if (removeEntityAddedOrImported(connection, guildId, entityId, addKey, importKey)) {
+                    markEntityAsDeleted(connection, removeKey(guildId.toString()), entityId)
                     true
                 } else {
                     false
@@ -1039,37 +1041,71 @@ public class GuildCacheService(
         }
     }
 
-    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
-        requireEntityIdNotBlank(entityId)
-        return entityIsAddedOrImported(
-            guildId,
-            entityId,
-            this::createAddInvitationKey,
-            this::createImportInvitationKey
-        )
-    }
-
     /**
-     * Check if the entity is added or imported.
+     * Remove an entity from the cache if it is added or imported.
+     * @param connection Cache connection.
      * @param guildId Guild ID.
      * @param entityId Entity ID.
      * @param addKey Function to create the key of the added entity.
      * @param importKey Function to create the key of the imported entity.
-     * @return `true` if the entity is added or imported, `false` otherwise.
+     * @return `true` if the entity was removed, `false` otherwise.
      */
-    private suspend inline fun entityIsAddedOrImported(
+    private suspend inline fun removeEntityAddedOrImported(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        guildId: Int,
+        entityId: String,
+        addKey: (String) -> ByteArray,
+        importKey: (String) -> ByteArray
+    ): Boolean {
+        val guildIdString = guildId.toString()
+        return removeEntityValue(connection, addKey(guildIdString), entityId)
+                || removeEntityValue(connection, importKey(guildIdString), entityId)
+    }
+
+    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+        requireEntityIdNotBlank(entityId)
+        return cacheClient.connect {
+            val invite = getEntityValueAddedOrImported(
+                it,
+                guildId,
+                entityId,
+                this::createAddInvitationKey,
+                this::createImportInvitationKey,
+                GuildInvite.serializer()
+            )
+            invite != null && !invite.isExpired()
+        }
+    }
+
+    /**
+     * Retrieve the value of an entity in the cache by checking if it is added or imported.
+     * @param connection Cache connection.
+     * @param guildId Guild ID.
+     * @param entityId Entity ID.
+     * @param addKey Function to create the key of the added entity.
+     * @param importKey Function to create the key of the imported entity.
+     * @return The entity value if it is added or imported, `null` otherwise.
+     */
+    private suspend inline fun <T : GuildEntityIds> getEntityValueAddedOrImported(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         guildId: Int,
         entityId: String,
         addKey: (String) -> ByteArray,
         importKey: (String) -> ByteArray,
-    ): Boolean {
+        serializer: KSerializer<T>
+    ): T? {
         contract {
             callsInPlace(addKey, InvocationKind.AT_MOST_ONCE)
             callsInPlace(importKey, InvocationKind.AT_MOST_ONCE)
         }
 
-        return cacheClient.connect { connection ->
-            entityIsAddedOrImported(connection, guildId, entityId, addKey, importKey)
+        val guildIdString = guildId.toString()
+        return if (isCacheGuild(guildId)) {
+            // If the guild is created by GuildCacheService, we only need to check if the invitation is added
+            getEntityValue(connection, addKey(guildIdString), entityId, serializer)
+        } else {
+            getEntityValue(connection, importKey(guildIdString), entityId, serializer)
+                ?: getEntityValue(connection, addKey(guildIdString), entityId, serializer)
         }
     }
 
