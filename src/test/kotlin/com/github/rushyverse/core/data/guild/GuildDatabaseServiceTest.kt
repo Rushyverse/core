@@ -79,14 +79,14 @@ class GuildDatabaseServiceTest {
         inner class Owner {
 
             @Test
-            fun `when owner is not owner of a guild`() = runTest {
+            fun `should create a new guild`() = runTest {
                 val guild = service.createGuild(getRandomString(), getRandomString())
                 val guilds = getAllGuilds()
                 assertThat(guilds).containsExactly(guild)
             }
 
             @Test
-            fun `when owner is already in a guild`() = runTest {
+            fun `should create guild if owner is an owner of another guild`() = runTest {
                 val guild = service.createGuild(getRandomString(), getRandomString())
                 val guild2 = service.createGuild(getRandomString(), guild.ownerId)
                 assertNotEquals(guild.id, guild2.id)
@@ -96,7 +96,7 @@ class GuildDatabaseServiceTest {
             }
 
             @Test
-            fun `when owner is a member of another guild`() = runTest {
+            fun `should create guild if owner is a member of another guild`() = runTest {
                 val entity = getRandomString()
                 val guild = service.createGuild(getRandomString(), getRandomString())
                 service.addMember(guild.id, entity)
@@ -109,7 +109,7 @@ class GuildDatabaseServiceTest {
 
             @ParameterizedTest
             @ValueSource(strings = ["", " ", "  ", "   "])
-            fun `when owner is blank`(owner: String) = runTest {
+            fun `should throw if owner is blank`(owner: String) = runTest {
                 assertThrows<IllegalArgumentException> {
                     service.createGuild(getRandomString(), owner)
                 }
@@ -120,7 +120,7 @@ class GuildDatabaseServiceTest {
         inner class Name {
 
             @Test
-            fun `with a name that is already taken`() = runTest {
+            fun `should create guilds with the same name`() = runTest {
                 val name = getRandomString()
                 val guild = service.createGuild(name, getRandomString())
                 val guild2 = service.createGuild(name, getRandomString())
@@ -132,7 +132,7 @@ class GuildDatabaseServiceTest {
 
             @ParameterizedTest
             @ValueSource(strings = ["", " ", "  ", "   "])
-            fun `when name is blank`(name: String) = runTest {
+            fun `should throw if name is blank`(name: String) = runTest {
                 assertThrows<IllegalArgumentException> {
                     service.createGuild(name, getRandomString())
                 }
@@ -145,20 +145,20 @@ class GuildDatabaseServiceTest {
     inner class DeleteGuild {
 
         @Test
-        fun `when guild exists`() = runTest {
+        fun `should return true if the guild exists`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
             assertTrue { service.deleteGuild(guild.id) }
             assertThat(getAllGuilds()).isEmpty()
         }
 
         @Test
-        fun `when guild does not exist`() = runTest {
+        fun `should return false if the guild doesn't exist`() = runTest {
             assertFalse { service.deleteGuild(0) }
             assertThat(getAllGuilds()).isEmpty()
         }
 
         @Test
-        fun `when another guild is deleted`() = runTest {
+        fun `should delete only the targeted guild`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
             val guild2 = service.createGuild(getRandomString(), getRandomString())
 
@@ -170,10 +170,20 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
-        fun `when guild is already deleted`() = runTest {
+        fun `should return false if the guild is deleted`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
             assertTrue { service.deleteGuild(guild.id) }
             assertFalse { service.deleteGuild(guild.id) }
+        }
+
+        @Test
+        fun `should delete all linked data to the deleted guild`() = runTest {
+            TODO()
+        }
+
+        @Test
+        fun `should not delete another guild data`() = runTest {
+            TODO()
         }
 
     }
@@ -182,7 +192,7 @@ class GuildDatabaseServiceTest {
     inner class GetGuildById {
 
         @Test
-        fun `when guild exists`() = runTest {
+        fun `should return the guild`() = runTest {
             service.createGuild(getRandomString(), getRandomString())
             val guilds = getAllGuilds()
             assertEquals(1, guilds.size)
@@ -192,7 +202,7 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
-        fun `when several guilds exist`() = runTest {
+        fun `should return each guild with the corresponding id`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
             val guild2 = service.createGuild(getRandomString(), getRandomString())
             assertEquals(guild, service.getGuild(guild.id))
@@ -200,9 +210,14 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
-        fun `when guild does not exist`() = runTest {
+        fun `should return null if the guild doesn't exist`() = runTest {
             val guild = service.getGuild(0)
             assertNull(guild)
+        }
+
+        @Test
+        fun `should return null if the guild is deleted`() = runTest {
+            TODO()
         }
 
     }
@@ -211,7 +226,7 @@ class GuildDatabaseServiceTest {
     inner class GetGuildByName {
 
         @Test
-        fun `when guild exists`() = runTest {
+        fun `should return the guild with the same name`() = runTest {
             val name = getRandomString()
             val guild = service.createGuild(name, getRandomString())
             val (retrievedGuild) = service.getGuild(name).toList()
@@ -219,7 +234,12 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
-        fun `when several guild with the same name exist`() = runTest {
+        fun `should return empty flow if the guild is deleted`() = runTest {
+            TODO()
+        }
+
+        @Test
+        fun `should retrieve several guilds with the same name`() = runTest {
             val name = getRandomString()
             service.createGuild(name, getRandomString())
             service.createGuild(name, getRandomString())
@@ -232,14 +252,14 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
-        fun `when guild does not exist`() = runTest {
+        fun `should return empty flow when no guild has the name`() = runTest {
             val guild = service.getGuild(getRandomString()).toList()
             assertEquals(0, guild.size)
         }
 
         @ParameterizedTest
         @ValueSource(strings = ["", " ", "  ", "   "])
-        fun `when name is blank`(name: String) = runTest {
+        fun `should throw if name is blank`(name: String) = runTest {
             assertThrows<IllegalArgumentException> {
                 service.getGuild(name)
             }
