@@ -50,6 +50,8 @@ class GuildDatabaseServiceTest {
                 MountableFile.forClasspathResource("sql/guild.sql"),
                 "/docker-entrypoint-initdb.d/init.sql"
             )
+
+        private const val WAIT_EXPIRATION_MILLIS = 200L
     }
 
     private lateinit var service: GuildDatabaseService
@@ -580,6 +582,27 @@ class GuildDatabaseServiceTest {
                     service.addInvitation(guild.id, entityId, expiredAt)
                 }
             }
+
+            @Test
+            fun `should insert for already present entity with an expired invitation`() = runBlocking {
+                val guild = service.createGuild(getRandomString(), getRandomString())
+                val entityId = getRandomString()
+                val now = Instant.now()
+                assertTrue { service.addInvitation(guild.id, entityId, now.plusMillis(WAIT_EXPIRATION_MILLIS)) }
+                delay(WAIT_EXPIRATION_MILLIS * 2)
+
+                var invites = getAllInvites()
+                assertEquals(1, invites.size)
+
+                assertTrue { service.addInvitation(guild.id, entityId, null) }
+                invites = getAllInvites()
+                assertEquals(1, invites.size)
+
+                val invite = invites.single()
+                assertEquals(guild.id, invite.guildId)
+                assertEquals(entityId, invite.entityId)
+                assertNull(invite.expiredAt)
+            }
         }
 
         @Test
@@ -722,22 +745,36 @@ class GuildDatabaseServiceTest {
         }
 
         @Test
-        fun `when invitation is expired`() = runBlocking {
+        fun `when invitation is expired`() = runBlocking<Unit> {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+
+            val expiredAt = Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS)
+            service.addInvitation(guild.id, entityId, expiredAt)
+            delay(WAIT_EXPIRATION_MILLIS * 2)
+            assertFalse { service.hasInvitation(guild.id, entityId) }
+
+            // should not delete the invitation
+            assertThat(getAllInvites()).hasSize(1)
+        }
+
+        @Test
+        fun `should delete invitation when add in the table`() = runBlocking<Unit> {
             val guild = service.createGuild(getRandomString(), getRandomString())
             val entityId = getRandomString()
             val entityId2 = getRandomString()
 
-            val millis = 500L
-
-            val expiredAt = Instant.now().plusMillis(millis)
+            val expiredAt = Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS)
             service.addInvitation(guild.id, entityId, expiredAt)
-            delay(millis)
-            // Invitation is not deleted without an update on the invitation table
-            assertTrue { service.hasInvitation(guild.id, entityId) }
+
+            delay(WAIT_EXPIRATION_MILLIS * 2)
+            assertThat(getAllInvites()).hasSize(1)
 
             service.addInvitation(guild.id, entityId2, null)
-            // Invitation is deleted due to an insert on the invitation table
-            assertFalse { service.hasInvitation(guild.id, entityId) }
+            val invites = getAllInvites()
+            val invite = invites.single()
+            assertEquals(guild.id, invite.guildId)
+            assertEquals(entityId2, invite.entityId)
         }
 
         @Test
@@ -932,27 +969,27 @@ class GuildDatabaseServiceTest {
     }
 
     @Nested
-    inner class GetInvited {
+    inner class GetInvitations {
 
         @Test
         fun `when guild has no invitations`() = runTest {
             val owner = getRandomString()
             val guild = service.createGuild(getRandomString(), owner)
-            val members = service.getInvitations(guild.id).toList()
-            assertContentEquals(emptyList(), members)
+            val invites = service.getInvitations(guild.id).toList()
+            assertContentEquals(emptyList(), invites)
         }
 
         @Test
         fun `when guild has invitations`() = runTest {
             val owner = getRandomString()
             val guild = service.createGuild(getRandomString(), owner)
-            val membersToAdd = listOf(getRandomString(), getRandomString())
-            val invites = membersToAdd.map { GuildInvite(guild.id, it, null) }.onEach {
+            val invitesToAdd = listOf(getRandomString(), getRandomString())
+            val invites = invitesToAdd.map { GuildInvite(guild.id, it, null) }.onEach {
                 service.addInvitation(it.guildId, it.entityId, it.expiredAt)
             }
 
-            val members = service.getInvitations(guild.id).map(GuildInvite::defaultTime).toList()
-            assertThat(members).containsExactlyInAnyOrderElementsOf(invites)
+            val invitesService = service.getInvitations(guild.id).map(GuildInvite::defaultTime).toList()
+            assertThat(invitesService).containsExactlyInAnyOrderElementsOf(invites)
         }
 
         @Test
@@ -961,14 +998,37 @@ class GuildDatabaseServiceTest {
             val guild = service.createGuild(getRandomString(), owner)
             service.addMember(guild.id, getRandomString())
 
-            val members = service.getInvitations(guild.id).toList()
-            assertContentEquals(emptyList(), members)
+            val invites = service.getInvitations(guild.id).toList()
+            assertContentEquals(emptyList(), invites)
         }
 
         @Test
         fun `when guild does not exist`() = runTest {
-            val members = service.getInvitations(0).toList()
-            assertContentEquals(emptyList(), members)
+            val invites = service.getInvitations(0).toList()
+            assertContentEquals(emptyList(), invites)
+        }
+
+        @Test
+        fun `should filter out the expired invitations`() = runBlocking<Unit> {
+            val owner = getRandomString()
+            val guild = service.createGuild(getRandomString(), owner)
+
+            val invitesNotExpired = listOf(
+                GuildInvite(guild.id, getRandomString(), null),
+                GuildInvite(guild.id, getRandomString(), null)
+            )
+            invitesNotExpired.forEach { service.addInvitation(it.guildId, it.entityId, it.expiredAt) }
+
+            val invitesExpired = listOf(
+                GuildInvite(guild.id, getRandomString(), Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS)),
+                GuildInvite(guild.id, getRandomString(), Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS))
+            )
+            invitesExpired.forEach { service.addInvitation(it.guildId, it.entityId, it.expiredAt) }
+
+            delay(WAIT_EXPIRATION_MILLIS * 2)
+
+            val invitesService = service.getInvitations(guild.id).map(GuildInvite::defaultTime).toList()
+            assertThat(invitesService).containsExactlyInAnyOrderElementsOf(invitesNotExpired)
         }
     }
 

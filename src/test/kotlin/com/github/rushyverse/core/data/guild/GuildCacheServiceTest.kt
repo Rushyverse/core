@@ -8,6 +8,7 @@ import io.lettuce.core.FlushMode
 import io.lettuce.core.KeyScanArgs
 import io.lettuce.core.KeyValue
 import io.lettuce.core.RedisURI
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -38,6 +39,8 @@ class GuildCacheServiceTest {
         @JvmStatic
         @Container
         private val redisContainer = createRedisContainer()
+
+        private const val WAIT_EXPIRATION_MILLIS = 200L
     }
 
     private lateinit var cacheClient: CacheClient
@@ -1424,7 +1427,53 @@ class GuildCacheServiceTest {
             }
         }
 
-        // TODO : Test when invitation is expired
+        @Test
+        fun `should return false if invitation is expired for cache guild`() = runBlocking {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val guildId = guild.id
+            val guildIdString = guildId.toString()
+            val entityAdd = getRandomString()
+
+            val expiredAt = Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS)
+            service.addInvitation(guildId, entityAdd, expiredAt)
+
+            assertThat(getAllAddedInvites(guildIdString)).hasSize(1)
+            assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
+            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+
+            delay(WAIT_EXPIRATION_MILLIS * 2)
+            assertFalse { service.hasInvitation(guildId, entityAdd) }
+
+            assertThat(getAllAddedInvites(guildIdString)).hasSize(1)
+            assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
+            assertThat(getAllImportedInvites(guildIdString)).isEmpty()
+        }
+
+        @Test
+        fun `should return false if invitation is expired for imported guild`() = runBlocking<Unit> {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val guildId = guild.id
+            val guildIdString = guildId.toString()
+            val entityAdd = getRandomString()
+            val entityImport = getRandomString()
+
+            val expiredAt = Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS)
+            service.addInvitation(guildId, entityAdd, expiredAt)
+            service.importInvitation(GuildInvite(guildId, entityImport, expiredAt))
+
+            assertThat(getAllAddedInvites(guildIdString)).hasSize(1)
+            assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
+            assertThat(getAllImportedInvites(guildIdString)).hasSize(1)
+
+            delay(WAIT_EXPIRATION_MILLIS * 2)
+            assertFalse { service.hasInvitation(guildId, entityAdd) }
+            assertFalse { service.hasInvitation(guildId, entityImport) }
+
+            assertThat(getAllAddedInvites(guildIdString)).hasSize(1)
+            assertThat(getAllRemovedInvites(guildIdString)).isEmpty()
+            assertThat(getAllImportedInvites(guildIdString)).hasSize(1)
+        }
 
         @ParameterizedTest
         @ValueSource(ints = [-1, 0, 1])
@@ -1577,6 +1626,70 @@ class GuildCacheServiceTest {
 
             val invites = service.getInvitations(guildId).toList()
             assertThat(invites).containsExactlyInAnyOrderElementsOf(importedInvites + addedInvites)
+        }
+
+        @Test
+        fun `should filter out the expired invitations for cache guild`() = runBlocking {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+
+            val invitesNotExpired = listOf(
+                GuildInvite(guild.id, getRandomString(), null),
+                GuildInvite(guild.id, getRandomString(), null)
+            )
+            invitesNotExpired.forEach { service.addInvitation(it.guildId, it.entityId, it.expiredAt) }
+
+            val invitesExpired = listOf(
+                GuildInvite(guild.id, getRandomString(), Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS)),
+                GuildInvite(guild.id, getRandomString(), Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS))
+            )
+            invitesExpired.forEach { service.addInvitation(it.guildId, it.entityId, it.expiredAt) }
+
+            delay(WAIT_EXPIRATION_MILLIS * 2)
+
+            assertThat(getAllAddedInvites(guild.id.toString())).hasSize(4)
+            assertThat(getAllImportedInvites(guild.id.toString())).isEmpty()
+            assertThat(getAllRemovedInvites(guild.id.toString())).isEmpty()
+
+            val invitesService = service.getInvitations(guild.id).map(GuildInvite::defaultTime).toList()
+            assertThat(invitesService).containsExactlyInAnyOrderElementsOf(invitesNotExpired)
+
+            assertThat(getAllAddedInvites(guild.id.toString())).hasSize(4)
+            assertThat(getAllImportedInvites(guild.id.toString())).isEmpty()
+            assertThat(getAllRemovedInvites(guild.id.toString())).isEmpty()
+        }
+
+        @Test
+        fun `should filter out the expired invitations for imported guild`() = runBlocking {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+
+            val invitesNotExpired = listOf(
+                GuildInvite(guild.id, getRandomString(), null),
+                GuildInvite(guild.id, getRandomString(), null)
+            )
+            invitesNotExpired.forEach { service.addInvitation(it.guildId, it.entityId, it.expiredAt) }
+
+            val invitesExpired = listOf(
+                GuildInvite(guild.id, getRandomString(), Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS)),
+                GuildInvite(guild.id, getRandomString(), Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS))
+            )
+            val (expiredAt, expiredAt2) = invitesExpired
+            service.addInvitation(expiredAt.guildId, expiredAt.entityId, expiredAt.expiredAt)
+            service.importInvitation(expiredAt2)
+
+            delay(WAIT_EXPIRATION_MILLIS * 2)
+
+            assertThat(getAllAddedInvites(guild.id.toString())).hasSize(3)
+            assertThat(getAllImportedInvites(guild.id.toString())).hasSize(1)
+            assertThat(getAllRemovedInvites(guild.id.toString())).isEmpty()
+
+            val invitesService = service.getInvitations(guild.id).map(GuildInvite::defaultTime).toList()
+            assertThat(invitesService).containsExactlyInAnyOrderElementsOf(invitesNotExpired)
+
+            assertThat(getAllAddedInvites(guild.id.toString())).hasSize(3)
+            assertThat(getAllImportedInvites(guild.id.toString())).hasSize(1)
+            assertThat(getAllRemovedInvites(guild.id.toString())).isEmpty()
         }
     }
 
