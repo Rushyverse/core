@@ -445,6 +445,18 @@ class DatabaseStoreEntitySupplierTest {
             }
 
             @Test
+            fun `should not throw exception if import throws exception`() = runTest {
+                val name = getRandomString()
+                val guilds = List(2) { mockk<Guild>() }
+                coEvery { supplier.getGuild(name) } returns guilds.asFlow()
+                coEvery { cache.importGuild(guilds[0]) } throws Exception()
+
+                assertThat(entitySupplier.getGuild(name).toList()).containsExactlyElementsOf(guilds)
+                coVerify(exactly = 1) { supplier.getGuild(name) }
+                coVerify(exactly = guilds.size) { cache.importGuild(any()) }
+            }
+
+            @Test
             fun `should import all guilds if flow is entire collected`() = runTest {
                 val name = getRandomString()
                 val guilds = List(10) { Guild(Random.nextInt(), name, getRandomString()) }
@@ -740,6 +752,18 @@ class DatabaseStoreEntitySupplierTest {
             }
 
             @Test
+            fun `should not throw exception if import throws exception`() = runTest {
+                val id = Random.nextInt()
+                val members = List(2) { GuildMember(id, getRandomString()) }
+                coEvery { supplier.getMembers(id) } returns members.asFlow()
+                coEvery { cache.importMember(members[0]) } throws Exception()
+
+                assertThat(entitySupplier.getMembers(id).toList()).containsExactlyElementsOf(members)
+                coVerify(exactly = 1) { supplier.getMembers(id) }
+                coVerify(exactly = members.size) { cache.importMember(any()) }
+            }
+
+            @Test
             fun `should import partial members if flow is partially collected`() = runTest {
                 val id = Random.nextInt()
                 val members = List(10) { GuildMember(id, getRandomString()) }
@@ -771,6 +795,18 @@ class DatabaseStoreEntitySupplierTest {
                 assertThat(entitySupplier.getInvitations(id).toList()).isEmpty()
                 coVerify(exactly = 1) { supplier.getInvitations(id) }
                 coVerify(exactly = 0) { cache.importInvitation(any()) }
+            }
+
+            @Test
+            fun `should not throw exception if import throws exception`() = runTest {
+                val id = Random.nextInt()
+                val invites = List(2) { mockk<GuildInvite>() }
+                coEvery { supplier.getInvitations(id) } returns invites.asFlow()
+                coEvery { cache.importInvitation(invites[0]) } throws Exception()
+
+                assertThat(entitySupplier.getInvitations(id).toList()).containsExactlyElementsOf(invites)
+                coVerify(exactly = 1) { supplier.getInvitations(id) }
+                coVerify(exactly = invites.size) { cache.importInvitation(any()) }
             }
 
             @Test
