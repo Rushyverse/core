@@ -1424,6 +1424,8 @@ class GuildCacheServiceTest {
             }
         }
 
+        // TODO : Test when invitation is expired
+
         @ParameterizedTest
         @ValueSource(ints = [-1, 0, 1])
         fun `should return false if the guild doesn't exist`(id: Int) = runTest {
