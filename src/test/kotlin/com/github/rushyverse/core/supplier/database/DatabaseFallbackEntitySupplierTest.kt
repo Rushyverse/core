@@ -1,6 +1,8 @@
 package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.data.Guild
+import com.github.rushyverse.core.data.GuildInvite
+import com.github.rushyverse.core.data.GuildMember
 import com.github.rushyverse.core.utils.getRandomString
 import io.mockk.*
 import kotlinx.coroutines.flow.asFlow
@@ -12,6 +14,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.time.Instant
 import java.util.*
 import kotlin.random.Random
 import kotlin.test.*
@@ -378,7 +381,9 @@ class DatabaseFallbackEntitySupplierTest {
                 coEvery { setPrioritySupplier.getGuild(name) } returns expectedGuilds
                 coEvery { getPrioritySupplier.getGuild(name) } returns emptyFlow()
 
-                assertThat(fallbackEntitySupplier.getGuild(name).toList()).containsExactlyElementsOf(expectedGuilds.toList())
+                assertThat(
+                    fallbackEntitySupplier.getGuild(name).toList()
+                ).containsExactlyElementsOf(expectedGuilds.toList())
                 coVerify(exactly = 1) { setPrioritySupplier.getGuild(name) }
                 coVerify(exactly = 1) { getPrioritySupplier.getGuild(name) }
             }
@@ -390,7 +395,9 @@ class DatabaseFallbackEntitySupplierTest {
                 coEvery { setPrioritySupplier.getGuild(name) } throws Exception()
                 coEvery { getPrioritySupplier.getGuild(name) } returns expectedGuilds
 
-                assertThat(fallbackEntitySupplier.getGuild(name).toList()).containsExactlyElementsOf(expectedGuilds.toList())
+                assertThat(
+                    fallbackEntitySupplier.getGuild(name).toList()
+                ).containsExactlyElementsOf(expectedGuilds.toList())
                 coVerify(exactly = 0) { setPrioritySupplier.getGuild(name) }
                 coVerify(exactly = 1) { getPrioritySupplier.getGuild(name) }
             }
@@ -410,46 +417,280 @@ class DatabaseFallbackEntitySupplierTest {
         @Nested
         inner class IsOwner {
 
+            @Test
+            fun `should invoke getPriority supplier first and setPriority if return false`() = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.isOwner(id, entity) } returns true
+                coEvery { getPrioritySupplier.isOwner(id, entity) } returns false
+
+                assertTrue { fallbackEntitySupplier.isOwner(id, entity) }
+                coVerify(exactly = 1) { setPrioritySupplier.isOwner(id, entity) }
+                coVerify(exactly = 1) { getPrioritySupplier.isOwner(id, entity) }
+            }
+
+            @Test
+            fun `should invoke getPriority supplier first and not setPriority if return true`() = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.isOwner(id, entity) } throws Exception()
+                coEvery { getPrioritySupplier.isOwner(id, entity) } returns true
+
+                assertTrue { fallbackEntitySupplier.isOwner(id, entity) }
+                coVerify(exactly = 0) { setPrioritySupplier.isOwner(id, entity) }
+                coVerify(exactly = 1) { getPrioritySupplier.isOwner(id, entity) }
+            }
+
+            @Test
+            fun `should return false if both return false`() = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.isOwner(id, entity) } returns false
+                coEvery { getPrioritySupplier.isOwner(id, entity) } returns false
+
+                assertFalse { fallbackEntitySupplier.isOwner(id, entity) }
+                coVerify(exactly = 1) { setPrioritySupplier.isOwner(id, entity) }
+                coVerify(exactly = 1) { getPrioritySupplier.isOwner(id, entity) }
+            }
         }
 
         @Nested
         inner class IsMember {
 
+            @Test
+            fun `should invoke getPriority supplier first and setPriority if return false`() = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.isMember(id, entity) } returns true
+                coEvery { getPrioritySupplier.isMember(id, entity) } returns false
+
+                assertTrue { fallbackEntitySupplier.isMember(id, entity) }
+                coVerify(exactly = 1) { setPrioritySupplier.isMember(id, entity) }
+                coVerify(exactly = 1) { getPrioritySupplier.isMember(id, entity) }
+            }
+
+            @Test
+            fun `should invoke getPriority supplier first and not setPriority if return true`() = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.isMember(id, entity) } throws Exception()
+                coEvery { getPrioritySupplier.isMember(id, entity) } returns true
+
+                assertTrue { fallbackEntitySupplier.isMember(id, entity) }
+                coVerify(exactly = 0) { setPrioritySupplier.isMember(id, entity) }
+                coVerify(exactly = 1) { getPrioritySupplier.isMember(id, entity) }
+            }
+
+            @Test
+            fun `should return false if both return false`() = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.isMember(id, entity) } returns false
+                coEvery { getPrioritySupplier.isMember(id, entity) } returns false
+
+                assertFalse { fallbackEntitySupplier.isMember(id, entity) }
+                coVerify(exactly = 1) { setPrioritySupplier.isMember(id, entity) }
+                coVerify(exactly = 1) { getPrioritySupplier.isMember(id, entity) }
+            }
         }
 
         @Nested
         inner class HasInvitation {
+
+            @Test
+            fun `should invoke getPriority supplier first and setPriority if return false`() = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.hasInvitation(id, entity) } returns true
+                coEvery { getPrioritySupplier.hasInvitation(id, entity) } returns false
+
+                assertTrue { fallbackEntitySupplier.hasInvitation(id, entity) }
+                coVerify(exactly = 1) { setPrioritySupplier.hasInvitation(id, entity) }
+                coVerify(exactly = 1) { getPrioritySupplier.hasInvitation(id, entity) }
+            }
+
+            @Test
+            fun `should invoke getPriority supplier first and not setPriority if return true`() = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.hasInvitation(id, entity) } throws Exception()
+                coEvery { getPrioritySupplier.hasInvitation(id, entity) } returns true
+
+                assertTrue { fallbackEntitySupplier.hasInvitation(id, entity) }
+                coVerify(exactly = 0) { setPrioritySupplier.hasInvitation(id, entity) }
+                coVerify(exactly = 1) { getPrioritySupplier.hasInvitation(id, entity) }
+            }
+
+            @Test
+            fun `should return false if both return false`() = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.hasInvitation(id, entity) } returns false
+                coEvery { getPrioritySupplier.hasInvitation(id, entity) } returns false
+
+                assertFalse { fallbackEntitySupplier.hasInvitation(id, entity) }
+                coVerify(exactly = 1) { setPrioritySupplier.hasInvitation(id, entity) }
+                coVerify(exactly = 1) { getPrioritySupplier.hasInvitation(id, entity) }
+            }
 
         }
 
         @Nested
         inner class AddMember {
 
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should invoke setPriority supplier first and not getPriority`(result: Boolean) = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.addMember(id, entity) } returns result
+                coEvery { getPrioritySupplier.addMember(id, entity) } throws Exception()
+
+                assertEquals(result, fallbackEntitySupplier.addMember(id, entity))
+                coVerify(exactly = 1) { setPrioritySupplier.addMember(id, entity) }
+                coVerify(exactly = 0) { getPrioritySupplier.addMember(id, entity) }
+            }
+
         }
 
         @Nested
         inner class AddInvitation {
 
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should invoke setPriority supplier first and not getPriority`(result: Boolean) = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                val expiredAt = mockk<Instant>()
+                coEvery { setPrioritySupplier.addInvitation(id, entity, expiredAt) } returns result
+                coEvery { getPrioritySupplier.addInvitation(id, entity, expiredAt) } throws Exception()
+
+                assertEquals(result, fallbackEntitySupplier.addInvitation(id, entity, expiredAt))
+                coVerify(exactly = 1) { setPrioritySupplier.addInvitation(id, entity, expiredAt) }
+                coVerify(exactly = 0) { getPrioritySupplier.addInvitation(id, entity, any()) }
+            }
         }
 
         @Nested
         inner class RemoveMember {
+
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should invoke setPriority supplier first and not getPriority`(result: Boolean) = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.removeMember(id, entity) } returns result
+                coEvery { getPrioritySupplier.removeMember(id, entity) } throws Exception()
+
+                assertEquals(result, fallbackEntitySupplier.removeMember(id, entity))
+                coVerify(exactly = 1) { setPrioritySupplier.removeMember(id, entity) }
+                coVerify(exactly = 0) { getPrioritySupplier.removeMember(id, entity) }
+            }
 
         }
 
         @Nested
         inner class RemoveInvitation {
 
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should invoke setPriority supplier first and not getPriority`(result: Boolean) = runTest {
+                val id = Random.nextInt()
+                val entity = getRandomString()
+                coEvery { setPrioritySupplier.removeMember(id, entity) } returns result
+                coEvery { getPrioritySupplier.removeMember(id, entity) } throws Exception()
+
+                assertEquals(result, fallbackEntitySupplier.removeMember(id, entity))
+                coVerify(exactly = 1) { setPrioritySupplier.removeMember(id, entity) }
+                coVerify(exactly = 0) { getPrioritySupplier.removeMember(id, entity) }
+            }
         }
 
         @Nested
         inner class GetMembers {
+
+            @Test
+            fun `should invoke getPriority supplier first and setPriority if empty`() = runTest {
+                val id = Random.nextInt()
+                val expected = flowOf(mockk<GuildMember>(), mockk())
+                coEvery { setPrioritySupplier.getMembers(id) } returns expected
+                coEvery { getPrioritySupplier.getMembers(id) } returns emptyFlow()
+
+                assertThat(
+                    fallbackEntitySupplier.getMembers(id).toList()
+                ).containsExactlyElementsOf(expected.toList())
+                coVerify(exactly = 1) { setPrioritySupplier.getMembers(id) }
+                coVerify(exactly = 1) { getPrioritySupplier.getMembers(id) }
+            }
+
+            @Test
+            fun `should invoke getPriority supplier first and not setPriority if return not empty`() = runTest {
+                val id = Random.nextInt()
+                val expected = flowOf(mockk<GuildMember>(), mockk())
+                coEvery { setPrioritySupplier.getMembers(id) } throws Exception()
+                coEvery { getPrioritySupplier.getMembers(id) } returns expected
+
+                assertThat(
+                    fallbackEntitySupplier.getMembers(id).toList()
+                ).containsExactlyElementsOf(expected.toList())
+                coVerify(exactly = 0) { setPrioritySupplier.getMembers(id) }
+                coVerify(exactly = 1) { getPrioritySupplier.getMembers(id) }
+            }
+
+            @Test
+            fun `should return empty flow if both return empty flow`() = runTest {
+                val id = Random.nextInt()
+                coEvery { setPrioritySupplier.getMembers(id) } returns emptyFlow()
+                coEvery { getPrioritySupplier.getMembers(id) } returns emptyFlow()
+
+                assertThat(fallbackEntitySupplier.getMembers(id).toList()).isEmpty()
+                coVerify(exactly = 1) { setPrioritySupplier.getMembers(id) }
+                coVerify(exactly = 1) { getPrioritySupplier.getMembers(id) }
+            }
 
         }
 
         @Nested
         inner class GetInvitations {
 
+            @Test
+            fun `should invoke getPriority supplier first and setPriority if empty`() = runTest {
+                val id = Random.nextInt()
+                val expected = flowOf(mockk<GuildInvite>(), mockk())
+                coEvery { setPrioritySupplier.getInvitations(id) } returns expected
+                coEvery { getPrioritySupplier.getInvitations(id) } returns emptyFlow()
+
+                assertThat(
+                    fallbackEntitySupplier.getInvitations(id).toList()
+                ).containsExactlyElementsOf(expected.toList())
+                coVerify(exactly = 1) { setPrioritySupplier.getInvitations(id) }
+                coVerify(exactly = 1) { getPrioritySupplier.getInvitations(id) }
+            }
+
+            @Test
+            fun `should invoke getPriority supplier first and not setPriority if return not empty`() = runTest {
+                val id = Random.nextInt()
+                val expected = flowOf(mockk<GuildInvite>(), mockk())
+                coEvery { setPrioritySupplier.getInvitations(id) } throws Exception()
+                coEvery { getPrioritySupplier.getInvitations(id) } returns expected
+
+                assertThat(
+                    fallbackEntitySupplier.getInvitations(id).toList()
+                ).containsExactlyElementsOf(expected.toList())
+                coVerify(exactly = 0) { setPrioritySupplier.getInvitations(id) }
+                coVerify(exactly = 1) { getPrioritySupplier.getInvitations(id) }
+            }
+
+            @Test
+            fun `should return empty flow if both return empty flow`() = runTest {
+                val id = Random.nextInt()
+                coEvery { setPrioritySupplier.getInvitations(id) } returns emptyFlow()
+                coEvery { getPrioritySupplier.getInvitations(id) } returns emptyFlow()
+
+                assertThat(fallbackEntitySupplier.getInvitations(id).toList()).isEmpty()
+                coVerify(exactly = 1) { setPrioritySupplier.getInvitations(id) }
+                coVerify(exactly = 1) { getPrioritySupplier.getInvitations(id) }
+            }
         }
 
     }
