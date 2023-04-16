@@ -6,6 +6,7 @@ import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.FriendCacheService
 import com.github.rushyverse.core.data.IFriendCacheService
 import com.github.rushyverse.core.data.IFriendDatabaseService
+import com.github.rushyverse.core.data.IGuildCacheService
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import io.lettuce.core.RedisURI
@@ -76,7 +77,8 @@ class FriendCacheServiceTest {
             databaseService = mockk()
 
             configuration = DatabaseSupplierConfiguration(
-                cacheServiceMock to databaseService
+                cacheServiceMock to databaseService,
+                mockk<IGuildCacheService>() to mockk(),
             )
         }
 

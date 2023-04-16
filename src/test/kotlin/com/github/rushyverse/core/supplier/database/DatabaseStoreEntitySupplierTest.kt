@@ -1,13 +1,22 @@
 package com.github.rushyverse.core.supplier.database
 
+import com.github.rushyverse.core.data.Guild
+import com.github.rushyverse.core.data.GuildInvite
+import com.github.rushyverse.core.data.GuildMember
 import com.github.rushyverse.core.utils.getRandomString
 import io.mockk.*
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import java.time.Instant
 import java.util.*
+import kotlin.random.Random
 import kotlin.test.*
 
 class DatabaseStoreEntitySupplierTest {
@@ -33,291 +42,807 @@ class DatabaseStoreEntitySupplierTest {
     }
 
     @Nested
-    inner class AddFriend {
+    inner class FriendTest {
 
-        @Test
-        fun `should set data in cache if set in supplier`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+        @Nested
+        inner class AddFriend {
 
-            coEvery { supplier.addFriend(id, friend) } returns true
-            coEvery { cache.addFriend(id, friend) } returns true
+            @Test
+            fun `should set data in cache if set in supplier`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
 
-            assertTrue(entitySupplier.addFriend(id, friend))
-            coVerify(exactly = 1) { supplier.addFriend(id, friend) }
-            coVerify(exactly = 1) { cache.addFriend(id, friend) }
+                coEvery { supplier.addFriend(id, friend) } returns true
+                coEvery { cache.addFriend(id, friend) } returns true
+
+                assertTrue(entitySupplier.addFriend(id, friend))
+                coVerify(exactly = 1) { supplier.addFriend(id, friend) }
+                coVerify(exactly = 1) { cache.addFriend(id, friend) }
+            }
+
+            @Test
+            fun `should not set data in cache if not set in supplier`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.addFriend(id, friend) } returns false
+                coEvery { cache.addFriend(id, friend) } returns false
+
+                assertFalse(entitySupplier.addFriend(id, friend))
+                coVerify(exactly = 1) { supplier.addFriend(id, friend) }
+                coVerify(exactly = 0) { cache.addFriend(id, friend) }
+            }
+
+            @Test
+            fun `should return true if data is set in supplier but not in cache`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.addFriend(id, friend) } returns true
+                coEvery { cache.addFriend(id, friend) } returns false
+
+                assertTrue(entitySupplier.addFriend(id, friend))
+                coVerify(exactly = 1) { supplier.addFriend(id, friend) }
+                coVerify(exactly = 1) { cache.addFriend(id, friend) }
+            }
+
         }
 
-        @Test
-        fun `should not set data in cache if not set in supplier`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+        @Nested
+        inner class AddPendingFriend {
 
-            coEvery { supplier.addFriend(id, friend) } returns false
-            coEvery { cache.addFriend(id, friend) } returns false
+            @Test
+            fun `should set data in cache if set in supplier`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
 
-            assertFalse(entitySupplier.addFriend(id, friend))
-            coVerify(exactly = 1) { supplier.addFriend(id, friend) }
-            coVerify(exactly = 0) { cache.addFriend(id, friend) }
+                coEvery { supplier.addPendingFriend(id, friend) } returns true
+                coEvery { cache.addPendingFriend(id, friend) } returns true
+
+                assertTrue(entitySupplier.addPendingFriend(id, friend))
+                coVerify(exactly = 1) { supplier.addPendingFriend(id, friend) }
+                coVerify(exactly = 1) { cache.addPendingFriend(id, friend) }
+            }
+
+            @Test
+            fun `should not set data in cache if not set in supplier`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.addPendingFriend(id, friend) } returns false
+                coEvery { cache.addPendingFriend(id, friend) } returns false
+
+                assertFalse(entitySupplier.addPendingFriend(id, friend))
+                coVerify(exactly = 1) { supplier.addPendingFriend(id, friend) }
+                coVerify(exactly = 0) { cache.addPendingFriend(id, friend) }
+            }
+
+            @Test
+            fun `should return true if data is set in supplier but not in cache`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.addPendingFriend(id, friend) } returns true
+                coEvery { cache.addPendingFriend(id, friend) } returns false
+
+                assertTrue(entitySupplier.addPendingFriend(id, friend))
+                coVerify(exactly = 1) { supplier.addPendingFriend(id, friend) }
+                coVerify(exactly = 1) { cache.addPendingFriend(id, friend) }
+            }
+
         }
 
-        @Test
-        fun `should return true if data is set in supplier but not in cache`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+        @Nested
+        inner class RemoveFriend {
 
-            coEvery { supplier.addFriend(id, friend) } returns true
-            coEvery { cache.addFriend(id, friend) } returns false
+            @Test
+            fun `should set data in cache if set in supplier`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
 
-            assertTrue(entitySupplier.addFriend(id, friend))
-            coVerify(exactly = 1) { supplier.addFriend(id, friend) }
-            coVerify(exactly = 1) { cache.addFriend(id, friend) }
+                coEvery { supplier.removeFriend(id, friend) } returns true
+                coEvery { cache.removeFriend(id, friend) } returns true
+
+                assertTrue(entitySupplier.removeFriend(id, friend))
+                coVerify(exactly = 1) { supplier.removeFriend(id, friend) }
+                coVerify(exactly = 1) { cache.removeFriend(id, friend) }
+            }
+
+            @Test
+            fun `should not set data in cache if not set in supplier`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.removeFriend(id, friend) } returns false
+                coEvery { cache.removeFriend(id, friend) } returns false
+
+                assertFalse(entitySupplier.removeFriend(id, friend))
+                coVerify(exactly = 1) { supplier.removeFriend(id, friend) }
+                coVerify(exactly = 0) { cache.removeFriend(id, friend) }
+            }
+
+            @Test
+            fun `should return true if data is set in supplier but not in cache`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.removeFriend(id, friend) } returns true
+                coEvery { cache.removeFriend(id, friend) } returns false
+
+                assertTrue(entitySupplier.removeFriend(id, friend))
+                coVerify(exactly = 1) { supplier.removeFriend(id, friend) }
+                coVerify(exactly = 1) { cache.removeFriend(id, friend) }
+            }
+
+        }
+
+        @Nested
+        inner class RemovePendingFriend {
+
+            @Test
+            fun `should set data in cache if set in supplier`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.removePendingFriend(id, friend) } returns true
+                coEvery { cache.removePendingFriend(id, friend) } returns true
+
+                assertTrue(entitySupplier.removePendingFriend(id, friend))
+                coVerify(exactly = 1) { supplier.removePendingFriend(id, friend) }
+                coVerify(exactly = 1) { cache.removePendingFriend(id, friend) }
+            }
+
+            @Test
+            fun `should not set data in cache if not set in supplier`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.removePendingFriend(id, friend) } returns false
+                coEvery { cache.removePendingFriend(id, friend) } returns false
+
+                assertFalse(entitySupplier.removePendingFriend(id, friend))
+                coVerify(exactly = 1) { supplier.removePendingFriend(id, friend) }
+                coVerify(exactly = 0) { cache.removePendingFriend(id, friend) }
+            }
+
+            @Test
+            fun `should return true if data is set in supplier but not in cache`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.removePendingFriend(id, friend) } returns true
+                coEvery { cache.removePendingFriend(id, friend) } returns false
+
+                assertTrue(entitySupplier.removePendingFriend(id, friend))
+                coVerify(exactly = 1) { supplier.removePendingFriend(id, friend) }
+                coVerify(exactly = 1) { cache.removePendingFriend(id, friend) }
+            }
+
+        }
+
+        @Nested
+        inner class GetFriends {
+
+            @Test
+            fun `should store empty list in cache if the flow is empty`() = runTest {
+                val id = UUID.randomUUID()
+                coEvery { supplier.getFriends(id) } returns emptyFlow()
+                coEvery { cache.setFriends(id, any()) } returns true
+
+                assertEquals(emptyList(), entitySupplier.getFriends(id).toList())
+                coVerify(exactly = 1) { supplier.getFriends(id) }
+                coVerify(exactly = 1) { cache.setFriends(id, emptySet()) }
+            }
+
+            @Test
+            fun `should store list of friends in cache if the flow is not empty`() = runTest {
+                val id = UUID.randomUUID()
+                val friends = List(5) { UUID.randomUUID() }
+                coEvery { supplier.getFriends(id) } returns friends.asFlow()
+                coEvery { cache.setFriends(id, any()) } returns true
+
+                assertEquals(friends, entitySupplier.getFriends(id).toList())
+                coVerify(exactly = 1) { supplier.getFriends(id) }
+                coVerify(exactly = 1) { cache.setFriends(id, friends.toSet()) }
+            }
+        }
+
+        @Nested
+        inner class GetPendingFriends {
+
+            @Test
+            fun `should store empty list in cache if the flow is empty`() = runTest {
+                val id = UUID.randomUUID()
+                coEvery { supplier.getPendingFriends(id) } returns emptyFlow()
+                coEvery { cache.setPendingFriends(id, any()) } returns true
+
+                assertEquals(emptyList(), entitySupplier.getPendingFriends(id).toList())
+                coVerify(exactly = 1) { supplier.getPendingFriends(id) }
+                coVerify(exactly = 1) { cache.setPendingFriends(id, emptySet()) }
+            }
+
+            @Test
+            fun `should store list of friends in cache if the flow is not empty`() = runTest {
+                val id = UUID.randomUUID()
+                val friends = List(5) { UUID.randomUUID() }
+                coEvery { supplier.getPendingFriends(id) } returns friends.asFlow()
+                coEvery { cache.setPendingFriends(id, any()) } returns true
+
+                assertEquals(friends, entitySupplier.getPendingFriends(id).toList())
+                coVerify(exactly = 1) { supplier.getPendingFriends(id) }
+                coVerify(exactly = 1) { cache.setPendingFriends(id, friends.toSet()) }
+            }
+        }
+
+        @Nested
+        inner class IsFriend {
+
+            @Test
+            fun `should return the result returned by supplier`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.isFriend(id, friend) } returns false
+                assertFalse(entitySupplier.isFriend(id, friend))
+                coVerify(exactly = 1) { supplier.isFriend(id, friend) }
+
+                coEvery { supplier.isFriend(id, friend) } returns true
+                assertTrue(entitySupplier.isFriend(id, friend))
+                coVerify(exactly = 2) { supplier.isFriend(id, friend) }
+            }
+
+            @Test
+            fun `should not use the cache to check`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.isFriend(id, friend) } returns false
+                assertFalse(entitySupplier.isFriend(id, friend))
+
+                coVerify(exactly = 0) { cache.isFriend(any(), any()) }
+            }
+
+        }
+
+        @Nested
+        inner class IsPendingFriend {
+
+            @Test
+            fun `should return the result returned by supplier`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.isPendingFriend(id, friend) } returns false
+                assertFalse(entitySupplier.isPendingFriend(id, friend))
+                coVerify(exactly = 1) { supplier.isPendingFriend(id, friend) }
+
+                coEvery { supplier.isPendingFriend(id, friend) } returns true
+                assertTrue(entitySupplier.isPendingFriend(id, friend))
+                coVerify(exactly = 2) { supplier.isPendingFriend(id, friend) }
+            }
+
+            @Test
+            fun `should not use the cache to check`() = runTest {
+                val id = UUID.randomUUID()
+                val friend = UUID.randomUUID()
+
+                coEvery { supplier.isPendingFriend(id, friend) } returns false
+                assertFalse(entitySupplier.isPendingFriend(id, friend))
+
+                coVerify(exactly = 0) { cache.isPendingFriend(any(), any()) }
+            }
+
         }
 
     }
 
     @Nested
-    inner class AddPendingFriend {
+    inner class GuildTest {
 
-        @Test
-        fun `should set data in cache if set in supplier`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+        @Nested
+        inner class CreateGuild {
 
-            coEvery { supplier.addPendingFriend(id, friend) } returns true
-            coEvery { cache.addPendingFriend(id, friend) } returns true
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should set data in cache if set in supplier`(cacheResult: Boolean) = runTest {
+                val name = getRandomString()
+                val owner = getRandomString()
+                val guild = mockk<Guild>()
 
-            assertTrue(entitySupplier.addPendingFriend(id, friend))
-            coVerify(exactly = 1) { supplier.addPendingFriend(id, friend) }
-            coVerify(exactly = 1) { cache.addPendingFriend(id, friend) }
+                coEvery { supplier.createGuild(name, owner) } returns guild
+                coEvery { cache.importGuild(any()) } returns cacheResult
+
+                assertEquals(guild, entitySupplier.createGuild(name, owner))
+                coVerify(exactly = 1) { supplier.createGuild(name, owner) }
+                coVerify(exactly = 1) { cache.importGuild(guild) }
+                coVerify(exactly = 0) { cache.createGuild(any(), any()) }
+            }
         }
 
-        @Test
-        fun `should not set data in cache if not set in supplier`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+        @Nested
+        inner class DeleteGuild {
 
-            coEvery { supplier.addPendingFriend(id, friend) } returns false
-            coEvery { cache.addPendingFriend(id, friend) } returns false
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return supplier result when cache returns false`(supplierResult: Boolean) = runTest {
+                val id = Random.nextInt()
 
-            assertFalse(entitySupplier.addPendingFriend(id, friend))
-            coVerify(exactly = 1) { supplier.addPendingFriend(id, friend) }
-            coVerify(exactly = 0) { cache.addPendingFriend(id, friend) }
+                coEvery { supplier.deleteGuild(id) } returns supplierResult
+                coEvery { cache.deleteGuild(id) } returns false
+
+                assertEquals(supplierResult, entitySupplier.deleteGuild(id))
+                coVerify(exactly = 1) { supplier.deleteGuild(id) }
+                coVerify(exactly = 1) { cache.deleteGuild(id) }
+            }
+
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return cache result when supplier returns false`(cacheResult: Boolean) = runTest {
+                val id = Random.nextInt()
+
+                coEvery { supplier.deleteGuild(id) } returns false
+                coEvery { cache.deleteGuild(id) } returns cacheResult
+
+                assertEquals(cacheResult, entitySupplier.deleteGuild(id))
+                coVerify(exactly = 1) { supplier.deleteGuild(id) }
+                coVerify(exactly = 1) { cache.deleteGuild(id) }
+            }
+
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return result when both return same result`(result: Boolean) = runTest {
+                val id = Random.nextInt()
+
+                coEvery { supplier.deleteGuild(id) } returns result
+                coEvery { cache.deleteGuild(id) } returns result
+
+                assertEquals(result, entitySupplier.deleteGuild(id))
+                coVerify(exactly = 1) { supplier.deleteGuild(id) }
+                coVerify(exactly = 1) { cache.deleteGuild(id) }
+            }
+
         }
 
-        @Test
-        fun `should return true if data is set in supplier but not in cache`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+        @Nested
+        inner class GetGuildById {
 
-            coEvery { supplier.addPendingFriend(id, friend) } returns true
-            coEvery { cache.addPendingFriend(id, friend) } returns false
+            @Test
+            fun `should set data in cache if supplier result not null`() = runTest {
+                val id = Random.nextInt()
+                val guild = mockk<Guild>()
 
-            assertTrue(entitySupplier.addPendingFriend(id, friend))
-            coVerify(exactly = 1) { supplier.addPendingFriend(id, friend) }
-            coVerify(exactly = 1) { cache.addPendingFriend(id, friend) }
+                coEvery { supplier.getGuild(id) } returns guild
+                coEvery { cache.importGuild(guild) } returns true
+
+                assertEquals(guild, entitySupplier.getGuild(id))
+                coVerify(exactly = 1) { supplier.getGuild(id) }
+                coVerify(exactly = 1) { cache.importGuild(guild) }
+            }
+
+            @Test
+            fun `should not set data in cache if supplier result null`() = runTest {
+                val id = Random.nextInt()
+
+                coEvery { supplier.getGuild(id) } returns null
+
+                assertNull(entitySupplier.getGuild(id))
+                coVerify(exactly = 1) { supplier.getGuild(id) }
+                coVerify(exactly = 0) { cache.importGuild(any()) }
+            }
         }
 
-    }
+        @Nested
+        inner class GetGuildByName {
 
-    @Nested
-    inner class RemoveFriend {
+            @Test
+            fun `should not import guild if flow is empty`() = runTest {
+                val name = getRandomString()
+                coEvery { supplier.getGuild(name) } returns emptyFlow()
 
-        @Test
-        fun `should set data in cache if set in supplier`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+                assertThat(entitySupplier.getGuild(name).toList()).isEmpty()
+                coVerify(exactly = 1) { supplier.getGuild(name) }
+                coVerify(exactly = 0) { cache.importGuild(any()) }
+            }
 
-            coEvery { supplier.removeFriend(id, friend) } returns true
-            coEvery { cache.removeFriend(id, friend) } returns true
+            @Test
+            fun `should not throw exception if import throws exception`() = runTest {
+                val name = getRandomString()
+                val guilds = List(2) { mockk<Guild>() }
+                coEvery { supplier.getGuild(name) } returns guilds.asFlow()
+                coEvery { cache.importGuild(guilds[0]) } throws Exception()
 
-            assertTrue(entitySupplier.removeFriend(id, friend))
-            coVerify(exactly = 1) { supplier.removeFriend(id, friend) }
-            coVerify(exactly = 1) { cache.removeFriend(id, friend) }
+                assertThat(entitySupplier.getGuild(name).toList()).containsExactlyElementsOf(guilds)
+                coVerify(exactly = 1) { supplier.getGuild(name) }
+                coVerify(exactly = guilds.size) { cache.importGuild(any()) }
+            }
+
+            @Test
+            fun `should import all guilds if flow is entire collected`() = runTest {
+                val name = getRandomString()
+                val guilds = List(10) { Guild(Random.nextInt(), name, getRandomString()) }
+                coEvery { supplier.getGuild(name) } returns guilds.asFlow()
+
+                assertThat(entitySupplier.getGuild(name).toList()).containsExactlyElementsOf(guilds)
+                coVerify(exactly = 1) { supplier.getGuild(name) }
+                coVerify(exactly = guilds.size) { cache.importGuild(any()) }
+                guilds.forEach { guild ->
+                    coVerify(exactly = 1) { cache.importGuild(guild) }
+                }
+            }
+
+            @Test
+            fun `should import partial guilds if flow is partially collected`() = runTest {
+                val name = getRandomString()
+                val guilds = List(10) { Guild(Random.nextInt(), name, getRandomString()) }
+                val guildsToImport = guilds.take(5)
+                coEvery { supplier.getGuild(name) } returns guilds.asFlow()
+
+                assertThat(entitySupplier.getGuild(name).take(guildsToImport.size).toList())
+                    .containsExactlyElementsOf(guildsToImport)
+
+                coVerify(exactly = 1) { supplier.getGuild(name) }
+                coVerify(exactly = guildsToImport.size) { cache.importGuild(any()) }
+                guildsToImport.forEach { guild ->
+                    coVerify(exactly = 1) { cache.importGuild(guild) }
+                }
+                guilds.drop(guildsToImport.size).forEach { guild ->
+                    coVerify(exactly = 0) { cache.importGuild(guild) }
+                }
+            }
+
         }
 
-        @Test
-        fun `should not set data in cache if not set in supplier`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+        @Nested
+        inner class IsOwner {
 
-            coEvery { supplier.removeFriend(id, friend) } returns false
-            coEvery { cache.removeFriend(id, friend) } returns false
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return the result returned by supplier without using cache`(result: Boolean) = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
 
-            assertFalse(entitySupplier.removeFriend(id, friend))
-            coVerify(exactly = 1) { supplier.removeFriend(id, friend) }
-            coVerify(exactly = 0) { cache.removeFriend(id, friend) }
+                coEvery { supplier.isOwner(guildId, entity) } returns result
+                assertEquals(result, entitySupplier.isOwner(guildId, entity))
+
+                coVerify(exactly = 1) { supplier.isOwner(guildId, entity) }
+                coVerify(exactly = 0) { cache.isOwner(any(), any()) }
+            }
+
         }
 
-        @Test
-        fun `should return true if data is set in supplier but not in cache`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+        @Nested
+        inner class IsMember {
 
-            coEvery { supplier.removeFriend(id, friend) } returns true
-            coEvery { cache.removeFriend(id, friend) } returns false
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return the result returned by supplier without using cache`(result: Boolean) = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
 
-            assertTrue(entitySupplier.removeFriend(id, friend))
-            coVerify(exactly = 1) { supplier.removeFriend(id, friend) }
-            coVerify(exactly = 1) { cache.removeFriend(id, friend) }
+                coEvery { supplier.isMember(guildId, entity) } returns result
+                assertEquals(result, entitySupplier.isMember(guildId, entity))
+
+                coVerify(exactly = 1) { supplier.isMember(guildId, entity) }
+                coVerify(exactly = 0) { cache.isMember(any(), any()) }
+            }
+
         }
 
-    }
+        @Nested
+        inner class HasInvitation {
 
-    @Nested
-    inner class RemovePendingFriend {
+            @ParameterizedTest
+            @ValueSource(booleans = [true, false])
+            fun `should return the result returned by supplier without using cache`(result: Boolean) = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
 
-        @Test
-        fun `should set data in cache if set in supplier`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+                coEvery { supplier.hasInvitation(guildId, entity) } returns result
+                assertEquals(result, entitySupplier.hasInvitation(guildId, entity))
 
-            coEvery { supplier.removePendingFriend(id, friend) } returns true
-            coEvery { cache.removePendingFriend(id, friend) } returns true
+                coVerify(exactly = 1) { supplier.hasInvitation(guildId, entity) }
+                coVerify(exactly = 0) { cache.hasInvitation(any(), any()) }
+            }
 
-            assertTrue(entitySupplier.removePendingFriend(id, friend))
-            coVerify(exactly = 1) { supplier.removePendingFriend(id, friend) }
-            coVerify(exactly = 1) { cache.removePendingFriend(id, friend) }
         }
 
-        @Test
-        fun `should not set data in cache if not set in supplier`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+        @Nested
+        inner class AddMember {
 
-            coEvery { supplier.removePendingFriend(id, friend) } returns false
-            coEvery { cache.removePendingFriend(id, friend) } returns false
+            @Test
+            fun `should set data in cache if set in supplier`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
 
-            assertFalse(entitySupplier.removePendingFriend(id, friend))
-            coVerify(exactly = 1) { supplier.removePendingFriend(id, friend) }
-            coVerify(exactly = 0) { cache.removePendingFriend(id, friend) }
+                coEvery { supplier.addMember(guildId, entity) } returns true
+                coEvery { cache.addMember(guildId, entity) } returns true
+
+                assertTrue(entitySupplier.addMember(guildId, entity))
+                coVerify(exactly = 1) { supplier.addMember(guildId, entity) }
+                coVerify(exactly = 1) { cache.addMember(guildId, entity) }
+            }
+
+            @Test
+            fun `should not set data in cache if not set in supplier`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
+
+                coEvery { supplier.addMember(guildId, entity) } returns false
+                coEvery { cache.addMember(guildId, entity) } returns false
+
+                assertFalse(entitySupplier.addMember(guildId, entity))
+                coVerify(exactly = 1) { supplier.addMember(guildId, entity) }
+                coVerify(exactly = 0) { cache.addMember(guildId, entity) }
+            }
+
+            @Test
+            fun `should return true if data is set in supplier but not in cache`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
+
+                coEvery { supplier.addMember(guildId, entity) } returns true
+                coEvery { cache.addMember(guildId, entity) } returns false
+
+                assertTrue(entitySupplier.addMember(guildId, entity))
+                coVerify(exactly = 1) { supplier.addMember(guildId, entity) }
+                coVerify(exactly = 1) { cache.addMember(guildId, entity) }
+            }
+
         }
 
-        @Test
-        fun `should return true if data is set in supplier but not in cache`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+        @Nested
+        inner class AddInvitation {
 
-            coEvery { supplier.removePendingFriend(id, friend) } returns true
-            coEvery { cache.removePendingFriend(id, friend) } returns false
+            @Test
+            fun `should set data in cache if set in supplier`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
+                val expiredAt = mockk<Instant>()
 
-            assertTrue(entitySupplier.removePendingFriend(id, friend))
-            coVerify(exactly = 1) { supplier.removePendingFriend(id, friend) }
-            coVerify(exactly = 1) { cache.removePendingFriend(id, friend) }
+                coEvery { supplier.addInvitation(guildId, entity, expiredAt) } returns true
+                coEvery { cache.addInvitation(guildId, entity, expiredAt) } returns true
+
+                assertTrue(entitySupplier.addInvitation(guildId, entity, expiredAt))
+                coVerify(exactly = 1) { supplier.addInvitation(guildId, entity, expiredAt) }
+                coVerify(exactly = 1) { cache.addInvitation(guildId, entity, expiredAt) }
+            }
+
+            @Test
+            fun `should not set data in cache if not set in supplier`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
+                val expiredAt = mockk<Instant>()
+
+                coEvery { supplier.addInvitation(guildId, entity, expiredAt) } returns false
+                coEvery { cache.addInvitation(guildId, entity, expiredAt) } returns false
+
+                assertFalse(entitySupplier.addInvitation(guildId, entity, expiredAt))
+                coVerify(exactly = 1) { supplier.addInvitation(guildId, entity, expiredAt) }
+                coVerify(exactly = 0) { cache.addInvitation(guildId, entity, expiredAt) }
+            }
+
+            @Test
+            fun `should return true if data is set in supplier but not in cache`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
+                val expiredAt = mockk<Instant>()
+
+                coEvery { supplier.addInvitation(guildId, entity, expiredAt) } returns true
+                coEvery { cache.addInvitation(guildId, entity, expiredAt) } returns false
+
+                assertTrue(entitySupplier.addInvitation(guildId, entity, expiredAt))
+                coVerify(exactly = 1) { supplier.addInvitation(guildId, entity, expiredAt) }
+                coVerify(exactly = 1) { cache.addInvitation(guildId, entity, expiredAt) }
+            }
+
         }
 
-    }
+        @Nested
+        inner class RemoveMember {
 
-    @Nested
-    inner class GetFriends {
+            @Test
+            fun `should set data in cache if set in supplier`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
 
-        @Test
-        fun `should store empty list in cache if the flow is empty`() = runTest {
-            val id = UUID.randomUUID()
-            coEvery { supplier.getFriends(id) } returns emptyFlow()
-            coEvery { cache.setFriends(id, any()) } returns true
+                coEvery { supplier.removeMember(guildId, entity) } returns true
+                coEvery { cache.removeMember(guildId, entity) } returns true
 
-            assertEquals(emptyList(), entitySupplier.getFriends(id).toList())
-            coVerify(exactly = 1) { supplier.getFriends(id) }
-            coVerify(exactly = 1) { cache.setFriends(id, emptySet()) }
+                assertTrue(entitySupplier.removeMember(guildId, entity))
+                coVerify(exactly = 1) { supplier.removeMember(guildId, entity) }
+                coVerify(exactly = 1) { cache.removeMember(guildId, entity) }
+            }
+
+            @Test
+            fun `should not set data in cache if not set in supplier`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
+
+                coEvery { supplier.removeMember(guildId, entity) } returns false
+                coEvery { cache.removeMember(guildId, entity) } returns false
+
+                assertFalse(entitySupplier.removeMember(guildId, entity))
+                coVerify(exactly = 1) { supplier.removeMember(guildId, entity) }
+                coVerify(exactly = 0) { cache.removeMember(guildId, entity) }
+            }
+
+            @Test
+            fun `should return true if data is set in supplier but not in cache`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
+
+                coEvery { supplier.removeMember(guildId, entity) } returns true
+                coEvery { cache.removeMember(guildId, entity) } returns false
+
+                assertTrue(entitySupplier.removeMember(guildId, entity))
+                coVerify(exactly = 1) { supplier.removeMember(guildId, entity) }
+                coVerify(exactly = 1) { cache.removeMember(guildId, entity) }
+            }
+
         }
 
-        @Test
-        fun `should store list of friends in cache if the flow is not empty`() = runTest {
-            val id = UUID.randomUUID()
-            val friends = List(5) { UUID.randomUUID() }
-            coEvery { supplier.getFriends(id) } returns friends.asFlow()
-            coEvery { cache.setFriends(id, any()) } returns true
+        @Nested
+        inner class RemoveInvitation {
 
-            assertEquals(friends, entitySupplier.getFriends(id).toList())
-            coVerify(exactly = 1) { supplier.getFriends(id) }
-            coVerify(exactly = 1) { cache.setFriends(id, friends.toSet()) }
-        }
-    }
+            @Test
+            fun `should set data in cache if set in supplier`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
 
-    @Nested
-    inner class GetPendingFriends {
+                coEvery { supplier.removeInvitation(guildId, entity) } returns true
+                coEvery { cache.removeInvitation(guildId, entity) } returns true
 
-        @Test
-        fun `should store empty list in cache if the flow is empty`() = runTest {
-            val id = UUID.randomUUID()
-            coEvery { supplier.getPendingFriends(id) } returns emptyFlow()
-            coEvery { cache.setPendingFriends(id, any()) } returns true
+                assertTrue(entitySupplier.removeInvitation(guildId, entity))
+                coVerify(exactly = 1) { supplier.removeInvitation(guildId, entity) }
+                coVerify(exactly = 1) { cache.removeInvitation(guildId, entity) }
+            }
 
-            assertEquals(emptyList(), entitySupplier.getPendingFriends(id).toList())
-            coVerify(exactly = 1) { supplier.getPendingFriends(id) }
-            coVerify(exactly = 1) { cache.setPendingFriends(id, emptySet()) }
-        }
+            @Test
+            fun `should not set data in cache if not set in supplier`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
 
-        @Test
-        fun `should store list of friends in cache if the flow is not empty`() = runTest {
-            val id = UUID.randomUUID()
-            val friends = List(5) { UUID.randomUUID() }
-            coEvery { supplier.getPendingFriends(id) } returns friends.asFlow()
-            coEvery { cache.setPendingFriends(id, any()) } returns true
+                coEvery { supplier.removeInvitation(guildId, entity) } returns false
+                coEvery { cache.removeInvitation(guildId, entity) } returns false
 
-            assertEquals(friends, entitySupplier.getPendingFriends(id).toList())
-            coVerify(exactly = 1) { supplier.getPendingFriends(id) }
-            coVerify(exactly = 1) { cache.setPendingFriends(id, friends.toSet()) }
-        }
-    }
+                assertFalse(entitySupplier.removeInvitation(guildId, entity))
+                coVerify(exactly = 1) { supplier.removeInvitation(guildId, entity) }
+                coVerify(exactly = 0) { cache.removeInvitation(guildId, entity) }
+            }
 
-    @Nested
-    inner class IsFriend {
+            @Test
+            fun `should return true if data is set in supplier but not in cache`() = runTest {
+                val guildId = Random.nextInt()
+                val entity = getRandomString()
 
-        @Test
-        fun `should return the result returned by supplier`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+                coEvery { supplier.removeInvitation(guildId, entity) } returns true
+                coEvery { cache.removeInvitation(guildId, entity) } returns false
 
-            coEvery { supplier.isFriend(id, friend) } returns false
-            assertFalse(entitySupplier.isFriend(id, friend))
-            coVerify(exactly = 1) { supplier.isFriend(id, friend) }
-
-            coEvery { supplier.isFriend(id, friend) } returns true
-            assertTrue(entitySupplier.isFriend(id, friend))
-            coVerify(exactly = 2) { supplier.isFriend(id, friend) }
+                assertTrue(entitySupplier.removeInvitation(guildId, entity))
+                coVerify(exactly = 1) { supplier.removeInvitation(guildId, entity) }
+                coVerify(exactly = 1) { cache.removeInvitation(guildId, entity) }
+            }
         }
 
-        @Test
-        fun `should not use the cache to check`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+        @Nested
+        inner class GetMembers {
 
-            coEvery { supplier.isFriend(id, friend) } returns false
-            assertFalse(entitySupplier.isFriend(id, friend))
+            @Test
+            fun `should not import member if flow is empty`() = runTest {
+                val id = Random.nextInt()
+                coEvery { supplier.getMembers(id) } returns emptyFlow()
 
-            coVerify(exactly = 0) { cache.isFriend(any(), any()) }
+                assertThat(entitySupplier.getMembers(id).toList()).isEmpty()
+                coVerify(exactly = 1) { supplier.getMembers(id) }
+                coVerify(exactly = 0) { cache.importMember(any()) }
+            }
+
+            @Test
+            fun `should import all members if flow is entire collected`() = runTest {
+                val id = Random.nextInt()
+                val members = List(10) { GuildMember(id, getRandomString()) }
+                coEvery { supplier.getMembers(id) } returns members.asFlow()
+
+                assertThat(entitySupplier.getMembers(id).toList()).containsExactlyElementsOf(members)
+                coVerify(exactly = 1) { supplier.getMembers(id) }
+                coVerify(exactly = members.size) { cache.importMember(any()) }
+                members.forEach {
+                    coVerify(exactly = 1) { cache.importMember(it) }
+                }
+            }
+
+            @Test
+            fun `should not throw exception if import throws exception`() = runTest {
+                val id = Random.nextInt()
+                val members = List(2) { GuildMember(id, getRandomString()) }
+                coEvery { supplier.getMembers(id) } returns members.asFlow()
+                coEvery { cache.importMember(members[0]) } throws Exception()
+
+                assertThat(entitySupplier.getMembers(id).toList()).containsExactlyElementsOf(members)
+                coVerify(exactly = 1) { supplier.getMembers(id) }
+                coVerify(exactly = members.size) { cache.importMember(any()) }
+            }
+
+            @Test
+            fun `should import partial members if flow is partially collected`() = runTest {
+                val id = Random.nextInt()
+                val members = List(10) { GuildMember(id, getRandomString()) }
+                val toImport = members.take(5)
+                coEvery { supplier.getMembers(id) } returns members.asFlow()
+
+                assertThat(entitySupplier.getMembers(id).take(toImport.size).toList())
+                    .containsExactlyElementsOf(toImport)
+
+                coVerify(exactly = 1) { supplier.getMembers(id) }
+                coVerify(exactly = toImport.size) { cache.importMember(any()) }
+                toImport.forEach {
+                    coVerify(exactly = 1) { cache.importMember(it) }
+                }
+                members.drop(toImport.size).forEach {
+                    coVerify(exactly = 0) { cache.importMember(it) }
+                }
+            }
         }
 
-    }
+        @Nested
+        inner class GetInvitations {
 
-    @Nested
-    inner class IsPendingFriend {
+            @Test
+            fun `should not import member if flow is empty`() = runTest {
+                val id = Random.nextInt()
+                coEvery { supplier.getInvitations(id) } returns emptyFlow()
 
-        @Test
-        fun `should return the result returned by supplier`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+                assertThat(entitySupplier.getInvitations(id).toList()).isEmpty()
+                coVerify(exactly = 1) { supplier.getInvitations(id) }
+                coVerify(exactly = 0) { cache.importInvitation(any()) }
+            }
 
-            coEvery { supplier.isPendingFriend(id, friend) } returns false
-            assertFalse(entitySupplier.isPendingFriend(id, friend))
-            coVerify(exactly = 1) { supplier.isPendingFriend(id, friend) }
+            @Test
+            fun `should not throw exception if import throws exception`() = runTest {
+                val id = Random.nextInt()
+                val invites = List(2) { mockk<GuildInvite>() }
+                coEvery { supplier.getInvitations(id) } returns invites.asFlow()
+                coEvery { cache.importInvitation(invites[0]) } throws Exception()
 
-            coEvery { supplier.isPendingFriend(id, friend) } returns true
-            assertTrue(entitySupplier.isPendingFriend(id, friend))
-            coVerify(exactly = 2) { supplier.isPendingFriend(id, friend) }
-        }
+                assertThat(entitySupplier.getInvitations(id).toList()).containsExactlyElementsOf(invites)
+                coVerify(exactly = 1) { supplier.getInvitations(id) }
+                coVerify(exactly = invites.size) { cache.importInvitation(any()) }
+            }
 
-        @Test
-        fun `should not use the cache to check`() = runTest {
-            val id = UUID.randomUUID()
-            val friend = UUID.randomUUID()
+            @Test
+            fun `should import all members if flow is entire collected`() = runTest {
+                val id = Random.nextInt()
+                val invites = List(10) { GuildInvite(id, getRandomString(), mockk()) }
+                coEvery { supplier.getInvitations(id) } returns invites.asFlow()
 
-            coEvery { supplier.isPendingFriend(id, friend) } returns false
-            assertFalse(entitySupplier.isPendingFriend(id, friend))
+                assertThat(entitySupplier.getInvitations(id).toList()).containsExactlyElementsOf(invites)
+                coVerify(exactly = 1) { supplier.getInvitations(id) }
+                coVerify(exactly = invites.size) { cache.importInvitation(any()) }
+                invites.forEach {
+                    coVerify(exactly = 1) { cache.importInvitation(it) }
+                }
+            }
 
-            coVerify(exactly = 0) { cache.isPendingFriend(any(), any()) }
+            @Test
+            fun `should import partial members if flow is partially collected`() = runTest {
+                val id = Random.nextInt()
+                val invites = List(10) { GuildInvite(id, getRandomString(), mockk()) }
+                val toImport = invites.take(5)
+                coEvery { supplier.getInvitations(id) } returns invites.asFlow()
+
+                assertThat(entitySupplier.getInvitations(id).take(toImport.size).toList())
+                    .containsExactlyElementsOf(toImport)
+
+                coVerify(exactly = 1) { supplier.getInvitations(id) }
+                coVerify(exactly = toImport.size) { cache.importInvitation(any()) }
+                toImport.forEach {
+                    coVerify(exactly = 1) { cache.importInvitation(it) }
+                }
+                invites.drop(toImport.size).forEach {
+                    coVerify(exactly = 0) { cache.importInvitation(it) }
+                }
+            }
+
         }
 
     }
