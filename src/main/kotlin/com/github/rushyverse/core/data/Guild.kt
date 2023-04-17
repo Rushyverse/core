@@ -750,6 +750,7 @@ public class GuildCacheService(
             }
             val guildIdString = guildId.toString()
             if (entityIsMarkedAsDeleted(it, createRemoveMemberKey(guildIdString), entityId)) {
+                // TODO Allow modification of deleted entity
                 return@connect false
             }
 
@@ -840,6 +841,7 @@ public class GuildCacheService(
             requireEntityIsNotMember(it, guildId, entityId)
             val guildIdString = guildId.toString()
             if (entityIsMarkedAsDeleted(it, createRemoveInvitationKey(guildIdString), entityId)) {
+                // TODO Allow modification of deleted entity
                 return@connect false
             }
 
@@ -932,6 +934,7 @@ public class GuildCacheService(
                 connection.hexists(importKey(guildIdString), encodeKey(value.entityId)) == true ||
                 entityIsMarkedAsDeleted(connection, createRemoveInvitationKey(guildIdString), value.entityId)
             ) {
+                // TODO Allow modification of deleted entity
                 return false
             }
             setEntityValueIfNotEquals(connection, addKey, value, serializer)
