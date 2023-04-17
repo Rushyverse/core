@@ -1193,8 +1193,16 @@ public class GuildCacheService(
     }
 
     override fun getMembers(guildId: Int): Flow<GuildMember> {
-        return getAllEntitiesValues(guildId, this::createAddMemberKey, this::createImportMemberKey)
-            .mapNotNull { decodeFromByteArrayOrNull(GuildMember.serializer(), it) }
+        return flow {
+            cacheClient.connect {
+                val guild = getGuild(it, guildId) ?: return@flow
+                emit(GuildMember(guild.id, guild.ownerId, guild.createdAt))
+            }
+
+            getAllEntitiesValues(guildId, this@GuildCacheService::createAddMemberKey, this@GuildCacheService::createImportMemberKey)
+                .mapNotNull { decodeFromByteArrayOrNull(GuildMember.serializer(), it) }
+                .let { emitAll(it) }
+        }
     }
 
     /**
