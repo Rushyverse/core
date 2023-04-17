@@ -886,7 +886,18 @@ class GuildCacheServiceTest {
 
         @Test
         fun `should support several members for one guild`() = runTest {
-            TODO()
+            withGuildImportedAndCreated {
+                val guildId = it.id
+                val member1 = GuildMember(guildId, getRandomString())
+                val member2 = GuildMember(guildId, getRandomString())
+
+                assertTrue { service.addMember(guildId, member1.entityId) }
+                assertTrue { service.addMember(guildId, member2.entityId) }
+
+                assertThat(getAllAddedMembers(guildId.toString())).containsExactlyInAnyOrder(member1, member2)
+                assertThat(getAllImportedMembers(guildId.toString())).isEmpty()
+                assertThat(getAllRemovedMembers(guildId.toString())).isEmpty()
+            }
         }
 
         @ParameterizedTest
@@ -1075,13 +1086,15 @@ class GuildCacheServiceTest {
         @Test
         fun `should return a flow with the owner and added members`() = runTest {
             withGuildImportedAndCreated { guild ->
-                val owner = getRandomString()
-                val membersToAdd = listOf(getRandomString(), getRandomString())
-                membersToAdd.forEach { service.addMember(guild.id, it) }
+                val membersToAdd = listOf(
+                    GuildMember(guild.id, getRandomString()),
+                    GuildMember(guild.id, getRandomString())
+                )
+                membersToAdd.forEach { service.addMember(it.guildId, it.entityId) }
 
                 val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
                 assertThat(members).containsExactlyInAnyOrderElementsOf(
-                    membersToAdd.map { GuildMember(guild.id, it) } + GuildMember(guild.id, owner)
+                    membersToAdd + GuildMember(guild.id, guild.ownerId)
                 )
             }
         }
@@ -1090,7 +1103,6 @@ class GuildCacheServiceTest {
         fun `should return a flow with the owner and added or imported members`() = runTest {
             val guild = Guild(0, getRandomString(), getRandomString())
             service.importGuild(guild)
-            val owner = getRandomString()
             val membersToAdd = listOf(
                 GuildMember(guild.id, getRandomString()),
                 GuildMember(guild.id, getRandomString())
@@ -1106,7 +1118,7 @@ class GuildCacheServiceTest {
 
             val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
             assertThat(members).containsExactlyInAnyOrderElementsOf(
-                membersToAdd + membersToImport + GuildMember(guild.id, owner, guild.createdAt)
+                membersToAdd + membersToImport + GuildMember(guild.id, guild.ownerId)
             )
         }
 
@@ -1282,7 +1294,18 @@ class GuildCacheServiceTest {
 
         @Test
         fun `should support several invitation for one guild`() = runTest {
-            TODO()
+            withGuildImportedAndCreated {
+                val guildId = it.id
+                val invite1 = GuildInvite(guildId, getRandomString(), null)
+                val invite2 = GuildInvite(guildId, getRandomString(), null)
+
+                assertTrue { service.addInvitation(invite1.guildId, invite1.entityId, invite1.expiredAt) }
+                assertTrue { service.addInvitation(invite2.guildId, invite2.entityId, invite2.expiredAt) }
+
+                assertThat(getAllAddedInvites(guildId.toString())).containsExactlyInAnyOrder(invite1, invite2)
+                assertThat(getAllImportedInvites(guildId.toString())).isEmpty()
+                assertThat(getAllRemovedInvites(guildId.toString())).isEmpty()
+            }
         }
 
         @ParameterizedTest
