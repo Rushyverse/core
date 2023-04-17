@@ -1060,6 +1060,77 @@ class GuildCacheServiceTest {
     }
 
     @Nested
+    inner class GetMembers {
+
+        @Test
+        fun `should return a flow with only the owner if no member`() = runTest {
+            withGuildImportedAndCreated {
+                val members = service.getMembers(it.id).map(GuildMember::defaultTime).toList()
+                assertThat(members).containsExactlyInAnyOrder(
+                    GuildMember(it.id, it.ownerId)
+                )
+            }
+        }
+
+        @Test
+        fun `should return a flow with the owner and added members`() = runTest {
+            withGuildImportedAndCreated { guild ->
+                val owner = getRandomString()
+                val membersToAdd = listOf(getRandomString(), getRandomString())
+                membersToAdd.forEach { service.addMember(guild.id, it) }
+
+                val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+                assertThat(members).containsExactlyInAnyOrderElementsOf(
+                    membersToAdd.map { GuildMember(guild.id, it) } + GuildMember(guild.id, owner)
+                )
+            }
+        }
+
+        @Test
+        fun `should return a flow with the owner and added or imported members`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val owner = getRandomString()
+            val membersToAdd = listOf(
+                GuildMember(guild.id, getRandomString()),
+                GuildMember(guild.id, getRandomString())
+            )
+
+            val membersToImport = listOf(
+                GuildMember(guild.id, getRandomString()),
+                GuildMember(guild.id, getRandomString())
+            )
+
+            membersToAdd.forEach { service.addMember(it.guildId, it.entityId) }
+            membersToImport.forEach { service.importMember(it) }
+
+            val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+            assertThat(members).containsExactlyInAnyOrderElementsOf(
+                membersToAdd + membersToImport + GuildMember(guild.id, owner, guild.createdAt)
+            )
+        }
+
+        @Test
+        fun `should ignore invited entities`() = runTest {
+            withGuildImportedAndCreated { guild ->
+                service.addInvitation(guild.id, getRandomString(), null)
+
+                val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
+                assertThat(members).containsExactlyInAnyOrder(
+                    GuildMember(guild.id, guild.ownerId, guild.createdAt)
+                )
+            }
+        }
+
+        @Test
+        fun `should return empty flow if guild doesn't exist`() = runTest {
+            val members = service.getMembers(0).toList()
+            assertThat(members).isEmpty()
+        }
+
+    }
+
+    @Nested
     inner class AddInvitation {
 
         @Nested
