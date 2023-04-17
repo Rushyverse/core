@@ -819,7 +819,7 @@ class GuildCacheServiceTest {
             assertTrue { service.importInvitation(GuildInvite(guild.id, member2.entityId, null)) }
             assertTrue { service.importMember(member2) }
 
-            assertThat(getAllAddedMembers(guild.id.toString())).containsExactlyInAnyOrder(member, member2)
+            assertThat(getAllImportedMembers(guild.id.toString())).containsExactlyInAnyOrder(member, member2)
             assertThat(getAllAddedInvites(guild.id.toString())).isEmpty()
             assertThat(getAllImportedInvites(guild.id.toString())).isEmpty()
         }

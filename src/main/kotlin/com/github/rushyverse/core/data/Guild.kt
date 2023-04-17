@@ -754,7 +754,12 @@ public class GuildCacheService(
             }
 
             deleteAddedEntity(it, createAddMemberKey(guildIdString), entityId)
-            setEntityValueIfNotEquals(it, this::createImportMemberKey, member, GuildMember.serializer())
+            if(setEntityValueIfNotEquals(it, this::createImportMemberKey, member, GuildMember.serializer())) {
+                removeEntityAddedOrImported(it, guildId, entityId, this::createAddInvitationKey, this::createImportInvitationKey)
+                true
+            } else {
+                false
+            }
         }
     }
 
