@@ -7,9 +7,7 @@ import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptio
 import com.github.rushyverse.core.data.utils.MicroClockProvider
 import com.github.rushyverse.core.utils.getRandomString
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.single
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
@@ -178,12 +176,58 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should delete all linked data to the deleted guild`() = runTest {
-            TODO()
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val guildId = guild.id
+            val sizeData = 10
+            repeat(sizeData) {
+                service.addMember(guildId, getRandomString())
+            }
+            repeat(sizeData) {
+                service.addInvitation(guildId, getRandomString(), null)
+            }
+
+            assertThat(getAllMembers()).hasSize(10)
+            assertThat(getAllInvites()).hasSize(10)
+
+            assertTrue { service.deleteGuild(guild.id) }
+
+            assertThat(getAllMembers()).isEmpty()
+            assertThat(getAllInvites()).isEmpty()
         }
 
         @Test
         fun `should not delete another guild data`() = runTest {
-            TODO()
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val guildId = guild.id
+
+            val sizeData = 10
+            repeat(sizeData) {
+                service.addMember(guildId, getRandomString())
+            }
+            repeat(sizeData) {
+                service.addInvitation(guildId, getRandomString(), null)
+            }
+
+            val guild2 = service.createGuild(getRandomString(), getRandomString())
+            val guildId2 = guild2.id
+            repeat(sizeData) {
+                service.addMember(guildId2, getRandomString())
+            }
+            repeat(sizeData) {
+                service.addInvitation(guildId2, getRandomString(), null)
+            }
+
+            assertThat(getAllMembers(guildId)).hasSize(10)
+            assertThat(getAllInvites(guildId)).hasSize(10)
+            assertThat(getAllMembers(guildId2)).hasSize(10)
+            assertThat(getAllInvites(guildId2)).hasSize(10)
+
+            assertTrue { service.deleteGuild(guild.id) }
+
+            assertThat(getAllMembers(guildId)).isEmpty()
+            assertThat(getAllInvites(guildId)).isEmpty()
+            assertThat(getAllMembers(guildId2)).hasSize(10)
+            assertThat(getAllInvites(guildId2)).hasSize(10)
         }
 
     }
@@ -1073,7 +1117,17 @@ class GuildDatabaseServiceTest {
         @ParameterizedTest
         @ValueSource(ints = [1, 2, 3, 4, 5])
         fun `should ignore the deleted invitations`(number: Int) = runTest {
-            TODO()
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val guildId = guild.id
+            val invites = List(number) { GuildInvite(guildId, getRandomString(), null) }
+            invites.forEach { service.addInvitation(it.guildId, it.entityId, it.expiredAt) }
+
+            invites.forEach { invite ->
+                service.removeInvitation(guildId, invite.entityId)
+            }
+
+            val invitationsAfterRemoval = service.getInvitations(guildId).toList()
+            assertThat(invitationsAfterRemoval).isEmpty()
         }
 
         @Test
@@ -1106,6 +1160,22 @@ class GuildDatabaseServiceTest {
 
     private suspend fun getAllMembers(): List<GuildMember> {
         return DatabaseUtils.getAll(database, _GuildMember.guildMember)
+    }
+
+    private suspend fun getAllInvites(guildId: Int): List<GuildInvite> {
+        val meta = _GuildInvite.guildInvite
+        val query = QueryDsl.from(meta).where {
+            meta.guildId eq guildId
+        }
+        return database.flowQuery(query).filterNotNull().toList()
+    }
+
+    private suspend fun getAllMembers(guildId: Int): List<GuildMember> {
+        val meta = _GuildMember.guildMember
+        val query = QueryDsl.from(meta).where {
+            meta.guildId eq guildId
+        }
+        return database.flowQuery(query).filterNotNull().toList()
     }
 
     private suspend fun getAllInvites(): List<GuildInvite> {
