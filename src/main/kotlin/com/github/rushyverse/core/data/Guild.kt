@@ -761,16 +761,23 @@ public class GuildCacheService(
     override suspend fun addMember(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
-        return setEntityValueIfNotEqualsAndNotImportedOrDeleted(
-            GuildMember(guildId, entityId),
-            GuildMember.serializer(),
-            this::createAddMemberKey,
-            this::createImportMemberKey,
-        ) {
+        return cacheClient.connect {
             val guild = getGuild(guildId) ?: throwGuildNotFoundException(guildId)
             if (entityId == guild.ownerId) {
                 throw GuildMemberIsOwnerOfGuildException(guildId, entityId)
             }
+
+            val memberAdded = setEntityValueIfNotEqualsAndNotImportedOrDeleted(
+                it,
+                GuildMember(guildId, entityId),
+                GuildMember.serializer(),
+                this::createAddMemberKey,
+                this::createImportMemberKey,
+            )
+            if(memberAdded) {
+                removeEntityAddedOrImported(it, guildId, entityId, this::createAddInvitationKey, this::createImportInvitationKey)
+            }
+            memberAdded
         }
     }
 
@@ -856,14 +863,17 @@ public class GuildCacheService(
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
         requireValidInvitation(entityId, expiredAt)
 
-        return setEntityValueIfNotEqualsAndNotImportedOrDeleted(
-            GuildInvite(guildId, entityId, expiredAt),
-            GuildInvite.serializer(),
-            this::createAddInvitationKey,
-            this::createImportInvitationKey
-        ) { connection ->
-            requireGuildExists(connection, guildId)
-            requireEntityIsNotMember(connection, guildId, entityId)
+        return cacheClient.connect {
+            requireGuildExists(it, guildId)
+            requireEntityIsNotMember(it, guildId, entityId)
+
+            setEntityValueIfNotEqualsAndNotImportedOrDeleted(
+                it,
+                GuildInvite(guildId, entityId, expiredAt),
+                GuildInvite.serializer(),
+                this::createAddInvitationKey,
+                this::createImportInvitationKey
+            )
         }
     }
 
@@ -889,6 +899,7 @@ public class GuildCacheService(
      * If the entity is already imported, the value will not be set.
      * Otherwise, the value will be set as an added entity.
      * The entry where the value will be stored is referenced by the key [GuildEntityIds.entityId].
+     * @param connection Cache connection.
      * @param value Value to set.
      * @param serializer Serializer of the value.
      * @param addKey Function to create the key of the added entity.
@@ -896,33 +907,29 @@ public class GuildCacheService(
      * @return `true` if the value was set, `false` otherwise.
      */
     private suspend inline fun <T : GuildEntityIds> setEntityValueIfNotEqualsAndNotImportedOrDeleted(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         value: T,
         serializer: KSerializer<T>,
         addKey: (String) -> ByteArray,
-        importKey: (String) -> ByteArray,
-        requirement: (RedisCoroutinesCommands<ByteArray, ByteArray>) -> Unit = { }
+        importKey: (String) -> ByteArray
     ): Boolean {
         contract {
             callsInPlace(addKey, InvocationKind.AT_MOST_ONCE)
             callsInPlace(importKey, InvocationKind.AT_MOST_ONCE)
         }
 
-        return cacheClient.connect { connection ->
-            requirement(connection)
-
-            val guildId = value.guildId
-            if (isCacheGuild(guildId)) {
-                setEntityValueIfNotEquals(connection, addKey, value, serializer)
-            } else {
-                val guildIdString = guildId.toString()
-                if (
-                    connection.hexists(importKey(guildIdString), encodeKey(value.entityId)) == true ||
-                    entityIsMarkedAsDeleted(connection, createRemoveInvitationKey(guildIdString), value.entityId)
-                ) {
-                    return@connect false
-                }
-                setEntityValueIfNotEquals(connection, addKey, value, serializer)
+        val guildId = value.guildId
+        return if (isCacheGuild(guildId)) {
+            setEntityValueIfNotEquals(connection, addKey, value, serializer)
+        } else {
+            val guildIdString = guildId.toString()
+            if (
+                connection.hexists(importKey(guildIdString), encodeKey(value.entityId)) == true ||
+                entityIsMarkedAsDeleted(connection, createRemoveInvitationKey(guildIdString), value.entityId)
+            ) {
+                return false
             }
+            setEntityValueIfNotEquals(connection, addKey, value, serializer)
         }
     }
 
