@@ -803,6 +803,27 @@ class GuildCacheServiceTest {
             }
         }
 
+        @Test
+        fun `should delete invitation when entity is imported as member`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val member = GuildMember(guild.id, getRandomString())
+            assertTrue { service.addInvitation(member.guildId, member.entityId, null) }
+            assertTrue { service.importMember(member) }
+
+            assertThat(getAllImportedMembers(guild.id.toString())).containsExactly(member)
+            assertThat(getAllAddedInvites(guild.id.toString())).isEmpty()
+            assertThat(getAllImportedInvites(guild.id.toString())).isEmpty()
+
+            val member2 = GuildMember(guild.id, getRandomString())
+            assertTrue { service.importInvitation(GuildInvite(guild.id, member2.entityId, null)) }
+            assertTrue { service.importMember(member2) }
+
+            assertThat(getAllAddedMembers(guild.id.toString())).containsExactlyInAnyOrder(member, member2)
+            assertThat(getAllAddedInvites(guild.id.toString())).isEmpty()
+            assertThat(getAllImportedInvites(guild.id.toString())).isEmpty()
+        }
+
     }
 
     @Nested
@@ -880,8 +901,35 @@ class GuildCacheServiceTest {
         }
 
         @Test
-        fun `should delete invitation when entity is added as member`() = runTest {
-            TODO()
+        fun `should delete invitation when entity is added as member for cache guild`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val entityId = getRandomString()
+            assertTrue { service.addInvitation(guild.id, entityId, null) }
+            assertTrue { service.addMember(guild.id, entityId) }
+
+            assertThat(getAllAddedMembers(guild.id.toString())).containsExactly(GuildMember(guild.id, entityId))
+            assertThat(getAllAddedInvites(guild.id.toString())).isEmpty()
+        }
+
+        @Test
+        fun `should delete invitation when entity is added as member for imported guild`() = runTest {
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.importGuild(guild)
+            val member = GuildMember(guild.id, getRandomString())
+            assertTrue { service.addInvitation(member.guildId, member.entityId, null) }
+            assertTrue { service.addMember(member.guildId, member.entityId) }
+
+            assertThat(getAllAddedMembers(guild.id.toString())).containsExactly(member)
+            assertThat(getAllAddedInvites(guild.id.toString())).isEmpty()
+            assertThat(getAllImportedInvites(guild.id.toString())).isEmpty()
+
+            val member2 = GuildMember(guild.id, getRandomString())
+            assertTrue { service.importInvitation(GuildInvite(guild.id, member2.entityId, null)) }
+            assertTrue { service.addMember(member2.guildId, member2.entityId) }
+
+            assertThat(getAllAddedMembers(guild.id.toString())).containsExactlyInAnyOrder(member, member2)
+            assertThat(getAllAddedInvites(guild.id.toString())).isEmpty()
+            assertThat(getAllImportedInvites(guild.id.toString())).isEmpty()
         }
 
         @Test
