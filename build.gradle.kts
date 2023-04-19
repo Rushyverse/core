@@ -21,7 +21,7 @@ dependencies {
     val mockkVersion = "1.13.4"
     val junitVersion = "5.9.2"
     val testContainersVersion = "1.18.0"
-    val lettuceVersion = "6.2.3.RELEASE"
+    val lettuceVersion = "6.2.4.RELEASE"
     val kotlinMojangApi = "2.2.0"
     val nettyCodecVersion = "4.1.91.Final"
     val assertJcoreVersion = "3.24.2"
