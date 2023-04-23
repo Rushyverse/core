@@ -84,7 +84,7 @@ public class DatabaseStoreEntitySupplier(
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
         return supplier.createGuild(name, ownerId).also {
-            importCatchFailure(it, cache::importGuild)
+            importCatchFailure(it, cache::addGuild)
         }
     }
 
@@ -94,13 +94,13 @@ public class DatabaseStoreEntitySupplier(
 
     override suspend fun getGuild(id: Int): Guild? {
         return supplier.getGuild(id)?.also {
-            importCatchFailure(it, cache::importGuild)
+            importCatchFailure(it, cache::addGuild)
         }
     }
 
     override fun getGuild(name: String): Flow<Guild> {
         return supplier.getGuild(name).onEach {
-            importCatchFailure(it, cache::importGuild)
+            importCatchFailure(it, cache::addGuild)
         }
     }
 
@@ -150,12 +150,12 @@ public class DatabaseStoreEntitySupplier(
 
     override fun getMembers(guildId: Int): Flow<GuildMember> = supplier.getMembers(guildId)
         .onEach {
-            importCatchFailure(it, cache::importMember)
+            importCatchFailure(it, cache::addMember)
         }
 
     override fun getInvitations(guildId: Int): Flow<GuildInvite> = supplier.getInvitations(guildId)
         .onEach {
-            importCatchFailure(it, cache::importInvitation)
+            importCatchFailure(it, cache::addInvitation)
         }
 
     /**

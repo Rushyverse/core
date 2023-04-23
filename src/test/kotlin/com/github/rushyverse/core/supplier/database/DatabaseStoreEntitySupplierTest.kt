@@ -350,11 +350,11 @@ class DatabaseStoreEntitySupplierTest {
                 val guild = mockk<Guild>()
 
                 coEvery { supplier.createGuild(name, owner) } returns guild
-                coEvery { cache.importGuild(any()) } returns cacheResult
+                coEvery { cache.addGuild(any()) } returns cacheResult
 
                 assertEquals(guild, entitySupplier.createGuild(name, owner))
                 coVerify(exactly = 1) { supplier.createGuild(name, owner) }
-                coVerify(exactly = 1) { cache.importGuild(guild) }
+                coVerify(exactly = 1) { cache.addGuild(guild) }
                 coVerify(exactly = 0) { cache.createGuild(any(), any()) }
             }
         }
@@ -412,11 +412,11 @@ class DatabaseStoreEntitySupplierTest {
                 val guild = mockk<Guild>()
 
                 coEvery { supplier.getGuild(id) } returns guild
-                coEvery { cache.importGuild(guild) } returns true
+                coEvery { cache.addGuild(guild) } returns true
 
                 assertEquals(guild, entitySupplier.getGuild(id))
                 coVerify(exactly = 1) { supplier.getGuild(id) }
-                coVerify(exactly = 1) { cache.importGuild(guild) }
+                coVerify(exactly = 1) { cache.addGuild(guild) }
             }
 
             @Test
@@ -427,7 +427,7 @@ class DatabaseStoreEntitySupplierTest {
 
                 assertNull(entitySupplier.getGuild(id))
                 coVerify(exactly = 1) { supplier.getGuild(id) }
-                coVerify(exactly = 0) { cache.importGuild(any()) }
+                coVerify(exactly = 0) { cache.addGuild(any()) }
             }
         }
 
@@ -441,7 +441,7 @@ class DatabaseStoreEntitySupplierTest {
 
                 assertThat(entitySupplier.getGuild(name).toList()).isEmpty()
                 coVerify(exactly = 1) { supplier.getGuild(name) }
-                coVerify(exactly = 0) { cache.importGuild(any()) }
+                coVerify(exactly = 0) { cache.addGuild(any()) }
             }
 
             @Test
@@ -449,11 +449,11 @@ class DatabaseStoreEntitySupplierTest {
                 val name = getRandomString()
                 val guilds = List(2) { mockk<Guild>() }
                 coEvery { supplier.getGuild(name) } returns guilds.asFlow()
-                coEvery { cache.importGuild(guilds[0]) } throws Exception()
+                coEvery { cache.addGuild(guilds[0]) } throws Exception()
 
                 assertThat(entitySupplier.getGuild(name).toList()).containsExactlyElementsOf(guilds)
                 coVerify(exactly = 1) { supplier.getGuild(name) }
-                coVerify(exactly = guilds.size) { cache.importGuild(any()) }
+                coVerify(exactly = guilds.size) { cache.addGuild(any()) }
             }
 
             @Test
@@ -464,9 +464,9 @@ class DatabaseStoreEntitySupplierTest {
 
                 assertThat(entitySupplier.getGuild(name).toList()).containsExactlyElementsOf(guilds)
                 coVerify(exactly = 1) { supplier.getGuild(name) }
-                coVerify(exactly = guilds.size) { cache.importGuild(any()) }
+                coVerify(exactly = guilds.size) { cache.addGuild(any()) }
                 guilds.forEach { guild ->
-                    coVerify(exactly = 1) { cache.importGuild(guild) }
+                    coVerify(exactly = 1) { cache.addGuild(guild) }
                 }
             }
 
@@ -481,12 +481,12 @@ class DatabaseStoreEntitySupplierTest {
                     .containsExactlyElementsOf(guildsToImport)
 
                 coVerify(exactly = 1) { supplier.getGuild(name) }
-                coVerify(exactly = guildsToImport.size) { cache.importGuild(any()) }
+                coVerify(exactly = guildsToImport.size) { cache.addGuild(any()) }
                 guildsToImport.forEach { guild ->
-                    coVerify(exactly = 1) { cache.importGuild(guild) }
+                    coVerify(exactly = 1) { cache.addGuild(guild) }
                 }
                 guilds.drop(guildsToImport.size).forEach { guild ->
-                    coVerify(exactly = 0) { cache.importGuild(guild) }
+                    coVerify(exactly = 0) { cache.addGuild(guild) }
                 }
             }
 
@@ -734,7 +734,7 @@ class DatabaseStoreEntitySupplierTest {
 
                 assertThat(entitySupplier.getMembers(id).toList()).isEmpty()
                 coVerify(exactly = 1) { supplier.getMembers(id) }
-                coVerify(exactly = 0) { cache.importMember(any()) }
+                coVerify(exactly = 0) { cache.addMember(any()) }
             }
 
             @Test
@@ -745,9 +745,9 @@ class DatabaseStoreEntitySupplierTest {
 
                 assertThat(entitySupplier.getMembers(id).toList()).containsExactlyElementsOf(members)
                 coVerify(exactly = 1) { supplier.getMembers(id) }
-                coVerify(exactly = members.size) { cache.importMember(any()) }
+                coVerify(exactly = members.size) { cache.addMember(any()) }
                 members.forEach {
-                    coVerify(exactly = 1) { cache.importMember(it) }
+                    coVerify(exactly = 1) { cache.addMember(it) }
                 }
             }
 
@@ -756,11 +756,11 @@ class DatabaseStoreEntitySupplierTest {
                 val id = Random.nextInt()
                 val members = List(2) { GuildMember(id, getRandomString()) }
                 coEvery { supplier.getMembers(id) } returns members.asFlow()
-                coEvery { cache.importMember(members[0]) } throws Exception()
+                coEvery { cache.addMember(members[0]) } throws Exception()
 
                 assertThat(entitySupplier.getMembers(id).toList()).containsExactlyElementsOf(members)
                 coVerify(exactly = 1) { supplier.getMembers(id) }
-                coVerify(exactly = members.size) { cache.importMember(any()) }
+                coVerify(exactly = members.size) { cache.addMember(any()) }
             }
 
             @Test
@@ -774,12 +774,12 @@ class DatabaseStoreEntitySupplierTest {
                     .containsExactlyElementsOf(toImport)
 
                 coVerify(exactly = 1) { supplier.getMembers(id) }
-                coVerify(exactly = toImport.size) { cache.importMember(any()) }
+                coVerify(exactly = toImport.size) { cache.addMember(any()) }
                 toImport.forEach {
-                    coVerify(exactly = 1) { cache.importMember(it) }
+                    coVerify(exactly = 1) { cache.addMember(it) }
                 }
                 members.drop(toImport.size).forEach {
-                    coVerify(exactly = 0) { cache.importMember(it) }
+                    coVerify(exactly = 0) { cache.addMember(it) }
                 }
             }
         }
@@ -794,7 +794,7 @@ class DatabaseStoreEntitySupplierTest {
 
                 assertThat(entitySupplier.getInvitations(id).toList()).isEmpty()
                 coVerify(exactly = 1) { supplier.getInvitations(id) }
-                coVerify(exactly = 0) { cache.importInvitation(any()) }
+                coVerify(exactly = 0) { cache.addInvitation(any()) }
             }
 
             @Test
@@ -802,11 +802,11 @@ class DatabaseStoreEntitySupplierTest {
                 val id = Random.nextInt()
                 val invites = List(2) { mockk<GuildInvite>() }
                 coEvery { supplier.getInvitations(id) } returns invites.asFlow()
-                coEvery { cache.importInvitation(invites[0]) } throws Exception()
+                coEvery { cache.addInvitation(invites[0]) } throws Exception()
 
                 assertThat(entitySupplier.getInvitations(id).toList()).containsExactlyElementsOf(invites)
                 coVerify(exactly = 1) { supplier.getInvitations(id) }
-                coVerify(exactly = invites.size) { cache.importInvitation(any()) }
+                coVerify(exactly = invites.size) { cache.addInvitation(any()) }
             }
 
             @Test
@@ -817,9 +817,9 @@ class DatabaseStoreEntitySupplierTest {
 
                 assertThat(entitySupplier.getInvitations(id).toList()).containsExactlyElementsOf(invites)
                 coVerify(exactly = 1) { supplier.getInvitations(id) }
-                coVerify(exactly = invites.size) { cache.importInvitation(any()) }
+                coVerify(exactly = invites.size) { cache.addInvitation(any()) }
                 invites.forEach {
-                    coVerify(exactly = 1) { cache.importInvitation(it) }
+                    coVerify(exactly = 1) { cache.addInvitation(it) }
                 }
             }
 
@@ -834,12 +834,12 @@ class DatabaseStoreEntitySupplierTest {
                     .containsExactlyElementsOf(toImport)
 
                 coVerify(exactly = 1) { supplier.getInvitations(id) }
-                coVerify(exactly = toImport.size) { cache.importInvitation(any()) }
+                coVerify(exactly = toImport.size) { cache.addInvitation(any()) }
                 toImport.forEach {
-                    coVerify(exactly = 1) { cache.importInvitation(it) }
+                    coVerify(exactly = 1) { cache.addInvitation(it) }
                 }
                 invites.drop(toImport.size).forEach {
-                    coVerify(exactly = 0) { cache.importInvitation(it) }
+                    coVerify(exactly = 0) { cache.addInvitation(it) }
                 }
             }
 
