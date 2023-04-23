@@ -676,14 +676,28 @@ public class GuildCacheService(
     }
 
     override suspend fun addMember(guildId: Int, entityId: String): Boolean {
-        return addMember(GuildMember(guildId, entityId))
+        return setMember(GuildMember(guildId, entityId))
     }
 
     override suspend fun addMember(member: GuildMember): Boolean {
+        val guildId = member.guildId
+        requireImportedGuild(guildId)
+        return setMember(member)
+    }
+
+    /**
+     * Add a member to a guild.
+     * If the member is deleted, it will be removed from the deleted set to be added.
+     * If the entity is invited, it will be removed from the invited.
+     * If the member is already added, will update the data linked to the entity.
+     * @param member Member to add.
+     * @return `true` if the member was added or updated, `false` otherwise.
+     */
+    private suspend fun setMember(member: GuildMember): Boolean {
+        val guildId = member.guildId
         val entityId = member.entityId
         requireEntityIdNotBlank(entityId)
 
-        val guildId = member.guildId
         return cacheClient.connect {
             val guild = getGuild(guildId) ?: throwGuildNotFoundException(guildId)
             if (entityId == guild.ownerId) {
@@ -744,10 +758,23 @@ public class GuildCacheService(
     }
 
     override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
-        return addInvitation(GuildInvite(guildId, entityId, expiredAt))
+        return setInvitation(GuildInvite(guildId, entityId, expiredAt))
     }
 
     override suspend fun addInvitation(invite: GuildInvite): Boolean {
+        val guildId = invite.guildId
+        requireImportedGuild(guildId)
+        return setInvitation(invite)
+    }
+
+    /**
+     * Add an invitation to a guild.
+     * If the invitation is deleted, it will be removed from the deleted set to be added.
+     * If the entity is already added, will update the invitation.
+     * @param invite Invitation to add.
+     * @return `true` if the invitation was added or updated, `false` otherwise.
+     */
+    private suspend fun setInvitation(invite: GuildInvite): Boolean {
         val entityId = invite.entityId
         requireValidInvitation(entityId, invite.expiredAt)
 
@@ -769,7 +796,7 @@ public class GuildCacheService(
         return cacheClient.connect {
             removeEntityValue(it, addInvitationKey(guildId.toString()), entityId).also { isRemoved ->
                 if (isRemoved && !isCacheGuild(guildId)) {
-                    markAsDeleted(it, removeMemberKey(guildId.toString()), entityId)
+                    markAsDeleted(it, removeInvitationKey(guildId.toString()), entityId)
                 }
             }
         }
@@ -1058,6 +1085,15 @@ public class GuildCacheService(
     private fun wildcardGuildKey(
         guildId: String
     ): String = formattedKeyWithPrefix("*", guildId)
+
+    /**
+     * Check if the guild is imported.
+     * If the guild is created by the service, will throw an exception.
+     * @param guild Guild ID.
+     */
+    private fun requireImportedGuild(guild: Int) {
+        require(!isCacheGuild(guild)) { "Unable to interact with a guild[$guild] created in the cache" }
+    }
 
 }
 
