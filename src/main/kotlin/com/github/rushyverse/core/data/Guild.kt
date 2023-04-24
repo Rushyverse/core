@@ -495,7 +495,6 @@ public class GuildCacheService(
         /**
          * Key to store guilds created by [GuildCacheService].
          * Is not used to store guild from other services like [GuildDatabaseService].
-         * The guilds imported from other services are stored in [IMPORT_GUILD] key.
          */
         ADD_GUILD("add"),
 
@@ -509,7 +508,6 @@ public class GuildCacheService(
         /**
          * Key to store guild's members created by [GuildCacheService].
          * Is not used to store guild's members imported from other services like [GuildDatabaseService].
-         * The guild's members imported from other services are stored in [IMPORT_MEMBER] key.
          */
         ADD_MEMBER("member:add"),
 
@@ -523,7 +521,6 @@ public class GuildCacheService(
         /**
          * Key to store guild's invitations created by [GuildCacheService].
          * Is not used to store guild's invitations imported from other services like [GuildDatabaseService].
-         * The guild's invitations imported from other services are stored in [IMPORT_INVITATION] key.
          */
         ADD_INVITATION("invite:add"),
 
@@ -640,7 +637,7 @@ public class GuildCacheService(
 
     /**
      * Check if guild exists in cache.
-     * If the guild is present in [Type.IMPORT_GUILD] or [Type.ADD_GUILD] and is not marked as deleted, it exists.
+     * If the guild is present in [Type.ADD_GUILD] and is not marked as deleted, it exists.
      * @param connection Redis connection.
      * @param id Guild ID.
      * @return `true` if guild exists, `false` otherwise.
