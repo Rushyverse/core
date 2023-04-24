@@ -7,7 +7,10 @@ import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptio
 import com.github.rushyverse.core.data.utils.MicroClockProvider
 import com.github.rushyverse.core.utils.getRandomString
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.single
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
@@ -68,6 +71,69 @@ class GuildDatabaseServiceTest {
         database.runQuery(
             QueryDsl.delete(_GuildMember.guildMember).all().options { it.copy(allowMissingWhereClause = true) })
         database.runQuery(QueryDsl.delete(_Guild.guild).all().options { it.copy(allowMissingWhereClause = true) })
+    }
+
+    @Nested
+    inner class DeleteExpiredInvitation {
+
+        @Test
+        fun `should return false if there is no invitation`() = runTest {
+            assertFalse { service.deleteExpiredInvitations() }
+        }
+
+        @Test
+        fun `should return false if all invitations don't have expiration date`() = runTest {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val invitations = List(5) { getRandomString() }
+            invitations.forEach {
+                service.addInvitation(guild.id, it, null)
+            }
+
+            assertFalse { service.deleteExpiredInvitations() }
+
+            val invites = getAllInvites().map { it.defaultTime() }
+            assertThat(invites).containsExactlyElementsOf(
+                invitations.map { GuildInvite(guild.id, it, null) }
+            )
+        }
+
+        @Test
+        fun `should return true if one invitation is deleted`() = runBlocking<Unit> {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val invitations = List(5) { getRandomString() }
+            invitations.forEach {
+                service.addInvitation(guild.id, it, null)
+            }
+            val expireInvitation = getRandomString()
+            service.addInvitation(guild.id, expireInvitation, Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS))
+
+            delay(WAIT_EXPIRATION_MILLIS)
+
+            assertTrue { service.deleteExpiredInvitations() }
+
+            val invites = getAllInvites().map { it.defaultTime() }
+            assertThat(invites).containsExactlyElementsOf(
+                invitations.map { GuildInvite(guild.id, it, null) }
+            )
+        }
+
+        @Test
+        fun `should return true if all invitations is deleted`() = runBlocking<Unit> {
+            val guild = service.createGuild(getRandomString(), getRandomString())
+            val invitations = List(5) { getRandomString() }
+            val expirationDate = Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS)
+            invitations.forEach {
+                service.addInvitation(guild.id, it, expirationDate)
+            }
+
+            delay(WAIT_EXPIRATION_MILLIS)
+
+            assertTrue { service.deleteExpiredInvitations() }
+
+            val invites = getAllInvites().map { it.defaultTime() }
+            assertThat(invites).isEmpty()
+        }
+
     }
 
     @Nested

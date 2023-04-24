@@ -3,6 +3,7 @@ package com.github.rushyverse.core.data
 import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.data._Guild.Companion.guild
+import com.github.rushyverse.core.data._GuildInvite.Companion.guildInvite
 import com.github.rushyverse.core.serializer.InstantSerializer
 import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
@@ -10,6 +11,8 @@ import com.github.rushyverse.core.supplier.database.IDatabaseStrategizable
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
@@ -117,6 +120,12 @@ public data class GuildMember(
 ) : GuildEntityIds
 
 public interface IGuildService {
+
+    /**
+     * Delete all expired invitations.
+     * @return `true` if at least one invitation was deleted, `false` if none were deleted.
+     */
+    public suspend fun deleteExpiredInvitations(): Boolean
 
     /**
      * Create a guild with a name and define someone as the owner.
@@ -263,6 +272,14 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         private const val FOREIGN_KEY_VIOLATION_EXCEPTION_CODE = "23503"
         private const val INVITED_IS_ALREADY_MEMBER_EXCEPTION_CODE = "P1000"
         private const val MEMBER_IS_OWNER_OF_GUILD_EXCEPTION_CODE = "P1001"
+    }
+
+    override suspend fun deleteExpiredInvitations(): Boolean {
+        val meta = guildInvite
+        val query = QueryDsl.delete(meta).where {
+            meta.expiredAt lessEq Instant.now()
+        }
+        return database.runQuery(query) > 0
     }
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
@@ -458,7 +475,6 @@ public class GuildCacheService(
     prefixKey: String = "$prefixCommonKey%s:"
 ) : AbstractCacheService(client, prefixKey), IGuildCacheService {
 
-    // TODO : Function to remove all guild data from cache.
     // TODO : Function to remove all expired guild invitations from cache.
 
     private companion object {
@@ -517,6 +533,24 @@ public class GuildCacheService(
          * The guild's invitations created by [GuildCacheService] are removed from cache.
          */
         REMOVE_INVITATION("invite:remove"),
+    }
+
+    override suspend fun deleteExpiredInvitations(): Boolean {
+        var result = false
+        val mutex = Mutex()
+
+        cacheClient.connect { connection ->
+            getAllInvitations("*")
+                .filter { it.isExpired() }
+                .collect {
+                    val isRemoved = removeInvitation(connection, it.guildId, it.entityId)
+                    mutex.withLock {
+                        result = result || isRemoved
+                    }
+                }
+        }
+
+        return result
     }
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
@@ -794,10 +828,18 @@ public class GuildCacheService(
     override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
         return cacheClient.connect {
-            removeEntityValue(it, addInvitationKey(guildId.toString()), entityId).also { isRemoved ->
-                if (isRemoved && !isCacheGuild(guildId)) {
-                    markAsDeleted(it, removeInvitationKey(guildId.toString()), entityId)
-                }
+            removeInvitation(it, guildId, entityId)
+        }
+    }
+
+    private suspend fun removeInvitation(
+        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+        guildId: Int,
+        entityId: String
+    ) : Boolean {
+        return removeEntityValue(connection, addInvitationKey(guildId.toString()), entityId).also { isRemoved ->
+            if (isRemoved && !isCacheGuild(guildId)) {
+                markAsDeleted(connection, removeInvitationKey(guildId.toString()), entityId)
             }
         }
     }
@@ -948,9 +990,19 @@ public class GuildCacheService(
     }
 
     override fun getInvitations(guildId: Int): Flow<GuildInvite> {
+        return getAllInvitations(guildId.toString())
+            .filter { !it.isExpired() }
+    }
+
+    /**
+     * Get all invitations of a guild.
+     * Includes all invitations, expired or not.
+     * @param guildId ID of the guild.
+     * @return Flow of all invitations of the guild.
+     */
+    private fun getAllInvitations(guildId: String): Flow<GuildInvite> {
         return getAllValuesOfMap(addInvitationKey(guildId.toString()))
             .mapNotNull { decodeFromByteArrayOrNull(GuildInvite.serializer(), it) }
-            .filter { !it.isExpired() }
     }
 
     override fun getMembers(guildId: Int): Flow<GuildMember> {

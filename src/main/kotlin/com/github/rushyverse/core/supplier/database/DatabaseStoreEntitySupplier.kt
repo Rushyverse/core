@@ -82,6 +82,10 @@ public class DatabaseStoreEntitySupplier(
         return supplier.isPendingFriend(uuid, friend)
     }
 
+    override suspend fun deleteExpiredInvitations(): Boolean {
+        return supplier.deleteExpiredInvitations().or(cache.deleteExpiredInvitations())
+    }
+
     override suspend fun createGuild(name: String, ownerId: String): Guild {
         return supplier.createGuild(name, ownerId).also {
             importCatchFailure(it, cache::addGuild)
