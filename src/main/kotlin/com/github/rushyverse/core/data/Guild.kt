@@ -123,9 +123,9 @@ public interface IGuildService {
 
     /**
      * Delete all expired invitations.
-     * @return `true` if at least one invitation was deleted, `false` if none were deleted.
+     * @return The number of deleted invitations.
      */
-    public suspend fun deleteExpiredInvitations(): Boolean
+    public suspend fun deleteExpiredInvitations(): Long
 
     /**
      * Create a guild with a name and define someone as the owner.
@@ -274,12 +274,12 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         private const val MEMBER_IS_OWNER_OF_GUILD_EXCEPTION_CODE = "P1001"
     }
 
-    override suspend fun deleteExpiredInvitations(): Boolean {
+    override suspend fun deleteExpiredInvitations(): Long {
         val meta = guildInvite
         val query = QueryDsl.delete(meta).where {
             meta.expiredAt lessEq Instant.now()
         }
-        return database.runQuery(query) > 0
+        return database.runQuery(query)
     }
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
@@ -532,22 +532,23 @@ public class GuildCacheService(
         REMOVE_INVITATION("invite:remove"),
     }
 
-    override suspend fun deleteExpiredInvitations(): Boolean {
-        var result = false
+    override suspend fun deleteExpiredInvitations(): Long {
+        var numberOfDeletions: Long = 0
         val mutex = Mutex()
 
         cacheClient.connect { connection ->
-            getAllInvitations("*")
+            getAllInvitations()
                 .filter { it.isExpired() }
                 .collect {
-                    val isRemoved = removeInvitation(connection, it.guildId, it.entityId)
-                    mutex.withLock {
-                        result = result || isRemoved
+                    if (removeInvitation(connection, it.guildId, it.entityId)) {
+                        mutex.withLock {
+                            numberOfDeletions++
+                        }
                     }
                 }
         }
 
-        return result
+        return numberOfDeletions
     }
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
@@ -833,10 +834,11 @@ public class GuildCacheService(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
         guildId: Int,
         entityId: String
-    ) : Boolean {
-        return removeEntityValue(connection, addInvitationKey(guildId.toString()), entityId).also { isRemoved ->
+    ): Boolean {
+        val guildIdString = guildId.toString()
+        return removeEntityValue(connection, addInvitationKey(guildIdString), entityId).also { isRemoved ->
             if (isRemoved && !isCacheGuild(guildId)) {
-                markAsDeleted(connection, removeInvitationKey(guildId.toString()), entityId)
+                markAsDeleted(connection, removeInvitationKey(guildIdString), entityId)
             }
         }
     }
@@ -987,9 +989,19 @@ public class GuildCacheService(
     }
 
     override fun getInvitations(guildId: Int): Flow<GuildInvite> {
-        return getAllInvitations(guildId.toString())
+        return getAllInvitations(guildId)
             .filter { !it.isExpired() }
     }
+
+    /**
+     * Get all invitations in the cache.
+     * Includes all invitations, expired or not.
+     * @return Flow of all invitations.
+     */
+    private fun getAllInvitations(): Flow<GuildInvite> =
+        getAllAddedGuilds()
+            .map { getAllInvitations(it.id) }
+            .flattenMerge()
 
     /**
      * Get all invitations of a guild.
@@ -997,7 +1009,7 @@ public class GuildCacheService(
      * @param guildId ID of the guild.
      * @return Flow of all invitations of the guild.
      */
-    private fun getAllInvitations(guildId: String): Flow<GuildInvite> {
+    private fun getAllInvitations(guildId: Int): Flow<GuildInvite> {
         return getAllValuesOfMap(addInvitationKey(guildId.toString()))
             .mapNotNull { decodeFromByteArrayOrNull(GuildInvite.serializer(), it) }
     }

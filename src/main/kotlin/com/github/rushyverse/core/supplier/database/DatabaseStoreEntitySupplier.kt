@@ -3,6 +3,8 @@ package com.github.rushyverse.core.supplier.database
 import com.github.rushyverse.core.data.Guild
 import com.github.rushyverse.core.data.GuildInvite
 import com.github.rushyverse.core.data.GuildMember
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import mu.KotlinLogging
 import java.time.Instant
@@ -82,8 +84,10 @@ public class DatabaseStoreEntitySupplier(
         return supplier.isPendingFriend(uuid, friend)
     }
 
-    override suspend fun deleteExpiredInvitations(): Boolean {
-        return supplier.deleteExpiredInvitations().or(cache.deleteExpiredInvitations())
+    override suspend fun deleteExpiredInvitations(): Long = coroutineScope {
+        val supplierDeletedDeferred = async { supplier.deleteExpiredInvitations() }
+        val cacheDeleted = cache.deleteExpiredInvitations()
+        supplierDeletedDeferred.await().plus(cacheDeleted)
     }
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
@@ -92,8 +96,10 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override suspend fun deleteGuild(id: Int): Boolean {
-        return supplier.deleteGuild(id).or(cache.deleteGuild(id))
+    override suspend fun deleteGuild(id: Int): Boolean = coroutineScope {
+        val supplierDeletedDeferred = async { supplier.deleteGuild(id) }
+        val cacheDeleted = cache.deleteGuild(id)
+        supplierDeletedDeferred.await() || cacheDeleted
     }
 
     override suspend fun getGuild(id: Int): Guild? {

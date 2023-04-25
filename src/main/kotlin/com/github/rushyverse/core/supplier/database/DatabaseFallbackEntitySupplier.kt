@@ -63,7 +63,7 @@ public class DatabaseFallbackEntitySupplier(
         return getPriority.isPendingFriend(uuid, friend) || setPriority.isPendingFriend(uuid, friend)
     }
 
-    override suspend fun deleteExpiredInvitations(): Boolean {
+    override suspend fun deleteExpiredInvitations(): Long {
         return setPriority.deleteExpiredInvitations()
     }
 
