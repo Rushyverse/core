@@ -559,25 +559,25 @@ public class GuildCacheService(
         getRemovedGuilds().collect { supplier.deleteGuild(it) }
 
         getAddedGuilds().collect {
-            val guild = if (isCacheGuild(it.id)) {
+            val guildCacheId = it.id
+            val guild = if (isCacheGuild(guildCacheId)) {
                 supplier.createGuild(it.name, it.ownerId)
             } else {
-                val guildId = it.id
-                getRemovedMembers(guildId).collect { entity ->
-                    supplier.removeMember(guildId, entity)
+                getRemovedMembers(guildCacheId).collect { entity ->
+                    supplier.removeMember(guildCacheId, entity)
                 }
-                getRemovedInvitation(guildId).collect { entity ->
-                    supplier.removeInvitation(guildId, entity)
+                getRemovedInvitation(guildCacheId).collect { entity ->
+                    supplier.removeInvitation(guildCacheId, entity)
                 }
                 it
             }
 
             val guildId = guild.id
-            getAddedMembers(guildId).collect { member ->
-                supplier.addMember(member.guildId, member.entityId)
+            getAddedMembers(guildCacheId).collect { member ->
+                supplier.addMember(guildId, member.entityId)
             }
-            getInvitations(guildId).collect { invitation ->
-                supplier.addInvitation(invitation.guildId, invitation.entityId, invitation.expiredAt)
+            getInvitations(guildCacheId).collect { invitation ->
+                supplier.addInvitation(guildId, invitation.entityId, invitation.expiredAt)
             }
         }
     }
@@ -658,8 +658,13 @@ public class GuildCacheService(
      * Get all removed guilds.
      * @return Flow of all ids of removed guilds.
      */
-    private fun getRemovedGuilds() = getAllValuesOfMap(removeGuildKey())
-        .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
+    private fun getRemovedGuilds() = flow {
+        cacheClient.connect { connection ->
+            connection.smembers(removeGuildKey())
+                .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
+                .let { emitAll(it) }
+        }
+    }
 
     /**
      * Get all keys linked to the guild.
@@ -803,7 +808,7 @@ public class GuildCacheService(
      * @return Flow of entity ID of all removed members.
      */
     private fun getRemovedMembers(guildId: Int): Flow<String> {
-        return getAllValuesOfMap(removeMemberKey(guildId.toString()))
+        return getAllValuesOfSet(removeMemberKey(guildId.toString()))
             .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
     }
 
@@ -1002,8 +1007,9 @@ public class GuildCacheService(
      * @return Flow of entities that have been removed of invitations.
      */
     private fun getRemovedInvitation(guildId: Int): Flow<String> {
-        return getAllValuesOfMap(removeInvitationKey(guildId.toString()))
-            .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
+        return getAllValuesOfSet(removeInvitationKey(guildId.toString())).mapNotNull {
+            decodeFromByteArrayOrNull(String.serializer(), it)
+        }
     }
 
     /**
@@ -1097,6 +1103,17 @@ public class GuildCacheService(
     private fun getAllValuesOfMap(key: ByteArray): Flow<ByteArray> = flow {
         cacheClient.connect { connection ->
             connection.hvals(key).filterNotNull().let { emitAll(it) }
+        }
+    }
+
+    /**
+     * Get all values of a set.
+     * @param key Key of the set.
+     * @return Flow of all values of the set.
+     */
+    private fun getAllValuesOfSet(key: ByteArray): Flow<ByteArray> = flow {
+        cacheClient.connect {
+            emitAll(it.smembers(key))
         }
     }
 
