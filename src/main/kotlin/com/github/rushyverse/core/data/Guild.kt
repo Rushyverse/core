@@ -4,6 +4,7 @@ import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.data._Guild.Companion.guild
 import com.github.rushyverse.core.data._GuildInvite.Companion.guildInvite
+import com.github.rushyverse.core.extension.safeCollect
 import com.github.rushyverse.core.serializer.InstantSerializer
 import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
@@ -556,27 +557,29 @@ public class GuildCacheService(
     }
 
     override suspend fun merge(supplier: IDatabaseEntitySupplier) {
-        getRemovedGuilds().collect { supplier.deleteGuild(it) }
+        getRemovedGuilds().safeCollect {
+            supplier.deleteGuild(it)
+        }
 
         getAddedGuilds().collect {
             val guildCacheId = it.id
             val guild = if (isCacheGuild(guildCacheId)) {
                 supplier.createGuild(it.name, it.ownerId)
             } else {
-                getRemovedMembers(guildCacheId).collect { entity ->
+                getRemovedMembers(guildCacheId).safeCollect { entity ->
                     supplier.removeMember(guildCacheId, entity)
                 }
-                getRemovedInvitation(guildCacheId).collect { entity ->
+                getRemovedInvitation(guildCacheId).safeCollect { entity ->
                     supplier.removeInvitation(guildCacheId, entity)
                 }
                 it
             }
 
             val guildId = guild.id
-            getAddedMembers(guildCacheId).collect { member ->
+            getAddedMembers(guildCacheId).safeCollect { member ->
                 supplier.addMember(guildId, member.entityId)
             }
-            getInvitations(guildCacheId).collect { invitation ->
+            getInvitations(guildCacheId).safeCollect { invitation ->
                 supplier.addInvitation(guildId, invitation.entityId, invitation.expiredAt)
             }
         }
