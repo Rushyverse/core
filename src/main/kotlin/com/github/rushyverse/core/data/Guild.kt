@@ -999,9 +999,7 @@ public class GuildCacheService(
      * @return Flow of all invitations.
      */
     private fun getAllInvitations(): Flow<GuildInvite> =
-        getAllAddedGuilds()
-            .map { getAllInvitations(it.id) }
-            .flattenMerge()
+        getAllAddedGuilds().flatMapMerge { getAllInvitations(it.id) }
 
     /**
      * Get all invitations of a guild.
