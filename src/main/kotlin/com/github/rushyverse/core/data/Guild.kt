@@ -240,6 +240,12 @@ public interface IGuildDatabaseService : IGuildService
 public interface IGuildCacheService : IGuildService {
 
     /**
+     * Merge all cache guilds data into the supplier.
+     * @param supplier Supplier to merge into.
+     */
+    public suspend fun merge(supplier: IDatabaseEntitySupplier)
+
+    /**
      * Add a guild with all the information.
      * @param guild Guild to add.
      * @return `true` if the guild was added, `false` if it was not imported.
@@ -475,8 +481,6 @@ public class GuildCacheService(
     prefixKey: String = "$prefixCommonKey%s:"
 ) : AbstractCacheService(client, prefixKey), IGuildCacheService {
 
-    // TODO : Function to remove all expired guild invitations from cache.
-
     private companion object {
         /**
          * Range of possible ID to generate new guild.
@@ -537,7 +541,7 @@ public class GuildCacheService(
         val mutex = Mutex()
 
         cacheClient.connect { connection ->
-            getAllInvitations()
+            getAddedInvitations()
                 .filter { it.isExpired() }
                 .collect {
                     if (removeInvitation(connection, it.guildId, it.entityId)) {
@@ -549,6 +553,33 @@ public class GuildCacheService(
         }
 
         return numberOfDeletions
+    }
+
+    override suspend fun merge(supplier: IDatabaseEntitySupplier) {
+        getRemovedGuilds().collect { supplier.deleteGuild(it) }
+
+        getAddedGuilds().collect {
+            val guild = if (isCacheGuild(it.id)) {
+                supplier.createGuild(it.name, it.ownerId)
+            } else {
+                val guildId = it.id
+                getRemovedMembers(guildId).collect { entity ->
+                    supplier.removeMember(guildId, entity)
+                }
+                getRemovedInvitation(guildId).collect { entity ->
+                    supplier.removeInvitation(guildId, entity)
+                }
+                it
+            }
+
+            val guildId = guild.id
+            getAddedMembers(guildId).collect { member ->
+                supplier.addMember(member.guildId, member.entityId)
+            }
+            getInvitations(guildId).collect { invitation ->
+                supplier.addInvitation(invitation.guildId, invitation.entityId, invitation.expiredAt)
+            }
+        }
     }
 
     override suspend fun createGuild(name: String, ownerId: String): Guild {
@@ -612,16 +643,23 @@ public class GuildCacheService(
 
     override fun getGuild(name: String): Flow<Guild> {
         requireGuildNameNotBlank(name)
-        return getAllAddedGuilds().filter { it.name == name }
+        return getAddedGuilds().filter { it.name == name }
     }
 
     /**
      * Get all added guilds.
      * @return Flow of all added guilds.
      */
-    private fun getAllAddedGuilds(): Flow<Guild> =
+    private fun getAddedGuilds(): Flow<Guild> =
         getAllKeyValues(wildcardAddGuildKey())
             .mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }
+
+    /**
+     * Get all removed guilds.
+     * @return Flow of all ids of removed guilds.
+     */
+    private fun getRemovedGuilds() = getAllValuesOfMap(removeGuildKey())
+        .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
 
     /**
      * Get all keys linked to the guild.
@@ -758,6 +796,25 @@ public class GuildCacheService(
                 }
             }
         }
+    }
+
+    /**
+     * Get all removed members for entities.
+     * @return Flow of entity ID of all removed members.
+     */
+    private fun getRemovedMembers(guildId: Int): Flow<String> {
+        return getAllValuesOfMap(removeMemberKey(guildId.toString()))
+            .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
+    }
+
+    /**
+     * Get all added members for entities.
+     * @param guildId Guild ID.
+     * @return Flow of all added members.
+     */
+    private fun getAddedMembers(guildId: Int): Flow<GuildMember> {
+        return getAllValuesOfMap(addMemberKey(guildId.toString()))
+            .mapNotNull { decodeFromByteArrayOrNull(GuildMember.serializer(), it) }
     }
 
     override suspend fun isMember(guildId: Int, entityId: String): Boolean {
@@ -940,6 +997,16 @@ public class GuildCacheService(
     }
 
     /**
+     * Get all removed invitations for entities.
+     * @param guildId ID of the guild.
+     * @return Flow of entities that have been removed of invitations.
+     */
+    private fun getRemovedInvitation(guildId: Int): Flow<String> {
+        return getAllValuesOfMap(removeInvitationKey(guildId.toString()))
+            .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
+    }
+
+    /**
      * Remove an entity of a map.
      * @param connection Redis connection.
      * @param key Key of the map.
@@ -989,7 +1056,7 @@ public class GuildCacheService(
     }
 
     override fun getInvitations(guildId: Int): Flow<GuildInvite> {
-        return getAllInvitations(guildId)
+        return getAddedInvitations(guildId)
             .filter { !it.isExpired() }
     }
 
@@ -998,8 +1065,8 @@ public class GuildCacheService(
      * Includes all invitations, expired or not.
      * @return Flow of all invitations.
      */
-    private fun getAllInvitations(): Flow<GuildInvite> =
-        getAllAddedGuilds().flatMapMerge { getAllInvitations(it.id) }
+    private fun getAddedInvitations(): Flow<GuildInvite> =
+        getAddedGuilds().flatMapMerge { getAddedInvitations(it.id) }
 
     /**
      * Get all invitations of a guild.
@@ -1007,7 +1074,7 @@ public class GuildCacheService(
      * @param guildId ID of the guild.
      * @return Flow of all invitations of the guild.
      */
-    private fun getAllInvitations(guildId: Int): Flow<GuildInvite> {
+    private fun getAddedInvitations(guildId: Int): Flow<GuildInvite> {
         return getAllValuesOfMap(addInvitationKey(guildId.toString()))
             .mapNotNull { decodeFromByteArrayOrNull(GuildInvite.serializer(), it) }
     }
@@ -1018,10 +1085,7 @@ public class GuildCacheService(
                 val guild = getGuild(it, guildId) ?: return@flow
                 emit(GuildMember(guild.id, guild.ownerId, guild.createdAt))
             }
-
-            getAllValuesOfMap(addMemberKey(guildId.toString()))
-                .mapNotNull { decodeFromByteArrayOrNull(GuildMember.serializer(), it) }
-                .let { emitAll(it) }
+            emitAll(getAddedMembers(guildId))
         }
     }
 

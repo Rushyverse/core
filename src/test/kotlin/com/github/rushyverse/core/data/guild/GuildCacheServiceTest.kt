@@ -3,11 +3,13 @@ package com.github.rushyverse.core.data.guild
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.*
+import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.FlushMode
 import io.lettuce.core.KeyScanArgs
 import io.lettuce.core.KeyValue
 import io.lettuce.core.RedisURI
+import io.mockk.mockk
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
@@ -72,6 +74,81 @@ class GuildCacheServiceTest {
             assertNull(service.expirationKey)
         }
 
+    }
+
+    @Nested
+    inner class Merge {
+
+        private lateinit var supplier: IDatabaseEntitySupplier
+
+        @BeforeTest
+        fun onBefore() {
+            supplier = mockk()
+        }
+
+        @Nested
+        inner class WithCacheGuild {
+
+            @Test
+            fun `should create guild`() = runTest {
+                TODO()
+            }
+
+            @Test
+            fun `should not remove member and invitation`() = runTest {
+                TODO()
+            }
+        }
+
+        @Nested
+        inner class WithImportedGuild {
+
+            @Test
+            fun `should not create guild`() = runTest {
+                TODO()
+            }
+
+            @Test
+            fun `should remove member and invitation`() = runTest {
+                TODO()
+            }
+
+            @Test
+            fun `should continue remove member if an exception occurred`() = runTest {
+                TODO()
+            }
+
+            @Test
+            fun `should continue remove invitation if an exception occurred`() = runTest {
+                TODO()
+            }
+
+            @Test
+            fun `should not import expired invitation`() = runTest {
+                TODO()
+            }
+
+        }
+
+        @Test
+        fun `should send nothing if no guilds`() = runTest {
+            service.merge(supplier)
+        }
+
+        @Test
+        fun `should add member and invitation`() = runTest {
+            TODO()
+        }
+
+        @Test
+        fun `should continue add member if an exception occurred`() = runTest {
+            TODO()
+        }
+
+        @Test
+        fun `should continue add invitation if an exception occurred`() = runTest {
+            TODO()
+        }
     }
 
     @Nested
