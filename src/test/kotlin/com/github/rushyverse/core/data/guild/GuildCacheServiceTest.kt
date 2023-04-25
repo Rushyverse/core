@@ -208,31 +208,34 @@ class GuildCacheServiceTest {
 
         @Test
         fun `should delete invitation for several guilds`() = runBlocking {
-//            val guild = service.createGuild(getRandomString(), getRandomString())
-//            val guild2 = service.createGuild(getRandomString(), getRandomString())
-//            val invitations1 = List(2) { getRandomString() }
-//            val invitations2 = List(2) { getRandomString() }
-//
-//            val seconds = 1L
-//            val expirationDate = Instant.now().plusSeconds(seconds)
-//
-//            invitations1.forEach {
-//                service.addInvitation(guild.id, it, expirationDate)
-//            }
-//
-//            invitations2.forEach {
-//                service.addInvitation(guild2.id, it, expirationDate)
-//            }
-//
-//            delay(seconds.seconds)
-//
-//            getAllInvites().forEach {
-//                println(it)
-//            }
-//            assertEquals(4, service.deleteExpiredInvitations())
-//
-//            val invites = getAllInvites()
-//            assertThat(invites).isEmpty()
+            val guild = Guild(0, getRandomString(), getRandomString())
+            service.addGuild(guild)
+
+            val guild2 = service.createGuild(getRandomString(), getRandomString())
+            val invitations1 = List(2) { getRandomString() }
+            val invitations2 = List(2) { getRandomString() }
+
+            val seconds = 1L
+            val expirationDate = Instant.now().plusSeconds(seconds)
+
+            invitations1.forEach {
+                service.addInvitation(guild.id, it, expirationDate)
+            }
+
+            invitations2.forEach {
+                service.addInvitation(guild2.id, it, expirationDate)
+            }
+
+            delay(seconds.seconds)
+            assertEquals(4, service.deleteExpiredInvitations())
+
+            assertThat(getAllAddedInvites(guild.id.toString())).isEmpty()
+            assertThat(getAllRemovedInvites(guild.id.toString())).containsExactlyInAnyOrderElementsOf(
+                invitations1
+            )
+
+            assertThat(getAllAddedInvites(guild2.id.toString())).isEmpty()
+            assertThat(getAllRemovedInvites(guild2.id.toString())).isEmpty()
         }
 
     }

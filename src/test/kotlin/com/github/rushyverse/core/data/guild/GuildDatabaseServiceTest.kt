@@ -156,9 +156,6 @@ class GuildDatabaseServiceTest {
 
             delay(seconds.seconds)
 
-            getAllInvites().forEach {
-                println(it)
-            }
             assertEquals(4, service.deleteExpiredInvitations())
 
             val invites = getAllInvites()
