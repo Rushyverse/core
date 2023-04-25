@@ -9,6 +9,8 @@ import io.lettuce.core.FlushMode
 import io.lettuce.core.KeyScanArgs
 import io.lettuce.core.KeyValue
 import io.lettuce.core.RedisURI
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -84,6 +86,13 @@ class GuildCacheServiceTest {
         @BeforeTest
         fun onBefore() {
             supplier = mockk()
+
+            var id = 0
+            coEvery { supplier.createGuild(any(), any()) } answers {
+                val name = arg<String>(0)
+                val ownerId = arg<String>(1)
+                Guild(id++, name, ownerId)
+            }
         }
 
         @Nested
@@ -91,12 +100,31 @@ class GuildCacheServiceTest {
 
             @Test
             fun `should create guild`() = runTest {
-                TODO()
+                val guilds = List(5) { service.createGuild(getRandomString(), getRandomString()) }
+
+                service.merge(supplier)
+
+                guilds.forEach { guild ->
+                    coVerify(exactly = 1) { supplier.createGuild(guild.name, guild.ownerId) }
+                }
             }
 
             @Test
             fun `should not remove member and invitation`() = runTest {
-                TODO()
+                val guild = service.createGuild(getRandomString(), getRandomString())
+
+                val memberId = getRandomString()
+                service.addMember(guild.id, memberId)
+
+                val invitedId = getRandomString()
+                service.addInvitation(guild.id, invitedId, null)
+
+                service.removeMember(guild.id, memberId)
+                service.removeInvitation(guild.id, invitedId)
+
+                service.merge(supplier)
+                coVerify(exactly = 0) { supplier.removeMember(any(), any()) }
+                coVerify(exactly = 0) { supplier.removeInvitation(any(), any()) }
             }
         }
 
@@ -105,49 +133,206 @@ class GuildCacheServiceTest {
 
             @Test
             fun `should not create guild`() = runTest {
-                TODO()
+                val guilds = List(5) { Guild(it, getRandomString(), getRandomString()) }
+                guilds.forEach { service.addGuild(it) }
+
+                service.merge(supplier)
+
+                guilds.forEach { guild ->
+                    coVerify(exactly = 0) { supplier.createGuild(guild.name, guild.ownerId) }
+                }
+            }
+
+            @Test
+            fun `should delete guild`() = runTest {
+                val guilds = List(5) { Guild(it, getRandomString(), getRandomString()) }
+                guilds.forEach { service.addGuild(it) }
+                guilds.take(3).forEach { service.deleteGuild(it.id) }
+
+                coEvery { supplier.deleteGuild(any()) } returns true
+                service.merge(supplier)
+
+                guilds.take(3).forEach { guild ->
+                    coVerify(exactly = 1) { supplier.deleteGuild(guild.id) }
+                }
+                guilds.drop(3).forEach { guild ->
+                    coVerify(exactly = 0) { supplier.deleteGuild(guild.id) }
+                }
+            }
+
+            @Test
+            fun `should not import expired invitation`() = runBlocking {
+                val guild = Guild(0, getRandomString(), getRandomString())
+                service.addGuild(guild)
+                val guildId = guild.id
+                val now = Instant.now()
+
+                val validInvitation = getRandomString()
+                val validExpiration = now.plusSeconds(10).truncatedTo(ChronoUnit.SECONDS)
+                service.addInvitation(guildId, validInvitation, validExpiration)
+
+                val expiredInvitation = getRandomString()
+                service.addInvitation(guildId, expiredInvitation, now.plusMillis(WAIT_EXPIRATION_MILLIS))
+
+                delay(WAIT_EXPIRATION_MILLIS)
+
+                coEvery { supplier.addInvitation(any(), any(), any()) } returns true
+                service.merge(supplier)
+
+                coVerify(exactly = 0) { supplier.addInvitation(guildId, expiredInvitation, any()) }
+                coVerify(exactly = 1) { supplier.addInvitation(guildId, validInvitation, validExpiration) }
+            }
+
+            @Test
+            fun `should add member and invitation`() = runTest {
+                val guild = Guild(0, getRandomString(), getRandomString())
+                val guildId = guild.id
+                service.addGuild(guild)
+
+                val size = 5
+                val memberIds = List(size) { getRandomString() }
+                memberIds.forEach { service.addMember(guildId, it) }
+
+                val invitedIds = List(size) { getRandomString() }
+                val expiration = Instant.now().plusSeconds(10).truncatedTo(ChronoUnit.MILLIS)
+                invitedIds.forEach { service.addInvitation(guildId, it, expiration) }
+
+                coEvery { supplier.addMember(any(), any()) } returns true
+                coEvery { supplier.addInvitation(any(), any(), any()) } returns true
+                service.merge(supplier)
+
+                memberIds.forEach { memberId ->
+                    coVerify(exactly = 1) { supplier.addMember(guildId, memberId) }
+                }
+                invitedIds.forEach { invitedId ->
+                    coVerify(exactly = 1) { supplier.addInvitation(guildId, invitedId, expiration) }
+                }
             }
 
             @Test
             fun `should remove member and invitation`() = runTest {
-                TODO()
+                val guild = Guild(0, getRandomString(), getRandomString())
+                val guildId = guild.id
+                service.addGuild(guild)
+
+                val size = 5
+                val memberIds = List(size) { getRandomString() }
+                memberIds.forEach { service.addMember(guildId, it) }
+
+                val invitedIds = List(size) { getRandomString() }
+                invitedIds.forEach { service.addInvitation(guildId, it, null) }
+
+                memberIds.forEach { service.removeMember(guildId, it) }
+                invitedIds.forEach { service.removeInvitation(guildId, it) }
+
+                coEvery { supplier.removeMember(any(), any()) } returns true
+                coEvery { supplier.removeInvitation(any(), any()) } returns true
+                service.merge(supplier)
+
+                memberIds.forEach { memberId ->
+                    coVerify(exactly = 1) { supplier.removeMember(guildId, memberId) }
+                }
+                invitedIds.forEach { invitedId ->
+                    coVerify(exactly = 1) { supplier.removeInvitation(guildId, invitedId) }
+                }
+            }
+
+            @Test
+            fun `should continue delete guild if an exception occurred`() = runTest {
+                val size = 3
+                val guild = List(size) { Guild(it, getRandomString(), getRandomString()) }
+                guild.forEach { service.addGuild(it) }
+
+                val toDelete = size-1
+                guild.take(toDelete).forEach { service.deleteGuild(it.id) }
+
+                coEvery { supplier.deleteGuild(any()) } throws Exception()
+                service.merge(supplier)
+
+                guild.take(toDelete).forEach { guild ->
+                    coVerify(exactly = 1) { supplier.deleteGuild(guild.id) }
+                }
+                guild.drop(toDelete).forEach { guild ->
+                    coVerify(exactly = 0) { supplier.deleteGuild(guild.id) }
+                }
             }
 
             @Test
             fun `should continue remove member if an exception occurred`() = runTest {
-                TODO()
+                val guild = Guild(0, getRandomString(), getRandomString())
+                service.addGuild(guild)
+
+                val size = 5
+                val memberIds = List(size) { getRandomString() }
+                memberIds.forEach { service.addMember(guild.id, it) }
+
+                memberIds.forEach { service.removeMember(guild.id, it) }
+
+                coEvery { supplier.removeMember(any(), any()) } throws Exception()
+                service.merge(supplier)
+
+                memberIds.forEach { memberId ->
+                    coVerify(exactly = 1) { supplier.removeMember(guild.id, memberId) }
+                }
             }
 
             @Test
             fun `should continue remove invitation if an exception occurred`() = runTest {
-                TODO()
+                val guild = Guild(0, getRandomString(), getRandomString())
+                service.addGuild(guild)
+
+                val size = 5
+                val inviteIds = List(size) { getRandomString() }
+                inviteIds.forEach { service.addInvitation(guild.id, it, null) }
+
+                inviteIds.forEach { service.removeInvitation(guild.id, it) }
+
+                coEvery { supplier.removeInvitation(any(), any()) } throws Exception()
+                service.merge(supplier)
+
+                inviteIds.forEach { memberId ->
+                    coVerify(exactly = 1) { supplier.removeInvitation(guild.id, memberId) }
+                }
             }
 
             @Test
-            fun `should not import expired invitation`() = runTest {
-                TODO()
+            fun `should continue add member if an exception occurred`() = runTest {
+                val guild = Guild(0, getRandomString(), getRandomString())
+                service.addGuild(guild)
+
+                val size = 5
+                val memberIds = List(size) { getRandomString() }
+                memberIds.forEach { service.addMember(guild.id, it) }
+
+                coEvery { supplier.addMember(any(), any()) } throws Exception()
+                service.merge(supplier)
+
+                memberIds.forEach { memberId ->
+                    coVerify(exactly = 1) { supplier.addMember(guild.id, memberId) }
+                }
             }
 
+            @Test
+            fun `should continue add invitation if an exception occurred`() = runTest {
+                val guild = Guild(0, getRandomString(), getRandomString())
+                service.addGuild(guild)
+
+                val size = 5
+                val ids = List(size) { getRandomString() }
+                ids.forEach { service.addInvitation(guild.id, it, null) }
+
+                coEvery { supplier.addInvitation(any(), any(), any()) } throws Exception()
+                service.merge(supplier)
+
+                ids.forEach { id ->
+                    coVerify(exactly = 1) { supplier.addInvitation(guild.id, id, null) }
+                }
+            }
         }
 
         @Test
         fun `should send nothing if no guilds`() = runTest {
             service.merge(supplier)
-        }
-
-        @Test
-        fun `should add member and invitation`() = runTest {
-            TODO()
-        }
-
-        @Test
-        fun `should continue add member if an exception occurred`() = runTest {
-            TODO()
-        }
-
-        @Test
-        fun `should continue add invitation if an exception occurred`() = runTest {
-            TODO()
         }
     }
 
