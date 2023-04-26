@@ -315,6 +315,25 @@ class DatabaseEntitySupplierTest {
     inner class GuildTest {
 
         @Nested
+        inner class DeleteExpiredInvitations {
+
+            @Test
+            fun `should delete in supplier`() = runTest {
+                coEvery { guildDatabaseService.deleteExpiredInvitations() } returns 0
+                databaseEntitySupplier.deleteExpiredInvitations()
+                coVerify(exactly = 1) { guildDatabaseService.deleteExpiredInvitations() }
+            }
+
+            @ParameterizedTest
+            @ValueSource(longs = [Long.MIN_VALUE, -10, 0, 1, 5, 42, Long.MAX_VALUE])
+            fun `should return the supplier result`(result: Long) = runTest {
+                coEvery { guildDatabaseService.deleteExpiredInvitations() } returns result
+                assertEquals(result, databaseEntitySupplier.deleteExpiredInvitations())
+            }
+
+        }
+
+        @Nested
         inner class CreateGuild {
 
             @Test
