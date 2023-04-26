@@ -273,6 +273,10 @@ public interface IGuildCacheService : IGuildService {
 
 }
 
+/**
+ * Service for managing guilds in database
+ * @property database Database to use.
+ */
 public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDatabaseService {
 
     public companion object {
@@ -576,11 +580,11 @@ public class GuildCacheService(
             }
 
             val guildId = guild.id
-            getAddedMembers(guildCacheId).safeCollect { member ->
-                supplier.addMember(guildId, member.entityId)
-            }
             getInvitations(guildCacheId).safeCollect { invitation ->
                 supplier.addInvitation(guildId, invitation.entityId, invitation.expiredAt)
+            }
+            getAddedMembers(guildCacheId).safeCollect { member ->
+                supplier.addMember(guildId, member.entityId)
             }
         }
     }
