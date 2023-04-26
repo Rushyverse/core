@@ -298,6 +298,26 @@ class DatabaseFallbackEntitySupplierTest {
     inner class GuildTest {
 
         @Nested
+        inner class DeleteExpiredInvitations {
+
+            @Test
+            fun `should invoke setPriority supplier first and not getPriority`() = runTest {
+                coEvery { setPrioritySupplier.deleteExpiredInvitations() } returns 0
+                fallbackEntitySupplier.deleteExpiredInvitations()
+                coVerify(exactly = 1) { setPrioritySupplier.deleteExpiredInvitations() }
+                coVerify(exactly = 0) { getPrioritySupplier.deleteExpiredInvitations() }
+            }
+
+            @ParameterizedTest
+            @ValueSource(longs = [Long.MIN_VALUE, -10, 0, 1, 5, 42, Long.MAX_VALUE])
+            fun `should return the supplier result`(result: Long) = runTest {
+                coEvery { setPrioritySupplier.deleteExpiredInvitations() } returns result
+                assertEquals(result, fallbackEntitySupplier.deleteExpiredInvitations())
+            }
+
+        }
+
+        @Nested
         inner class CreateGuild {
 
             @Test

@@ -387,6 +387,25 @@ class DatabaseCacheEntitySupplierTest {
     inner class GuildTest {
 
         @Nested
+        inner class DeleteExpiredInvitations {
+
+            @Test
+            fun `should delete in supplier`() = runTest {
+                coEvery { guildCacheService.deleteExpiredInvitations() } returns 0
+                cacheEntitySupplier.deleteExpiredInvitations()
+                coVerify(exactly = 1) { guildCacheService.deleteExpiredInvitations() }
+            }
+
+            @ParameterizedTest
+            @ValueSource(longs = [Long.MIN_VALUE, -10, 0, 1, 5, 42, Long.MAX_VALUE])
+            fun `should return the supplier result`(result: Long) = runTest {
+                coEvery { guildCacheService.deleteExpiredInvitations() } returns result
+                assertEquals(result, cacheEntitySupplier.deleteExpiredInvitations())
+            }
+
+        }
+
+        @Nested
         inner class CreateGuild {
 
             @Test

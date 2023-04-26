@@ -340,6 +340,28 @@ class DatabaseStoreEntitySupplierTest {
     inner class GuildTest {
 
         @Nested
+        inner class DeleteExpiredInvitations {
+
+            @Test
+            fun `should delete in supplier and cache`() = runTest {
+                coEvery { cache.deleteExpiredInvitations() } returns 0
+                coEvery { supplier.deleteExpiredInvitations() } returns 0
+                entitySupplier.deleteExpiredInvitations()
+                coVerify(exactly = 1) { supplier.deleteExpiredInvitations() }
+                coVerify(exactly = 1) { cache.deleteExpiredInvitations() }
+            }
+
+            @Test
+            fun `should return addition of both`() = runTest {
+                val cacheResult = Random.nextLong()
+                val supplierResult = Random.nextLong()
+                coEvery { cache.deleteExpiredInvitations() } returns cacheResult
+                coEvery { supplier.deleteExpiredInvitations() } returns supplierResult
+                assertEquals(cacheResult + supplierResult, entitySupplier.deleteExpiredInvitations())
+            }
+        }
+
+        @Nested
         inner class CreateGuild {
 
             @ParameterizedTest
