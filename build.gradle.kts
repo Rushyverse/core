@@ -20,7 +20,7 @@ dependencies {
     val loggingVersion = "3.0.5"
     val mockkVersion = "1.13.5"
     val junitVersion = "5.9.3"
-    val testContainersVersion = "1.18.0"
+    val testContainersVersion = "1.18.1"
     val lettuceVersion = "6.2.3.RELEASE"
     val kotlinMojangApi = "2.2.0"
     val nettyCodecVersion = "4.1.92.Final"
