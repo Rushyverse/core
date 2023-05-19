@@ -29,6 +29,8 @@ import kotlinx.serialization.protobuf.ProtoBuf
 import mu.KotlinLogging
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
@@ -112,8 +114,21 @@ public class CacheClient(
      * @param body Function using the connection.
      * @return An instance from [body].
      */
-    public suspend inline fun <T> connect(body: (RedisCoroutinesCommands<ByteArray, ByteArray>) -> T): T {
-        return connectionManager.poolStateful.acquire { body(it.coroutines()) }
+    public suspend inline fun <T> connect(crossinline body: suspend (RedisCoroutinesCommands<ByteArray, ByteArray>) -> T): T {
+        contract {
+            callsInPlace(body, InvocationKind.EXACTLY_ONCE)
+        }
+
+        val currentContext = currentCoroutineContext()
+        val connection = currentContext[RedisConnection]
+        if (connection != null) return body(connection.connection)
+
+        return connectionManager.poolStateful.acquire {
+            val newConnection = it.coroutines()
+            withContext(currentContext + RedisConnection(newConnection)) {
+                body(newConnection)
+            }
+        }
     }
 
     /**

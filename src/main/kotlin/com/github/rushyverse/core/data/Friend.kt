@@ -337,13 +337,13 @@ public class FriendCacheService(
         )
     }
 
-    override fun getAll(uuid: UUID, type: Type): Flow<UUID> = flow {
+    override fun getAll(uuid: UUID, type: Type): Flow<UUID> = channelFlow {
         val key = encodeFormatKey(type.key, uuid.toString())
 
         cacheClient.connect { connection ->
             connection.smembers(key)
                 .mapNotNull { decodeFromByteArrayOrNull(UUIDSerializer, it) }
-                .let { emitAll(it) }
+                .collect { send(it) }
         }
     }
 
@@ -467,14 +467,14 @@ public class FriendCacheService(
         list: Type,
         added: Type,
         removed: Type
-    ): Flow<UUID> = flow {
+    ): Flow<UUID> = channelFlow {
         val removedFriend = getAll(uuid, removed).toSet()
 
         listOf(getAll(uuid, list), getAll(uuid, added))
             .merge()
             .distinctUntilChanged()
             .filter { it !in removedFriend }
-            .let { emitAll(it) }
+            .collect { send(it) }
     }
 
     /**
