@@ -1,8 +1,12 @@
 package com.github.rushyverse.core.supplier.database
 
+import com.github.rushyverse.core.data.Guild
+import com.github.rushyverse.core.data.GuildInvite
+import com.github.rushyverse.core.data.GuildMember
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.onEmpty
+import java.time.Instant
 import java.util.*
 
 /**
@@ -57,5 +61,67 @@ public class DatabaseFallbackEntitySupplier(
 
     override suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean {
         return getPriority.isPendingFriend(uuid, friend) || setPriority.isPendingFriend(uuid, friend)
+    }
+
+    override suspend fun deleteExpiredInvitations(): Long {
+        return setPriority.deleteExpiredInvitations()
+    }
+
+    override suspend fun createGuild(name: String, ownerId: String): Guild {
+        return setPriority.createGuild(name, ownerId)
+    }
+
+    override suspend fun deleteGuild(id: Int): Boolean {
+        return setPriority.deleteGuild(id)
+    }
+
+    override suspend fun getGuild(id: Int): Guild? {
+        return getPriority.getGuild(id) ?: setPriority.getGuild(id)
+    }
+
+    override fun getGuild(name: String): Flow<Guild> {
+        return getPriority.getGuild(name).onEmpty {
+            emitAll(setPriority.getGuild(name))
+        }
+    }
+
+    override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
+        return getPriority.isOwner(guildId, entityId) || setPriority.isOwner(guildId, entityId)
+    }
+
+    override suspend fun isMember(guildId: Int, entityId: String): Boolean {
+        return getPriority.isMember(guildId, entityId) || setPriority.isMember(guildId, entityId)
+    }
+
+    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+        return getPriority.hasInvitation(guildId, entityId) || setPriority.hasInvitation(guildId, entityId)
+    }
+
+    override suspend fun addMember(guildId: Int, entityId: String): Boolean {
+        return setPriority.addMember(guildId, entityId)
+    }
+
+    override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
+        return setPriority.addInvitation(guildId, entityId, expiredAt)
+    }
+
+    override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
+        return setPriority.removeMember(guildId, entityId)
+    }
+
+    override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
+        return setPriority.removeInvitation(guildId, entityId)
+    }
+
+    override fun getMembers(guildId: Int): Flow<GuildMember> {
+        return getPriority.getMembers(guildId).onEmpty {
+            emitAll(setPriority.getMembers(guildId))
+        }
+    }
+
+    override fun getInvitations(guildId: Int): Flow<GuildInvite> {
+        return getPriority.getInvitations(guildId).onEmpty {
+            emitAll(setPriority.getInvitations(guildId))
+        }
     }
 }

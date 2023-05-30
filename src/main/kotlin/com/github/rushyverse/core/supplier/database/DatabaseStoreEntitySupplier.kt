@@ -1,7 +1,16 @@
 package com.github.rushyverse.core.supplier.database
 
+import com.github.rushyverse.core.data.Guild
+import com.github.rushyverse.core.data.GuildInvite
+import com.github.rushyverse.core.data.GuildMember
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
+import mu.KotlinLogging
+import java.time.Instant
 import java.util.*
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * [IDatabaseEntitySupplier] that delegates to another [IDatabaseEntitySupplier] to resolve entities.
@@ -73,5 +82,103 @@ public class DatabaseStoreEntitySupplier(
 
     override suspend fun isPendingFriend(uuid: UUID, friend: UUID): Boolean {
         return supplier.isPendingFriend(uuid, friend)
+    }
+
+    override suspend fun deleteExpiredInvitations(): Long = coroutineScope {
+        val supplierDeletedDeferred = async { supplier.deleteExpiredInvitations() }
+        val cacheDeleted = cache.deleteExpiredInvitations()
+        supplierDeletedDeferred.await().plus(cacheDeleted)
+    }
+
+    override suspend fun createGuild(name: String, ownerId: String): Guild {
+        return supplier.createGuild(name, ownerId).also {
+            importCatchFailure(it, cache::addGuild)
+        }
+    }
+
+    override suspend fun deleteGuild(id: Int): Boolean = coroutineScope {
+        val supplierDeletedDeferred = async { supplier.deleteGuild(id) }
+        val cacheDeleted = cache.deleteGuild(id)
+        supplierDeletedDeferred.await() || cacheDeleted
+    }
+
+    override suspend fun getGuild(id: Int): Guild? {
+        return supplier.getGuild(id)?.also {
+            importCatchFailure(it, cache::addGuild)
+        }
+    }
+
+    override fun getGuild(name: String): Flow<Guild> {
+        return supplier.getGuild(name).onEach {
+            importCatchFailure(it, cache::addGuild)
+        }
+    }
+
+    override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
+        return supplier.isOwner(guildId, entityId)
+    }
+
+    override suspend fun isMember(guildId: Int, entityId: String): Boolean {
+        return supplier.isMember(guildId, entityId)
+    }
+
+    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+        return supplier.hasInvitation(guildId, entityId)
+    }
+
+    override suspend fun addMember(guildId: Int, entityId: String): Boolean {
+        return supplier.addMember(guildId, entityId).also {
+            if (it) {
+                cache.addMember(guildId, entityId)
+            }
+        }
+    }
+
+    override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
+        return supplier.addInvitation(guildId, entityId, expiredAt).also {
+            if (it) {
+                cache.addInvitation(guildId, entityId, expiredAt)
+            }
+        }
+    }
+
+    override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
+        return supplier.removeMember(guildId, entityId).also {
+            if (it) {
+                cache.removeMember(guildId, entityId)
+            }
+        }
+    }
+
+    override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
+        return supplier.removeInvitation(guildId, entityId).also {
+            if (it) {
+                cache.removeInvitation(guildId, entityId)
+            }
+        }
+    }
+
+    override fun getMembers(guildId: Int): Flow<GuildMember> = supplier.getMembers(guildId)
+        .onEach {
+            importCatchFailure(it, cache::addMember)
+        }
+
+    override fun getInvitations(guildId: Int): Flow<GuildInvite> = supplier.getInvitations(guildId)
+        .onEach {
+            importCatchFailure(it, cache::addInvitation)
+        }
+
+    /**
+     * Calls the [action] with the [value] and catches any [Exception] that may occur.
+     * If an exception occurs, it will be logged.
+     * @param value Value to pass to the [action] and may be used in the log message.
+     * @param action Action to perform with the [value].
+     */
+    private suspend inline fun <T> importCatchFailure(value: T, action: suspend (T) -> Unit) {
+        try {
+            action(value)
+        } catch (e: Exception) {
+            logger.error(e) { "Error during import of the value $value into the cache." }
+        }
     }
 }

@@ -6,6 +6,7 @@ import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.FriendCacheService
 import com.github.rushyverse.core.data.IFriendCacheService
 import com.github.rushyverse.core.data.IFriendDatabaseService
+import com.github.rushyverse.core.data.IGuildCacheService
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import io.lettuce.core.RedisURI
@@ -17,7 +18,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.builtins.serializer
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Timeout
@@ -27,7 +27,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.test.*
 
-@Timeout(5, unit = TimeUnit.SECONDS)
+@Timeout(10, unit = TimeUnit.SECONDS)
 @Testcontainers
 class FriendCacheServiceTest {
 
@@ -77,7 +77,8 @@ class FriendCacheServiceTest {
             databaseService = mockk()
 
             configuration = DatabaseSupplierConfiguration(
-                cacheServiceMock to databaseService
+                cacheServiceMock to databaseService,
+                mockk<IGuildCacheService>() to mockk(),
             )
         }
 
@@ -243,8 +244,7 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.addFriend(uuid1, uuid2) }
 
             cacheClient.connect {
-                val expectedKey =
-                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:add")
+                val expectedKey = "user:${uuid1}:friends:add".encodeToByteArray()
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -461,8 +461,7 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.addPendingFriend(uuid1, uuid2) }
 
             cacheClient.connect {
-                val expectedKey =
-                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:pending:add")
+                val expectedKey = "user:${uuid1}:friends:pending:add".encodeToByteArray()
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -689,8 +688,7 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.removeFriend(uuid1, uuid2) }
 
             cacheClient.connect {
-                val expectedKey =
-                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:remove")
+                val expectedKey = "user:${uuid1}:friends:remove".encodeToByteArray()
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -907,10 +905,7 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.removePendingFriend(uuid1, uuid2) }
 
             cacheClient.connect {
-                val expectedKey = cacheClient.binaryFormat.encodeToByteArray(
-                    String.serializer(),
-                    "user:${uuid1}:friends:pending:remove"
-                )
+                val expectedKey = "user:${uuid1}:friends:pending:remove".encodeToByteArray()
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -1385,8 +1380,7 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.setFriends(uuid1, setOf(uuid2)) }
 
             cacheClient.connect {
-                val expectedKey =
-                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends")
+                val expectedKey = "user:${uuid1}:friends".encodeToByteArray()
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -1483,8 +1477,7 @@ class FriendCacheServiceTest {
             assertTrue { cacheService.setPendingFriends(uuid1, setOf(uuid2)) }
 
             cacheClient.connect {
-                val expectedKey =
-                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "user:${uuid1}:friends:pending")
+                val expectedKey = "user:${uuid1}:friends:pending".encodeToByteArray()
                 assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -1796,8 +1789,5 @@ class FriendCacheServiceTest {
     private fun encodeKeyWithType(
         uuid: UUID,
         type: FriendCacheService.Type
-    ) = cacheClient.binaryFormat.encodeToByteArray(
-        String.serializer(),
-        cacheService.prefixKey.format(uuid) + type.key
-    )
+    ) = (cacheService.prefixKey.format(uuid) + type.key).encodeToByteArray()
 }

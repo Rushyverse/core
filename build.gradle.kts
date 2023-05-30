@@ -71,6 +71,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params:$junitVersion")
     testImplementation("org.testcontainers:junit-jupiter:$testContainersVersion")
     testImplementation("org.testcontainers:postgresql:$testContainersVersion")
+    testImplementation("org.komapper:komapper-dialect-postgresql-jdbc")
 }
 
 kotlin {
