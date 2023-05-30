@@ -19,7 +19,8 @@ public interface RedisConnection : CoroutineContext.Element {
 /**
  * Implementation of [RedisConnection].
  */
-internal class RedisConnectionImpl(override val connection: RedisCoroutinesCommands<ByteArray, ByteArray>) : RedisConnection {
+internal class RedisConnectionImpl(override val connection: RedisCoroutinesCommands<ByteArray, ByteArray>) :
+    RedisConnection {
 
     override val key: CoroutineContext.Key<RedisConnection>
         get() = RedisConnection
