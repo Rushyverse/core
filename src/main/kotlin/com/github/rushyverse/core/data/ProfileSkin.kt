@@ -44,13 +44,13 @@ public class ProfileSkinCacheService(
 ) : AbstractCacheService(client, prefixKey, expirationKey), IProfileSkinCacheService {
 
     override suspend fun getSkinById(id: String): ProfileSkin? {
-        val key = encodeKey(id)
+        val key = encodeKeyWithPrefix(id)
         val dataSerial = cacheClient.connect { it.get(key) } ?: return null
         return decodeFromByteArrayOrNull(ProfileSkin.serializer(), dataSerial)
     }
 
     override suspend fun save(profile: ProfileSkin) {
-        val key = encodeKey(profile.id)
+        val key = encodeKeyWithPrefix(profile.id)
         val value = encodeToByteArray(ProfileSkin.serializer(), profile)
         cacheClient.connect {
             setWithExpiration(it, key, value)

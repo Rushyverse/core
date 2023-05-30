@@ -114,8 +114,7 @@ class ProfileSkinCacheServiceTest {
             service.save(profile)
 
             cacheClient.connect {
-                val expectedKey =
-                    cacheClient.binaryFormat.encodeToByteArray(String.serializer(), "${service.prefixKey}$key")
+                val expectedKey = "${service.prefixKey}$key".encodeToByteArray()
                 Assertions.assertThat(it.keys(expectedKey).toList()).hasSize(1)
             }
         }
@@ -144,12 +143,12 @@ class ProfileSkinCacheServiceTest {
         }
 
         @Test
-        fun `data is saved using the binary format from client`(): Unit = runTest {
+        fun `data is saved using the human readable format from client`(): Unit = runTest {
             val profile = createProfileSkin()
             val key = profile.id
             service.save(profile)
 
-            val keySerial = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), service.prefixKey + key)
+            val keySerial = (service.prefixKey + key).encodeToByteArray()
 
             val value = cacheClient.connect {
                 it.get(keySerial)

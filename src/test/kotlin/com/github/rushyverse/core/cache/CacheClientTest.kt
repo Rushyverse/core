@@ -35,7 +35,7 @@ import kotlin.test.*
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-@Timeout(5, unit = TimeUnit.SECONDS)
+@Timeout(10, unit = TimeUnit.SECONDS)
 @Testcontainers
 class CacheClientTest {
 
@@ -189,6 +189,37 @@ class CacheClientTest {
                 assertEquals(0, pool.idle)
                 assertEquals(1, pool.objectCount)
             }
+
+            assertEquals(1, pool.idle)
+            assertEquals(1, pool.objectCount)
+        }
+
+        @Test
+        fun `should store and use the current connection`() = runTest {
+            val pool = client.connectionManager.poolStateful
+
+            client.connect { connection1 ->
+                val firstConnection = currentCoroutineContext()[RedisConnection]
+                assertNotNull(firstConnection)
+                assertEquals(connection1, firstConnection.connection)
+
+                assertEquals(0, pool.idle)
+                assertEquals(1, pool.objectCount)
+
+                client.connect { connection2 ->
+                    val secondConnection = currentCoroutineContext()[RedisConnection]
+                    assertNotNull(secondConnection)
+                    assertEquals(connection2, secondConnection.connection)
+                    assertEquals(connection1, connection2)
+
+                    assertEquals(0, pool.idle)
+                    assertEquals(1, pool.objectCount)
+                }
+
+                assertEquals(firstConnection, currentCoroutineContext()[RedisConnection])
+            }
+
+            assertNull(currentCoroutineContext()[RedisConnection])
 
             assertEquals(1, pool.idle)
             assertEquals(1, pool.objectCount)

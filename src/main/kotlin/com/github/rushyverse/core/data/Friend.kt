@@ -337,13 +337,13 @@ public class FriendCacheService(
         )
     }
 
-    override fun getAll(uuid: UUID, type: Type): Flow<UUID> = flow {
-        val key = encodeFormatKey(type.key, uuid.toString())
+    override fun getAll(uuid: UUID, type: Type): Flow<UUID> = channelFlow {
+        val key = encodeFormattedKeyWithPrefix(type.key, uuid.toString())
 
         cacheClient.connect { connection ->
             connection.smembers(key)
                 .mapNotNull { decodeFromByteArrayOrNull(UUIDSerializer, it) }
-                .let { emitAll(it) }
+                .collect { send(it) }
         }
     }
 
@@ -405,7 +405,7 @@ public class FriendCacheService(
         friend: UUID,
         type: Type
     ): Boolean {
-        val key = encodeFormatKey(type.key, uuid.toString())
+        val key = encodeFormattedKeyWithPrefix(type.key, uuid.toString())
         val value = encodeToByteArray(UUIDSerializer, friend)
         return connection.sismember(key, value) == true
     }
@@ -427,7 +427,7 @@ public class FriendCacheService(
         if (friends.isEmpty()) return true
 
         val size = friends.size
-        val key = encodeFormatKey(type.key, uuid.toString())
+        val key = encodeFormattedKeyWithPrefix(type.key, uuid.toString())
         val friendsSerialized = friends.asSequence().map { encodeToByteArray(UUIDSerializer, it) }.toTypedArray(size)
 
         val result = connection.sadd(key, *friendsSerialized)
@@ -448,7 +448,7 @@ public class FriendCacheService(
         friend: UUID,
         type: Type
     ): Boolean {
-        val key = encodeFormatKey(type.key, uuid.toString())
+        val key = encodeFormattedKeyWithPrefix(type.key, uuid.toString())
         val value = encodeToByteArray(UUIDSerializer, friend)
         val result = connection.srem(key, value)
         return result != null && result > 0
@@ -467,14 +467,14 @@ public class FriendCacheService(
         list: Type,
         added: Type,
         removed: Type
-    ): Flow<UUID> = flow {
+    ): Flow<UUID> = channelFlow {
         val removedFriend = getAll(uuid, removed).toSet()
 
         listOf(getAll(uuid, list), getAll(uuid, added))
             .merge()
             .distinctUntilChanged()
             .filter { it !in removedFriend }
-            .let { emitAll(it) }
+            .collect { send(it) }
     }
 
     /**
@@ -490,7 +490,7 @@ public class FriendCacheService(
         type: Type
     ): Boolean {
         return cacheClient.connect {
-            it.del(encodeFormatKey(type.key, uuid.toString()))
+            it.del(encodeFormattedKeyWithPrefix(type.key, uuid.toString()))
             add(it, uuid, friends, type)
         }
     }
