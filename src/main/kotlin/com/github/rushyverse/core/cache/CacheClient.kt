@@ -114,11 +114,21 @@ public class CacheClient(
      * @param body Function using the connection.
      * @return An instance from [body].
      */
-    public suspend inline fun <T> connect(body: (RedisCoroutinesCommands<ByteArray, ByteArray>) -> T): T {
+    public suspend inline fun <T> connect(crossinline body: suspend (RedisCoroutinesCommands<ByteArray, ByteArray>) -> T): T {
         contract {
             callsInPlace(body, InvocationKind.EXACTLY_ONCE)
         }
-        return connectionManager.poolStateful.acquire { body(it.coroutines()) }
+
+        val currentContext = currentCoroutineContext()
+        val connection = currentContext[RedisConnection]
+        if (connection != null) return body(connection.connection)
+
+        return connectionManager.poolStateful.acquire {
+            val newConnection = it.coroutines()
+            withContext(currentContext + RedisConnection(newConnection)) {
+                body(newConnection)
+            }
+        }
     }
 
     /**

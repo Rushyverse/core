@@ -195,6 +195,37 @@ class CacheClientTest {
         }
 
         @Test
+        fun `should store and use the current connection`() = runTest {
+            val pool = client.connectionManager.poolStateful
+
+            client.connect { connection1 ->
+                val firstConnection = currentCoroutineContext()[RedisConnection]
+                assertNotNull(firstConnection)
+                assertEquals(connection1, firstConnection.connection)
+
+                assertEquals(0, pool.idle)
+                assertEquals(1, pool.objectCount)
+
+                client.connect { connection2 ->
+                    val secondConnection = currentCoroutineContext()[RedisConnection]
+                    assertNotNull(secondConnection)
+                    assertEquals(connection2, secondConnection.connection)
+                    assertEquals(connection1, connection2)
+
+                    assertEquals(0, pool.idle)
+                    assertEquals(1, pool.objectCount)
+                }
+
+                assertEquals(firstConnection, currentCoroutineContext()[RedisConnection])
+            }
+
+            assertNull(currentCoroutineContext()[RedisConnection])
+
+            assertEquals(1, pool.idle)
+            assertEquals(1, pool.objectCount)
+        }
+
+        @Test
         fun `should return result in body`() = runTest {
             val expected = getRandomString()
             val value = client.connect { expected }
