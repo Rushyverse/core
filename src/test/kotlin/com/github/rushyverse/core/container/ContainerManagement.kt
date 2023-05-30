@@ -2,7 +2,7 @@ package com.github.rushyverse.core.container
 
 import org.testcontainers.containers.PostgreSQLContainer
 
-fun createPSQLContainer(): PostgreSQLContainer<*> = PostgreSQLContainer("postgres:alpine")
+fun createPSQLContainer(): PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15.2")
     .withDatabaseName("db")
     .withUsername("test")
     .withPassword("test")
