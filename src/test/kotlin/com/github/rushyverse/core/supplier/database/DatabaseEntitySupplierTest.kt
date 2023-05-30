@@ -149,7 +149,12 @@ class DatabaseEntitySupplierTest {
                 val slotUuid1 = slot<UUID>()
                 val slotUuid2 = slot<UUID>()
 
-                coEvery { friendDatabaseService.removePendingFriend(capture(slotUuid1), capture(slotUuid2)) } returns true
+                coEvery {
+                    friendDatabaseService.removePendingFriend(
+                        capture(slotUuid1),
+                        capture(slotUuid2)
+                    )
+                } returns true
 
                 val uuid1 = UUID.randomUUID()
                 val uuid2 = UUID.randomUUID()
@@ -557,7 +562,13 @@ class DatabaseEntitySupplierTest {
                 val slot2 = slot<String>()
                 val slot3 = slot<Instant>()
 
-                coEvery { guildDatabaseService.addInvitation(capture(slot1), capture(slot2), capture(slot3)) } returns true
+                coEvery {
+                    guildDatabaseService.addInvitation(
+                        capture(slot1),
+                        capture(slot2),
+                        capture(slot3)
+                    )
+                } returns true
 
                 val guildId = Random.nextInt()
                 val entityId = getRandomString()

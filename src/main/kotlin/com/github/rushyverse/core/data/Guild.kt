@@ -665,11 +665,11 @@ public class GuildCacheService(
      * Get all removed guilds.
      * @return Flow of all ids of removed guilds.
      */
-    private fun getRemovedGuilds() = flow {
+    private fun getRemovedGuilds(): Flow<Int> = channelFlow {
         cacheClient.connect { connection ->
             connection.smembers(removeGuildKey())
                 .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
-                .let { emitAll(it) }
+                .collect { send(it) }
         }
     }
 
@@ -1093,12 +1093,16 @@ public class GuildCacheService(
     }
 
     override fun getMembers(guildId: Int): Flow<GuildMember> {
-        return flow {
-            cacheClient.connect {
-                val guild = getGuild(it, guildId) ?: return@flow
-                emit(GuildMember(guild.id, guild.ownerId, guild.createdAt))
+        return channelFlow {
+            val guildExists = cacheClient.connect {
+                val guild = getGuild(it, guildId) ?: return@connect false
+                send(GuildMember(guild.id, guild.ownerId, guild.createdAt))
+                true
             }
-            emitAll(getAddedMembers(guildId))
+
+            if (guildExists) {
+                getAddedMembers(guildId).collect { send(it) }
+            }
         }
     }
 
@@ -1107,9 +1111,9 @@ public class GuildCacheService(
      * @param key Key of the map.
      * @return Flow of all values of the map.
      */
-    private fun getAllValuesOfMap(key: ByteArray): Flow<ByteArray> = flow {
+    private fun getAllValuesOfMap(key: ByteArray): Flow<ByteArray> = channelFlow {
         cacheClient.connect { connection ->
-            connection.hvals(key).filterNotNull().let { emitAll(it) }
+            connection.hvals(key).filterNotNull().collect { send(it) }
         }
     }
 
@@ -1118,9 +1122,9 @@ public class GuildCacheService(
      * @param key Key of the set.
      * @return Flow of all values of the set.
      */
-    private fun getAllValuesOfSet(key: ByteArray): Flow<ByteArray> = flow {
+    private fun getAllValuesOfSet(key: ByteArray): Flow<ByteArray> = channelFlow {
         cacheClient.connect {
-            emitAll(it.smembers(key))
+            it.smembers(key).collect { value -> send(value) }
         }
     }
 

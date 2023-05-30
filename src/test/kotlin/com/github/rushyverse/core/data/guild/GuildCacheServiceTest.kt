@@ -13,10 +13,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -243,7 +240,7 @@ class GuildCacheServiceTest {
                 val guild = List(size) { Guild(it, getRandomString(), getRandomString()) }
                 guild.forEach { service.addGuild(it) }
 
-                val toDelete = size-1
+                val toDelete = size - 1
                 guild.take(toDelete).forEach { service.deleteGuild(it.id) }
 
                 coEvery { supplier.deleteGuild(any()) } throws Exception()
@@ -2356,13 +2353,17 @@ class GuildCacheServiceTest {
             }.toList()
     }
 
-    private suspend fun getAllMapValues(
+    private fun getAllMapValues(
         type: GuildCacheService.Type,
         guildId: String
     ): Flow<KeyValue<ByteArray, ByteArray>> {
-        return cacheClient.connect {
-            val searchKey = service.prefixKey.format(guildId) + type.key
-            it.hgetall(searchKey.encodeToByteArray())
+        return channelFlow {
+            cacheClient.connect {
+                val searchKey = service.prefixKey.format(guildId) + type.key
+                it.hgetall(searchKey.encodeToByteArray()).collect { value ->
+                    send(value)
+                }
+            }
         }
     }
 
@@ -2399,7 +2400,7 @@ class GuildCacheServiceTest {
         val searchKey = (service.prefixKey + type.key).format(*format)
         return cacheClient.connect {
             val scanner = it.scan(KeyScanArgs.Builder.limit(Long.MAX_VALUE).match(searchKey))
-            if (scanner == null || scanner.keys.isEmpty()) return emptyList()
+            if (scanner == null || scanner.keys.isEmpty()) return@connect emptyList()
 
             it.mget(*scanner.keys.toTypedArray())
                 .filter { keyValue -> keyValue.hasValue() }

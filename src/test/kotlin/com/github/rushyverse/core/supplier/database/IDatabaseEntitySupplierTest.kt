@@ -15,7 +15,7 @@ class IDatabaseEntitySupplierTest {
         val configuration = DatabaseSupplierConfiguration(
             mockk<IFriendCacheService>() to service,
             mockk<IGuildCacheService>() to mockk(),
-            )
+        )
         val supplier = IDatabaseEntitySupplier.database(configuration)
         assertEquals(DatabaseEntitySupplier::class, supplier::class)
     }

@@ -4,8 +4,7 @@ import io.lettuce.core.KeyScanArgs
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerializationStrategy
@@ -130,14 +129,14 @@ public abstract class AbstractCacheService(
     protected inline fun <T> scanKeys(
         pattern: String,
         crossinline builder: (RedisCoroutinesCommands<ByteArray, ByteArray>, List<ByteArray>) -> Flow<T>
-    ): Flow<T> = flow {
+    ): Flow<T> = channelFlow {
         val scanArgs = KeyScanArgs.Builder.matches(pattern)
         cacheClient.connect { connection ->
             var cursor = connection.scan(scanArgs)
             while (cursor != null && currentCoroutineContext().isActive) {
                 val keys = cursor.keys
                 if (keys.isNotEmpty()) {
-                    emitAll(builder(connection, keys))
+                    builder(connection, keys).collect { send(it) }
                 }
                 if (cursor.isFinished) break
 
