@@ -10,8 +10,14 @@ import kotlin.coroutines.CoroutineContext
  */
 public interface RedisConnection : CoroutineContext.Element {
 
+    /**
+     * Key of the coroutine element.
+     */
     public companion object Key : CoroutineContext.Key<RedisConnection>
 
+    /**
+     * Redis connection stored in the coroutine context.
+     */
     public val connection: RedisCoroutinesCommands<ByteArray, ByteArray>
 
 }

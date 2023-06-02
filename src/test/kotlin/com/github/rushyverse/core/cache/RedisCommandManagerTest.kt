@@ -73,7 +73,7 @@ class RedisCommandManagerTest {
         }
 
         @AfterTest
-        fun onAfter(): Unit = runBlocking {
+        fun onAfter() = runBlocking<Unit> {
             connectionManager.closeAsync().await()
         }
 
@@ -141,7 +141,7 @@ class RedisCommandManagerTest {
         }
 
         @AfterTest
-        fun onAfter(): Unit = runBlocking {
+        fun onAfter() = runBlocking<Unit> {
             connectionManager.closeAsync().await()
         }
 
@@ -209,7 +209,7 @@ class RedisCommandManagerTest {
         }
 
         @AfterTest
-        fun onAfter(): Unit = runBlocking {
+        fun onAfter() = runBlocking<Unit> {
             connectionManager.closeAsync().await()
         }
 
@@ -246,7 +246,7 @@ class RedisCommandManagerTest {
         }
 
         @AfterTest
-        fun onAfter(): Unit = runBlocking {
+        fun onAfter() = runBlocking<Unit> {
             connectionManager.closeAsync().await()
         }
 

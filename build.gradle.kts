@@ -7,6 +7,11 @@ plugins {
     id("com.google.devtools.ksp") version "1.8.21-1.0.11"
     `java-library`
     `maven-publish`
+    id("io.gitlab.arturbosch.detekt") version "1.23.0-RC3"
+}
+
+detekt {
+    config.from(file("config/detekt/detekt.yml"))
 }
 
 repositories {
@@ -75,7 +80,7 @@ dependencies {
 }
 
 kotlin {
-     explicitApi = org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode.Strict
+    explicitApi = org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode.Strict
 
     sourceSets {
         main {

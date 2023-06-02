@@ -46,7 +46,7 @@ class ProfileIdCacheServiceTest {
     }
 
     @AfterTest
-    fun onAfter(): Unit = runBlocking {
+    fun onAfter() = runBlocking<Unit> {
         cacheClient.closeAsync().await()
     }
 
@@ -142,7 +142,7 @@ class ProfileIdCacheServiceTest {
         }
 
         @Test
-        fun `data is saved using the human readable format from client`(): Unit = runTest {
+        fun `data is saved using the human readable format from client`() = runTest {
             val profile = createProfileId()
             val key = profile.name
             service.save(profile)

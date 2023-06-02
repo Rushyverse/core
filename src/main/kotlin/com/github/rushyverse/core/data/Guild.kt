@@ -38,18 +38,33 @@ public open class GuildNotFoundException(reason: String?) : GuildException(reaso
 
 /**
  * Exception thrown when an entity is invited to a guild, but is already a member.
+ * @property guild ID of the guild.
+ * @property entity ID of the entity.
  */
 public open class GuildInvitedIsAlreadyMemberException(public val guild: Int, public val entity: String) :
     GuildException("The entity $entity cannot be invited to the guild $guild because he is already a member of it")
 
 /**
  * Exception thrown when a member is added to a guild, but it's the owner.
+ * @property guild ID of the guild.
+ * @property entity ID of the entity.
  */
 public open class GuildMemberIsOwnerOfGuildException(public val guild: Int, public val entity: String) :
     GuildException("The entity $entity cannot be set as a member of the guild $guild because he is the owner")
 
+/**
+ * Ids for a guild data.
+ */
 public interface GuildEntityIds {
+
+    /**
+     * ID of the guild.
+     */
     public val guildId: Int
+
+    /**
+     * ID of the entity.
+     */
     public val entityId: String
 }
 
@@ -77,7 +92,7 @@ public data class Guild(
 
 /**
  * Database definition for guild invites.
- * @property id IDs of the data.
+ * @property expiredAt Timestamp of when the invite will expire.
  * @property createdAt Timestamp of when the invite was created.
  */
 @KomapperEntity
@@ -106,6 +121,11 @@ public data class GuildInvite(
 
 }
 
+/**
+ * Guild member data.
+ * Is used to store the members of a guild.
+ * @property createdAt Timestamp of when the member was added.
+ */
 @KomapperEntity
 @KomapperTable("guild_member")
 @KomapperManyToOne(Guild::class, "guild")
@@ -120,6 +140,9 @@ public data class GuildMember(
     val createdAt: Instant = Instant.EPOCH,
 ) : GuildEntityIds
 
+/**
+ * Guild service to manage guilds, invites and members.
+ */
 public interface IGuildService {
 
     /**
@@ -177,7 +200,8 @@ public interface IGuildService {
      * Check if an entity has been invited to a guild.
      * @param guildId ID of the guild.
      * @param entityId ID of the entity.
-     * @return `true` if the entity has been invited, `false` if the entity has not been invited or the guild does not exist.
+     * @return `true` if the entity has been invited,
+     * `false` if the entity has not been invited or the guild does not exist.
      */
     public suspend fun hasInvitation(guildId: Int, entityId: String): Boolean
 
@@ -233,10 +257,13 @@ public interface IGuildService {
     public fun getInvitations(guildId: Int): Flow<GuildInvite>
 }
 
+/**
+ * Service to manage guilds in the database.
+ */
 public interface IGuildDatabaseService : IGuildService
 
 /**
- * Service for caching guilds.
+ * Service to manage guilds in the cache.
  */
 public interface IGuildCacheService : IGuildService {
 
@@ -500,6 +527,11 @@ public class GuildCacheService(
         fun isCacheGuild(id: Int): Boolean = id in RANGE_GUILD_ID
     }
 
+    /**
+     * Type of data stored in cache.
+     * The key allows to target a specific type of data.
+     * @property key Key in the cache.
+     */
     public enum class Type(public val key: String) {
         /**
          * Key to store guilds created by [GuildCacheService].
@@ -609,8 +641,8 @@ public class GuildCacheService(
     }
 
     override suspend fun addGuild(guild: Guild): Boolean {
-        if (guild.id in RANGE_GUILD_ID) {
-            throw IllegalArgumentException("Guild ID cannot be between ${RANGE_GUILD_ID.first} and ${RANGE_GUILD_ID.last}")
+        require(guild.id !in RANGE_GUILD_ID) {
+            "Guild ID must be between ${RANGE_GUILD_ID.first} and ${RANGE_GUILD_ID.last}"
         }
 
         return cacheClient.connect {

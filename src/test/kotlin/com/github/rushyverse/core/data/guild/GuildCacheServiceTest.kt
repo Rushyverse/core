@@ -57,7 +57,7 @@ class GuildCacheServiceTest {
     }
 
     @AfterTest
-    fun onAfter(): Unit = runBlocking {
+    fun onAfter() = runBlocking<Unit> {
         cacheClient.connect {
             it.flushall(FlushMode.SYNC)
         }

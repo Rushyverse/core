@@ -170,14 +170,14 @@ class CacheClientTest {
         private lateinit var client: CacheClient
 
         @BeforeTest
-        fun onBefore(): Unit = runBlocking {
+        fun onBefore() = runBlocking<Unit> {
             client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
         }
 
         @AfterTest
-        fun onAfter(): Unit = runBlocking {
+        fun onAfter() = runBlocking<Unit> {
             client.closeAsync().await()
         }
 
@@ -240,14 +240,14 @@ class CacheClientTest {
         private lateinit var client: CacheClient
 
         @BeforeTest
-        fun onBefore(): Unit = runBlocking {
+        fun onBefore() = runBlocking<Unit> {
             client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
         }
 
         @AfterTest
-        fun onAfter(): Unit = runBlocking {
+        fun onAfter() = runBlocking<Unit> {
             client.closeAsync().await()
         }
 
@@ -527,17 +527,9 @@ class CacheClientTest {
                 val latch = CountDownLatch(2)
                 client.subscribeIdentifiableMessage(channels, UUIDSerializer) { channel, id, message ->
                     when (latch.count) {
-                        2L -> {
-                            assertEquals(channels[0], channel)
-                        }
-
-                        1L -> {
-                            assertEquals(channels[1], channel)
-                        }
-
-                        else -> {
-                            fail("Should not be called")
-                        }
+                        2L -> assertEquals(channels[0], channel)
+                        1L -> assertEquals(channels[1], channel)
+                        else -> fail("Should not be called")
                     }
                     assertEquals(idMessage, IdentifiableMessage(id, message))
                     latch.countDown()
@@ -806,14 +798,14 @@ class CacheClientTest {
         private lateinit var client: CacheClient
 
         @BeforeTest
-        fun onBefore(): Unit = runBlocking {
+        fun onBefore() = runBlocking<Unit> {
             client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
         }
 
         @AfterTest
-        fun onAfter(): Unit = runBlocking {
+        fun onAfter() = runBlocking<Unit> {
             client.closeAsync().await()
         }
 
@@ -1083,7 +1075,7 @@ class CacheClientTest {
         }
 
         @Test
-        fun `should not be triggered when the message is not deserializable`(): Unit = runBlocking {
+        fun `should not be triggered when the message is not deserializable`() = runBlocking<Unit> {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }

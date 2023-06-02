@@ -18,7 +18,8 @@ public interface IHttpStrategizable {
 
     /**
      * Returns a copy of this class with a new [supplier] provided by the [getStrategy].
-     * @param getStrategy A function that will provide a new [IHttpEntitySupplier] based on the [HttpSupplierConfiguration] configuration.
+     * @param getStrategy A function that will provide a new [IHttpEntitySupplier]
+     * based on the [HttpSupplierConfiguration] configuration.
      */
     public fun withStrategy(getStrategy: (HttpSupplierConfiguration) -> IHttpEntitySupplier): IHttpStrategizable
 }
@@ -67,13 +68,17 @@ public interface IHttpEntitySupplier : IProfileSkinService, IProfileIdService {
 
         /**
          * A supplier providing a strategy which will first operate on the [cache] supplier. When an entity
-         * is not present from cache it will be fetched from [cachingRest] instead which will update [cache] with fetched elements.
+         * is not present from cache it will be fetched from [cachingRest]
+         * instead which will update [cache] with fetched elements.
          * Operations that return flows will only fall back to rest when the returned flow contained no elements.
          */
         public fun cacheWithCachingRestFallback(configuration: HttpSupplierConfiguration): IHttpEntitySupplier =
             HttpFallbackEntitySupplier(cache(configuration), cachingRest(configuration))
     }
 
+    /**
+     * Configuration of services to manage data.
+     */
     public val configuration: HttpSupplierConfiguration
 
 }

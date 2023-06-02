@@ -18,9 +18,12 @@ public interface IDatabaseStrategizable {
 
     /**
      * Returns a copy of this class with a new [supplier] provided by the [getStrategy].
-     * @param getStrategy A function that will provide a new [IDatabaseEntitySupplier] based on the [DatabaseSupplierConfiguration] configuration.
+     * @param getStrategy A function that will provide a new [IDatabaseEntitySupplier] based
+     * on the [DatabaseSupplierConfiguration] configuration.
      */
-    public fun withStrategy(getStrategy: (DatabaseSupplierConfiguration) -> IDatabaseEntitySupplier): IDatabaseStrategizable
+    public fun withStrategy(
+        getStrategy: (DatabaseSupplierConfiguration) -> IDatabaseEntitySupplier
+    ): IDatabaseStrategizable
 }
 
 /**
@@ -63,21 +66,30 @@ public interface IDatabaseEntitySupplier : IFriendService, IGuildService {
          * is not present from cache it will be fetched from [database] instead. Operations that return flows
          * will only fall back to rest when the returned flow contained no elements.
          */
-        public fun cacheWithDatabaseFallback(configuration: DatabaseSupplierConfiguration): DatabaseFallbackEntitySupplier =
-            DatabaseFallbackEntitySupplier(getPriority = cache(configuration), setPriority = database(configuration))
+        public fun cacheWithDatabaseFallback(
+            configuration: DatabaseSupplierConfiguration
+        ): DatabaseFallbackEntitySupplier = DatabaseFallbackEntitySupplier(
+            getPriority = cache(configuration),
+            setPriority = database(configuration)
+        )
 
         /**
          * A supplier providing a strategy which will first operate on the [cache] supplier. When an entity
-         * is not present from cache it will be fetched from [cachingDatabase] instead which will update [cache] with fetched elements.
+         * is not present from cache it will be fetched from [cachingDatabase] instead which will
+         * update [cache] with fetched elements.
          * Operations that return flows will only fall back to rest when the returned flow contained no elements.
          */
-        public fun cacheWithCachingDatabaseFallback(configuration: DatabaseSupplierConfiguration): DatabaseFallbackEntitySupplier =
-            DatabaseFallbackEntitySupplier(
-                getPriority = cache(configuration),
-                setPriority = cachingDatabase(configuration)
-            )
+        public fun cacheWithCachingDatabaseFallback(
+            configuration: DatabaseSupplierConfiguration
+        ): DatabaseFallbackEntitySupplier = DatabaseFallbackEntitySupplier(
+            getPriority = cache(configuration),
+            setPriority = cachingDatabase(configuration)
+        )
 
     }
 
+    /**
+     * Configuration of services to manage data.
+     */
     public val configuration: DatabaseSupplierConfiguration
 }

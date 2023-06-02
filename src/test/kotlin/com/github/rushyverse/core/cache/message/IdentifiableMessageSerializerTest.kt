@@ -29,8 +29,8 @@ object ColorAsObjectSerializer : KSerializer<Color> {
 
     override fun serialize(encoder: Encoder, value: Color) =
         encoder.encodeStructure(descriptor) {
-            encodeIntElement(descriptor, 0, (value.rgb shr 16) and 0xff)
-            encodeIntElement(descriptor, 1, (value.rgb shr 8) and 0xff)
+            encodeIntElement(descriptor, 0, value.rgb shr 16 and 0xff)
+            encodeIntElement(descriptor, 1, value.rgb shr 8 and 0xff)
             encodeIntElement(descriptor, 2, value.rgb and 0xff)
         }
 
@@ -49,7 +49,7 @@ object ColorAsObjectSerializer : KSerializer<Color> {
                 }
             }
             require(r in 0..255 && g in 0..255 && b in 0..255)
-            Color((r shl 16) or (g shl 8) or b)
+            Color(r shl 16 or g shl 8 or b)
         }
 
 }

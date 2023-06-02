@@ -428,5 +428,4 @@ class GuildServiceTest {
             coVerify(exactly = 1) { supplier.getInvitations(any<Int>()) }
         }
     }
-
 }

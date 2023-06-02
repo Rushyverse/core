@@ -9,7 +9,7 @@ import kotlin.time.Duration
 /**
  * Service to retrieve data about profile.
  */
-public interface IProfileIdService {
+public fun interface IProfileIdService {
 
     /**
      * Get the profile of a client from his [ProfileId.name].

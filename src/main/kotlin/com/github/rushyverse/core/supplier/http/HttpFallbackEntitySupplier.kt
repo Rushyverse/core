@@ -4,7 +4,8 @@ import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 
 /**
- * [IHttpEntitySupplier] that uses the first supplier to retrieve a data, if the value is null, get the data through the second supplier.
+ * [IHttpEntitySupplier] that uses the first supplier to retrieve a data, if the value is null,
+ * get the data through the second supplier.
  * To keep consistency, it is recommended to use the same [HttpSupplierConfiguration] for both suppliers.
  * The value of [configuration] depends on one of the suppliers.
  * @property first Used first to interact with a data.
