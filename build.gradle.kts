@@ -14,14 +14,14 @@ repositories {
 }
 
 dependencies {
-    val ktorVersion = "2.3.0"
+    val ktorVersion = "2.3.1"
     val ktSerializationVersion = "1.5.1"
     val coroutinesCoreVersion = "1.7.1"
     val loggingVersion = "3.0.5"
     val mockkVersion = "1.13.5"
     val junitVersion = "5.9.3"
     val lettuceVersion = "6.2.4.RELEASE"
-    val testContainersVersion = "1.18.2"
+    val testContainersVersion = "1.18.3"
     val kotlinMojangApi = "2.2.0"
     val nettyCodecVersion = "4.1.93.Final"
     val assertJcoreVersion = "3.24.2"
