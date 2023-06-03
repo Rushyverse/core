@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
+  detekt:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout project
