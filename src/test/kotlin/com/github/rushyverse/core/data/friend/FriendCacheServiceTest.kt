@@ -49,7 +49,7 @@ class FriendCacheServiceTest {
     }
 
     @AfterTest
-    fun onAfter(): Unit = runBlocking {
+    fun onAfter() = runBlocking<Unit> {
         cacheClient.closeAsync().await()
     }
 

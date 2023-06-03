@@ -40,7 +40,7 @@ class MojangServiceIT {
     private lateinit var services: HttpSupplierConfiguration
 
     @BeforeTest
-    fun onBefore(): Unit = runBlocking {
+    fun onBefore() = runBlocking {
         cache = CacheClient {
             uri = RedisURI.create(redisContainer.url)
         }
@@ -55,7 +55,7 @@ class MojangServiceIT {
     }
 
     @AfterTest
-    fun onAfter(): Unit = runBlocking {
+    fun onAfter() = runBlocking<Unit> {
         cache.connect {
             it.flushall()
         }

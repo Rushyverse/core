@@ -12,6 +12,9 @@ import kotlin.time.Duration
 
 /**
  * Service to encode and decode information with cache.
+ * @property cacheClient The client to use to connect to cache.
+ * @property prefixKey The prefix key to use to identify data in cache.
+ * @property expirationKey The expiration key to use to identify data in cache.
  */
 public abstract class AbstractCacheService(
     public val cacheClient: CacheClient,

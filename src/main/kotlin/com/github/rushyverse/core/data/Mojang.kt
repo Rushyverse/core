@@ -3,7 +3,6 @@ package com.github.rushyverse.core.data
 import com.github.rushyverse.core.supplier.http.HttpSupplierConfiguration
 import com.github.rushyverse.core.supplier.http.IHttpEntitySupplier
 import com.github.rushyverse.core.supplier.http.IHttpStrategizable
-import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 
 /**
@@ -23,18 +22,12 @@ public interface IMojangService : IProfileIdService, IProfileSkinService {
  * Service to retrieve data using Mojang api.
  * @property supplier Strategy to retrieve data.
  */
-public class MojangService(override val supplier: IHttpEntitySupplier) : IMojangService, IHttpStrategizable {
+public class MojangService(
+    override val supplier: IHttpEntitySupplier
+) : IMojangService, IProfileSkinService by supplier, IProfileIdService by supplier, IHttpStrategizable {
 
     override suspend fun getSkinByName(name: String): ProfileSkin? {
         return getIdByName(name)?.let { getSkinById(it.id) }
-    }
-
-    override suspend fun getSkinById(id: String): ProfileSkin? {
-        return supplier.getSkinById(id)
-    }
-
-    override suspend fun getIdByName(name: String): ProfileId? {
-        return supplier.getIdByName(name)
     }
 
     override fun withStrategy(getStrategy: (HttpSupplierConfiguration) -> IHttpEntitySupplier): MojangService {

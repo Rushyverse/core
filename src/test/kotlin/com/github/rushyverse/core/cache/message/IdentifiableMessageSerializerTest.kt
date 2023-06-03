@@ -1,6 +1,7 @@
 package com.github.rushyverse.core.cache.message
 
 import com.github.rushyverse.core.utils.getRandomString
+import io.kotest.assertions.json.shouldEqualJson
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -29,8 +30,8 @@ object ColorAsObjectSerializer : KSerializer<Color> {
 
     override fun serialize(encoder: Encoder, value: Color) =
         encoder.encodeStructure(descriptor) {
-            encodeIntElement(descriptor, 0, (value.rgb shr 16) and 0xff)
-            encodeIntElement(descriptor, 1, (value.rgb shr 8) and 0xff)
+            encodeIntElement(descriptor, 0, value.rgb shr 16 and 0xff)
+            encodeIntElement(descriptor, 1, value.rgb shr 8 and 0xff)
             encodeIntElement(descriptor, 2, value.rgb and 0xff)
         }
 
@@ -64,9 +65,13 @@ class IdentifiableMessageSerializerTest {
             val serializer = IdentifiableMessageSerializer(String.serializer())
             val id = getRandomString()
             val message = IdentifiableMessage(id, "data")
-            val expected = "{\"id\":\"$id\",\"data\":\"data\"}"
             val actual = Json.encodeToString(serializer, message)
-            assertEquals(expected, actual)
+            actual shouldEqualJson """
+                {
+                    "id": "$id",
+                    "data": "data"
+                }
+            """.trimIndent()
         }
 
         @Test
@@ -74,9 +79,17 @@ class IdentifiableMessageSerializerTest {
             val serializer = IdentifiableMessageSerializer(ColorAsObjectSerializer)
             val id = getRandomString()
             val message = IdentifiableMessage(id, Color(0x05F0C1))
-            val expected = "{\"id\":\"$id\",\"data\":{\"r\":5,\"g\":240,\"b\":193}}"
             val actual = Json.encodeToString(serializer, message)
-            assertEquals(expected, actual)
+            actual shouldEqualJson """
+                {
+                    "id": "$id",
+                    "data": {
+                        "r": 5,
+                        "g": 240,
+                        "b": 193
+                    }
+                }
+            """.trimIndent()
         }
 
     }
@@ -90,7 +103,12 @@ class IdentifiableMessageSerializerTest {
             val id = getRandomString()
             val data = getRandomString()
             val message = IdentifiableMessage(id, data)
-            val expected = "{\"id\":\"$id\",\"data\":\"$data\"}"
+            val expected = """
+                {
+                    "id": "$id",
+                    "data": "$data"
+                }
+            """.trimIndent()
             val actual = Json.decodeFromString(serializer, expected)
             assertEquals(message, actual)
         }
@@ -100,7 +118,16 @@ class IdentifiableMessageSerializerTest {
             val serializer = IdentifiableMessageSerializer(ColorAsObjectSerializer)
             val id = getRandomString()
             val message = IdentifiableMessage(id, Color(0x05F0C1))
-            val expected = "{\"id\":\"$id\",\"data\":{\"r\":5,\"g\":240,\"b\":193}}"
+            val expected = """
+                {
+                    "id": "$id",
+                    "data": {
+                        "r": 5,
+                        "g": 240,
+                        "b": 193
+                    }
+                }
+            """.trimIndent()
             val actual = Json.decodeFromString(serializer, expected)
             assertEquals(message, actual)
         }
@@ -108,7 +135,15 @@ class IdentifiableMessageSerializerTest {
         @Test
         fun `should throws exception if id is missing`() {
             val serializer = IdentifiableMessageSerializer(ColorAsObjectSerializer)
-            val expected = "{\"data\":{\"r\":5,\"g\":240,\"b\":193}}"
+            val expected = """
+                {
+                    "data": {
+                        "r": 5,
+                        "g": 240,
+                        "b": 193
+                    }
+                }
+            """.trimIndent()
             val exception = assertThrows<SerializationException> {
                 Json.decodeFromString(serializer, expected)
             }
@@ -118,7 +153,11 @@ class IdentifiableMessageSerializerTest {
         @Test
         fun `should throws exception if data is missing`() {
             val serializer = IdentifiableMessageSerializer(ColorAsObjectSerializer)
-            val expected = "{\"id\":\"test\"}"
+            val expected = """
+                {
+                    "id": "test"
+                }
+            """.trimIndent()
             val exception = assertThrows<SerializationException> {
                 Json.decodeFromString(serializer, expected)
             }

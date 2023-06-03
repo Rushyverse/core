@@ -90,7 +90,6 @@ class GuildServiceTest {
             coEvery { supplier.deleteGuild(capture(slot1)) } returns true
 
             val id = Random.nextInt()
-            val entity = getRandomString()
             assertTrue { service.deleteGuild(id) }
             coVerify(exactly = 1) { supplier.deleteGuild(id) }
 
@@ -428,5 +427,4 @@ class GuildServiceTest {
             coVerify(exactly = 1) { supplier.getInvitations(any<Int>()) }
         }
     }
-
 }

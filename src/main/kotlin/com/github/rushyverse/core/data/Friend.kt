@@ -170,6 +170,8 @@ public data class FriendId(val uuid1: UUID, val uuid2: UUID)
 
 /**
  * Table to store the friendship relationship in database.
+ * @property uuid Ids of the friendship relationship.
+ * @property pending `true` if the relationship is pending, `false` otherwise.
  */
 @KomapperEntity
 @KomapperTable("friend")
@@ -207,9 +209,15 @@ public data class Friend(
 
     }
 
+    /**
+     * First entity ID.
+     */
     val uuid1: UUID
         get() = uuid.uuid1
 
+    /**
+     * Second entity ID.
+     */
     val uuid2: UUID
         get() = uuid.uuid2
 
@@ -225,6 +233,11 @@ public class FriendCacheService(
     prefixKey: String = DEFAULT_PREFIX_KEY_USER_CACHE
 ) : AbstractCacheService(client, prefixKey), IFriendCacheService {
 
+    /**
+     * Type of data stored in cache.
+     * The key allows to target a specific type of data.
+     * @property key Key in the cache.
+     */
     public enum class Type(public val key: String) {
         FRIENDS("friends"),
         ADD_FRIEND("friends:add"),
@@ -498,6 +511,7 @@ public class FriendCacheService(
 
 /**
  * Implementation of [IFriendDatabaseService] to manage data in database.
+ * @param database Database client.
  */
 public class FriendDatabaseService(public val database: R2dbcDatabase) : IFriendDatabaseService {
 

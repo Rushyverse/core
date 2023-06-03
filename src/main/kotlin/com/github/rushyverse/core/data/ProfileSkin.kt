@@ -8,7 +8,7 @@ import kotlin.time.Duration
 /**
  * Service to retrieve data about profile.
  */
-public interface IProfileSkinService {
+public fun interface IProfileSkinService {
 
     /**
      * Retrieve the skin data for a player.

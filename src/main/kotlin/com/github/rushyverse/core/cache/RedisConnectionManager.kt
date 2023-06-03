@@ -12,7 +12,6 @@ import io.lettuce.core.support.BoundedPoolConfig
 import kotlinx.coroutines.future.await
 import java.util.concurrent.CompletableFuture
 
-
 /**
  * Interface to manage the connections to interact with redis.
  */
@@ -62,6 +61,15 @@ public class RedisConnectionManager(
 ) : IRedisConnectionManager {
 
     public companion object {
+
+        /**
+         * Create a new instance of [RedisConnectionManager] in a suspend context.
+         * @param redisClient Redis client.
+         * @param codec Codec to encode/decode keys and values.
+         * @param uri URI of the cache.
+         * @param poolConfig Configuration of the pool.
+         * @return A new instance of [RedisConnectionManager].
+         */
         public suspend inline operator fun invoke(
             redisClient: RedisClient,
             codec: RedisCodec<ByteArray, ByteArray>,

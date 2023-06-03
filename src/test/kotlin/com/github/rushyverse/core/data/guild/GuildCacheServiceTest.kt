@@ -57,7 +57,7 @@ class GuildCacheServiceTest {
     }
 
     @AfterTest
-    fun onAfter(): Unit = runBlocking {
+    fun onAfter() = runBlocking<Unit> {
         cacheClient.connect {
             it.flushall(FlushMode.SYNC)
         }
@@ -246,11 +246,11 @@ class GuildCacheServiceTest {
                 coEvery { supplier.deleteGuild(any()) } throws Exception()
                 service.merge(supplier)
 
-                guild.take(toDelete).forEach { guild ->
-                    coVerify(exactly = 1) { supplier.deleteGuild(guild.id) }
+                guild.take(toDelete).forEach { guildDelete ->
+                    coVerify(exactly = 1) { supplier.deleteGuild(guildDelete.id) }
                 }
-                guild.drop(toDelete).forEach { guild ->
-                    coVerify(exactly = 0) { supplier.deleteGuild(guild.id) }
+                guild.drop(toDelete).forEach { guildDelete ->
+                    coVerify(exactly = 0) { supplier.deleteGuild(guildDelete.id) }
                 }
             }
 

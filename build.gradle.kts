@@ -7,6 +7,15 @@ plugins {
     id("com.google.devtools.ksp") version "1.8.21-1.0.11"
     `java-library`
     `maven-publish`
+    id("io.gitlab.arturbosch.detekt") version "1.23.0-RC3"
+}
+
+val javaVersion get() = JavaVersion.VERSION_17
+val javaVersionString get() = javaVersion.toString()
+val javaVersionInt get() = javaVersionString.toInt()
+
+detekt {
+    config.from(file("config/detekt/detekt.yml"))
 }
 
 repositories {
@@ -26,6 +35,7 @@ dependencies {
     val nettyCodecVersion = "4.1.93.Final"
     val assertJcoreVersion = "3.24.2"
     val komapperVersion = "1.10.0"
+    val kotestVersion = "5.6.2"
 
     api(kotlin("stdlib"))
     api(kotlin("reflect"))
@@ -61,6 +71,8 @@ dependencies {
 
     testImplementation(kotlin("test-junit5"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesCoreVersion")
+    testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
+    testImplementation("io.kotest:kotest-assertions-json:$kotestVersion")
 
     // Create fake instance (mock) of components for tests
     testImplementation("io.mockk:mockk:$mockkVersion")
@@ -75,7 +87,8 @@ dependencies {
 }
 
 kotlin {
-     explicitApi = org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode.Strict
+    explicitApi = org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode.Strict
+    jvmToolchain(javaVersionInt)
 
     sourceSets {
         main {
@@ -100,7 +113,7 @@ val dokkaOutputDir = "${rootProject.projectDir}/dokka"
 
 tasks {
     withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = JavaVersion.VERSION_17.toString()
+        kotlinOptions.jvmTarget = javaVersionString
     }
 
     test {
