@@ -31,6 +31,7 @@ dependencies {
     val nettyCodecVersion = "4.1.93.Final"
     val assertJcoreVersion = "3.24.2"
     val komapperVersion = "1.10.0"
+    val kotestVersion = "5.6.2"
 
     api(kotlin("stdlib"))
     api(kotlin("reflect"))
@@ -66,6 +67,8 @@ dependencies {
 
     testImplementation(kotlin("test-junit5"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesCoreVersion")
+    testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
+    testImplementation("io.kotest:kotest-assertions-json:$kotestVersion")
 
     // Create fake instance (mock) of components for tests
     testImplementation("io.mockk:mockk:$mockkVersion")

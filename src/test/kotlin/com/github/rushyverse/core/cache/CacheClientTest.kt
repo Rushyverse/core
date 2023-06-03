@@ -92,7 +92,7 @@ class CacheClientTest {
                 uri = RedisURI.create(redisContainer.url)
             }
 
-            assertCoroutineContextUseDispatcher(client.coroutineContext, Dispatchers.IO)
+            assertCoroutineContextUseDispatcher(client.coroutineContext, Dispatchers.Default)
         }
 
         @Test
@@ -762,7 +762,7 @@ class CacheClientTest {
 
             @Test
             fun `should receive in a coroutine from default scope`() = runTest {
-                assertScopeForSubscription(client, Dispatchers.IO)
+                assertScopeForSubscription(client, Dispatchers.Default)
             }
 
             private suspend fun assertScopeForSubscription(
