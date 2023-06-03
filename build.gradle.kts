@@ -10,6 +10,10 @@ plugins {
     id("io.gitlab.arturbosch.detekt") version "1.23.0-RC3"
 }
 
+val javaVersion get() = JavaVersion.VERSION_17
+val javaVersionString get() = javaVersion.toString()
+val javaVersionInt get() = javaVersionString.toInt()
+
 detekt {
     config.from(file("config/detekt/detekt.yml"))
 }
@@ -84,6 +88,7 @@ dependencies {
 
 kotlin {
     explicitApi = org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode.Strict
+    jvmToolchain(javaVersionInt)
 
     sourceSets {
         main {
@@ -108,7 +113,7 @@ val dokkaOutputDir = "${rootProject.projectDir}/dokka"
 
 tasks {
     withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = JavaVersion.VERSION_17.toString()
+        kotlinOptions.jvmTarget = javaVersionString
     }
 
     test {
