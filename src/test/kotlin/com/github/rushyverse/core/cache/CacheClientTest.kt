@@ -1075,7 +1075,7 @@ class CacheClientTest {
         }
 
         @Test
-        fun `should not be triggered when the message is not deserializable`() = runBlocking<Unit> {
+        fun `should not be triggered when the message is not deserializable`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1259,7 +1259,7 @@ class CacheClientTest {
 
             val coroutineScope = CoroutineScope(Dispatchers.IO)
 
-            client.publishAndWaitResponse(
+            client.publishAndWaitResponse<String, UUID, Unit>(
                 channelSubscribe = channelResponse,
                 channelPublish = channel,
                 messagePublish = message,
@@ -1294,7 +1294,7 @@ class CacheClientTest {
             } throws expectedException
 
             val catchException = assertThrows<SerializationException> {
-                client.publishAndWaitResponse(
+                client.publishAndWaitResponse<String, UUID, Unit>(
                     channelSubscribe = getRandomString(),
                     channelPublish = getRandomString(),
                     messagePublish = getRandomString(),
@@ -1362,7 +1362,7 @@ class CacheClientTest {
 
             val currentTime = System.currentTimeMillis()
 
-            client.publishAndWaitResponse(
+            client.publishAndWaitResponse<String, UUID, Unit>(
                 channelSubscribe = getRandomString(),
                 channelPublish = getRandomString(),
                 messagePublish = getRandomString(),
@@ -1436,7 +1436,7 @@ class CacheClientTest {
             val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
             assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
 
-            client.publishAndWaitResponse(
+            client.publishAndWaitResponse<String, UUID, Unit>(
                 channelSubscribe = getRandomString(),
                 channelPublish = getRandomString(),
                 messagePublish = getRandomString(),
