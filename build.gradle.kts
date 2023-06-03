@@ -113,7 +113,6 @@ tasks {
 
     test {
         useJUnitPlatform()
-        this.maxParallelForks = 2
     }
 
     clean {
