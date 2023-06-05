@@ -7,7 +7,7 @@ plugins {
     id("com.google.devtools.ksp") version "1.8.21-1.0.11"
     `java-library`
     `maven-publish`
-    id("io.gitlab.arturbosch.detekt") version "1.23.0-RC3"
+    id("io.gitlab.arturbosch.detekt") version "1.23.0"
 }
 
 val javaVersion get() = JavaVersion.VERSION_17
