@@ -2,9 +2,9 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "1.8.22"
-    kotlin("plugin.serialization") version "1.8.21"
+    kotlin("plugin.serialization") version "1.8.22"
     id("org.jetbrains.dokka") version "1.8.20"
-    id("com.google.devtools.ksp") version "1.8.21-1.0.11"
+    id("com.google.devtools.ksp") version "1.8.22-1.0.11"
     `java-library`
     `maven-publish`
     id("io.gitlab.arturbosch.detekt") version "1.23.0"
