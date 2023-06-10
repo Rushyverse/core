@@ -130,7 +130,7 @@ tasks {
     }
 
     dokkaHtml.configure {
-        dependsOn(deleteDokkaOutputDir)
+        dependsOn(deleteDokkaOutputDir, compileJava.get())
         outputDirectory.set(file(dokkaOutputDir))
     }
 }
