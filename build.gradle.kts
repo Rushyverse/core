@@ -130,6 +130,7 @@ tasks {
     }
 
     dokkaHtml.configure {
+        // CompileJava should be executed to build library in Jitpack
         dependsOn(deleteDokkaOutputDir, compileJava.get())
         outputDirectory.set(file(dokkaOutputDir))
     }
