@@ -21,6 +21,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.test.*
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 @Timeout(3, unit = TimeUnit.SECONDS)
@@ -48,6 +49,18 @@ class ProfileIdCacheServiceTest {
     @AfterTest
     fun onAfter() = runBlocking<Unit> {
         cacheClient.closeAsync().await()
+    }
+
+    @Nested
+    inner class DefaultParameter {
+
+        @Test
+        fun `default values`() {
+            service = ProfileIdCacheService(cacheClient)
+            assertEquals("profileId:", service.prefixKey)
+            assertEquals(12.hours, service.expirationKey)
+        }
+
     }
 
     @Nested
@@ -169,7 +182,7 @@ class ProfileIdCacheServiceTest {
         @Test
         fun `should not set the expiration of the data if expiration is not defined`() = runTest {
             val profile = createProfileId()
-            service = ProfileIdCacheService(cacheClient)
+            service = ProfileIdCacheService(cacheClient, null)
             service.save(profile)
             assertEquals(-1, cacheClient.getTTL(service, profile.name))
         }

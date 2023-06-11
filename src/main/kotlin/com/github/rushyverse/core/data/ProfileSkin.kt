@@ -4,6 +4,7 @@ import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 
 /**
  * Service to retrieve data about profile.
@@ -39,7 +40,7 @@ public interface IProfileSkinCacheService : IProfileSkinService {
  */
 public class ProfileSkinCacheService(
     client: CacheClient,
-    expirationKey: Duration? = null,
+    expirationKey: Duration? = 12.hours,
     prefixKey: String = "skin:"
 ) : AbstractCacheService(client, prefixKey, expirationKey), IProfileSkinCacheService {
 
