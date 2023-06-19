@@ -34,7 +34,7 @@ dependencies {
     val kotlinMojangApi = "2.3.0"
     val nettyCodecVersion = "4.1.93.Final"
     val assertJcoreVersion = "3.24.2"
-    val komapperVersion = "1.10.0"
+    val komapperVersion = "1.11.0"
     val kotestVersion = "5.6.2"
 
     api(kotlin("stdlib"))
