@@ -5,11 +5,12 @@ import com.github.rushyverse.core.cache.CacheClient
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import kotlinx.serialization.builtins.serializer
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 
 /**
  * Service to retrieve data about profile.
  */
-public interface IProfileIdService {
+public fun interface IProfileIdService {
 
     /**
      * Get the profile of a client from his [ProfileId.name].
@@ -39,7 +40,7 @@ public interface IProfileIdCacheService : IProfileIdService {
  */
 public class ProfileIdCacheService(
     client: CacheClient,
-    expirationKey: Duration? = null,
+    expirationKey: Duration? = 12.hours,
     prefixKey: String = "profileId:",
 ) : AbstractCacheService(client, prefixKey, expirationKey), IProfileIdCacheService {
 

@@ -9,8 +9,10 @@ import kotlinx.coroutines.flow.Flow
  * @receiver Flow to collect.
  * @param action Action to run on each element.
  */
-public suspend fun <T> Flow<T>.safeCollect(action: suspend (T) -> Unit): Unit = collect {
-    runCatching {
-        action(it)
+public suspend fun <T> Flow<T>.safeCollect(action: suspend (T) -> Unit) {
+    collect {
+        runCatching {
+            action(it)
+        }
     }
 }

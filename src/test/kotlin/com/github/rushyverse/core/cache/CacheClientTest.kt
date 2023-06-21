@@ -92,7 +92,7 @@ class CacheClientTest {
                 uri = RedisURI.create(redisContainer.url)
             }
 
-            assertCoroutineContextUseDispatcher(client.coroutineContext, Dispatchers.IO)
+            assertCoroutineContextUseDispatcher(client.coroutineContext, Dispatchers.Default)
         }
 
         @Test
@@ -170,14 +170,14 @@ class CacheClientTest {
         private lateinit var client: CacheClient
 
         @BeforeTest
-        fun onBefore(): Unit = runBlocking {
+        fun onBefore() = runBlocking<Unit> {
             client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
         }
 
         @AfterTest
-        fun onAfter(): Unit = runBlocking {
+        fun onAfter() = runBlocking<Unit> {
             client.closeAsync().await()
         }
 
@@ -240,14 +240,14 @@ class CacheClientTest {
         private lateinit var client: CacheClient
 
         @BeforeTest
-        fun onBefore(): Unit = runBlocking {
+        fun onBefore() = runBlocking<Unit> {
             client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
         }
 
         @AfterTest
-        fun onAfter(): Unit = runBlocking {
+        fun onAfter() = runBlocking<Unit> {
             client.closeAsync().await()
         }
 
@@ -527,17 +527,9 @@ class CacheClientTest {
                 val latch = CountDownLatch(2)
                 client.subscribeIdentifiableMessage(channels, UUIDSerializer) { channel, id, message ->
                     when (latch.count) {
-                        2L -> {
-                            assertEquals(channels[0], channel)
-                        }
-
-                        1L -> {
-                            assertEquals(channels[1], channel)
-                        }
-
-                        else -> {
-                            fail("Should not be called")
-                        }
+                        2L -> assertEquals(channels[0], channel)
+                        1L -> assertEquals(channels[1], channel)
+                        else -> fail("Should not be called")
                     }
                     assertEquals(idMessage, IdentifiableMessage(id, message))
                     latch.countDown()
@@ -770,7 +762,7 @@ class CacheClientTest {
 
             @Test
             fun `should receive in a coroutine from default scope`() = runTest {
-                assertScopeForSubscription(client, Dispatchers.IO)
+                assertScopeForSubscription(client, Dispatchers.Default)
             }
 
             private suspend fun assertScopeForSubscription(
@@ -806,14 +798,14 @@ class CacheClientTest {
         private lateinit var client: CacheClient
 
         @BeforeTest
-        fun onBefore(): Unit = runBlocking {
+        fun onBefore() = runBlocking<Unit> {
             client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
         }
 
         @AfterTest
-        fun onAfter(): Unit = runBlocking {
+        fun onAfter() = runBlocking<Unit> {
             client.closeAsync().await()
         }
 
@@ -1083,7 +1075,7 @@ class CacheClientTest {
         }
 
         @Test
-        fun `should not be triggered when the message is not deserializable`(): Unit = runBlocking {
+        fun `should not be triggered when the message is not deserializable`() = runBlocking {
             val client = CacheClient {
                 uri = RedisURI.create(redisContainer.url)
             }
@@ -1267,7 +1259,7 @@ class CacheClientTest {
 
             val coroutineScope = CoroutineScope(Dispatchers.IO)
 
-            client.publishAndWaitResponse(
+            client.publishAndWaitResponse<String, UUID, Unit>(
                 channelSubscribe = channelResponse,
                 channelPublish = channel,
                 messagePublish = message,
@@ -1302,7 +1294,7 @@ class CacheClientTest {
             } throws expectedException
 
             val catchException = assertThrows<SerializationException> {
-                client.publishAndWaitResponse(
+                client.publishAndWaitResponse<String, UUID, Unit>(
                     channelSubscribe = getRandomString(),
                     channelPublish = getRandomString(),
                     messagePublish = getRandomString(),
@@ -1370,7 +1362,7 @@ class CacheClientTest {
 
             val currentTime = System.currentTimeMillis()
 
-            client.publishAndWaitResponse(
+            client.publishAndWaitResponse<String, UUID, Unit>(
                 channelSubscribe = getRandomString(),
                 channelPublish = getRandomString(),
                 messagePublish = getRandomString(),
@@ -1444,7 +1436,7 @@ class CacheClientTest {
             val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
             assertEquals(coroutineScope.coroutineContext.job.children.count(), 0)
 
-            client.publishAndWaitResponse(
+            client.publishAndWaitResponse<String, UUID, Unit>(
                 channelSubscribe = getRandomString(),
                 channelPublish = getRandomString(),
                 messagePublish = getRandomString(),

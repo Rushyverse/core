@@ -24,11 +24,13 @@ public suspend fun <T> CacheClient.publishIdentifiableMessage(
     id: String,
     message: T,
     messageSerializer: KSerializer<T>
-): Unit = publish(
-    channel = channel,
-    message = IdentifiableMessage(id, message),
-    messageSerializer = IdentifiableMessageSerializer(messageSerializer)
-)
+) {
+    publish(
+        channel = channel,
+        message = IdentifiableMessage(id, message),
+        messageSerializer = IdentifiableMessageSerializer(messageSerializer)
+    )
+}
 
 /**
  * Subscribe to a channel.
@@ -81,19 +83,22 @@ public suspend fun <T> CacheClient.subscribeIdentifiableMessage(
 /**
  * A message that can be identified by an id.
  * @param T The type of the data.
- * @property id ID of the message.
- * @property data The data of the message.
  */
 public interface IIdentifiableMessage<T> {
+    /**
+     * ID of the message.
+     */
     public val id: String
+
+    /**
+     * The data of the message.
+     */
     public val data: T
 }
 
 /**
  * A message that can be identified by an id.
  * @param T The type of the data.
- * @property id ID of the message.
- * @property data The data of the message.
  */
 public data class IdentifiableMessage<T>(override val id: String, override val data: T) : IIdentifiableMessage<T>
 

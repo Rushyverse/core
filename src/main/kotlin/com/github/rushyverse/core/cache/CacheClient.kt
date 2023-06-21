@@ -42,7 +42,6 @@ private val logger = KotlinLogging.logger { }
  * @property client Redis client.
  * @property binaryFormat Object to encode and decode information.
  * @property connectionManager Connection manager to interact with the cache.
- * @property releasePubSubScope Scope to release the connections.
  */
 public class CacheClient(
     public val uri: RedisURI,
@@ -53,10 +52,24 @@ public class CacheClient(
 ) : AsyncCloseable, CoroutineScope by coroutineScope {
 
     public companion object {
+
+        /**
+         * Allows to create a [CacheClient] in a suspending context.
+         * ```kotlin
+         * val client = CacheClient {
+         *    uri = RedisURI.create(redisContainer.url)
+         * }
+         * ```
+         * @param builder Builder to create the instance of [CacheClient].
+         * @return Instance of [CacheClient].
+         */
         public suspend inline operator fun invoke(builder: Builder.() -> Unit): CacheClient =
             Builder().apply(builder).build()
     }
 
+    /**
+     * Companion object to store default values.
+     */
     public object Default {
         /**
          * @see [CacheClient.binaryFormat].
@@ -73,19 +86,37 @@ public class CacheClient(
 
     /**
      * Builder class to simplify the creation of [CacheClient].
-     * @property uri @see [CacheClient.uri].
-     * @property client @see [CacheClient.client].
-     * @property binaryFormat @see [CacheClient.binaryFormat].
-     * @property codec @see Codec to encode/decode keys and values.
-     * @property poolConfiguration Configuration to create the pool of connections to interact with cache.
      */
     @Suppress("MemberVisibilityCanBePrivate")
     public class Builder {
+        /**
+         * @see [CacheClient.uri].
+         */
         public lateinit var uri: RedisURI
+
+        /**
+         * @see [CacheClient.client].
+         */
         public var client: RedisClient? = null
+
+        /**
+         * @see [CacheClient.binaryFormat].
+         */
         public var binaryFormat: BinaryFormat = Default.binaryFormat
+
+        /**
+         * Codec to encode/decode keys and values.
+         */
         public var codec: RedisCodec<ByteArray, ByteArray> = Default.codec
+
+        /**
+         * Configuration to create the pool of connections to interact with cache.
+         */
         public var poolConfiguration: BoundedPoolConfig? = null
+
+        /**
+         * Scope to launch the coroutine.
+         */
         public var coroutineScope: CoroutineScope? = null
 
         /**
@@ -101,11 +132,14 @@ public class CacheClient(
                 client = redisClient,
                 binaryFormat = binaryFormat,
                 connectionManager = RedisConnectionManager(redisClient, codec, uri, poolConfig),
-                coroutineScope = coroutineScope ?: CoroutineScope(Dispatchers.IO + SupervisorJob())
+                coroutineScope = coroutineScope ?: CoroutineScope(Dispatchers.Default + SupervisorJob())
             )
         }
     }
 
+    /**
+     * Scope to release the connections.
+     */
     public val releasePubSubScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     /**
@@ -114,7 +148,9 @@ public class CacheClient(
      * @param body Function using the connection.
      * @return An instance from [body].
      */
-    public suspend inline fun <T> connect(crossinline body: suspend (RedisCoroutinesCommands<ByteArray, ByteArray>) -> T): T {
+    public suspend inline fun <T> connect(
+        crossinline body: suspend (RedisCoroutinesCommands<ByteArray, ByteArray>) -> T
+    ): T {
         contract {
             callsInPlace(body, InvocationKind.EXACTLY_ONCE)
         }
@@ -207,7 +243,11 @@ public class CacheClient(
                     body(channel, message)
                 }.onFailure { throwable -> logger.catching(throwable) }
             }
-            .catch { logger.error(it) { "Error while receiving message from channels [${channels.joinToString(", ")}]" } }
+            .catch {
+                logger.error(it) {
+                    "Error while receiving message from channels [${channels.joinToString(", ")}]"
+                }
+            }
             .launchIn(scope)
             .apply {
                 invokeOnCompletion {
@@ -236,11 +276,13 @@ public class CacheClient(
     /**
      * Publish the [messagePublish] to the [channelPublish] and wait for a response on the [channelSubscribe].
      * The [messagePublish] is wrapped in a [IdentifiableMessage] with the [id] as [IdentifiableMessage.id].
-     * The [channelSubscribe] must deserialize the message to a [IdentifiableMessage] and check if the [IdentifiableMessage.id] is the same as the [id].
+     * The [channelSubscribe] must deserialize the message to a [IdentifiableMessage]
+     * and check if the [IdentifiableMessage.id] is the same as the [id].
      * The subscription is cancelled after the [timeout] or when the first message with the same [id] is received.
      * @param channelPublish Channel to publish the [messagePublish].
      * @param channelSubscribe Channel to subscribe to the response.
-     * @param messagePublish Message that will be wrapped in a [IdentifiableMessage] and published to the [channelPublish].
+     * @param messagePublish Message that will be wrapped in a [IdentifiableMessage]
+     * and published to the [channelPublish].
      * @param messageSerializer Serializer to encode the [messagePublish].
      * @param responseSerializer Serializer to decode the response.
      * @param id Id of the [messagePublish] to match the response.
