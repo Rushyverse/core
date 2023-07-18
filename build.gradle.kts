@@ -29,10 +29,9 @@ dependencies {
     val loggingVersion = "3.0.5"
     val mockkVersion = "1.13.5"
     val junitVersion = "5.9.3"
+    val lettuceVersion = "6.2.4.RELEASE"
     val testContainersVersion = "1.18.3"
-    val lettuceVersion = "6.2.3.RELEASE"
     val kotlinMojangApi = "2.3.0"
-    val nettyCodecVersion = "4.1.94.Final"
     val assertJcoreVersion = "3.24.2"
     val komapperVersion = "1.12.0"
     val kotestVersion = "5.6.2"
@@ -64,7 +63,6 @@ dependencies {
 
     // Redis cache
     api("io.lettuce:lettuce-core:$lettuceVersion")
-    api("io.netty:netty-codec:$nettyCodecVersion")
 
     // Logging information
     api("io.github.microutils:kotlin-logging:$loggingVersion")
