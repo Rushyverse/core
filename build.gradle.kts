@@ -28,7 +28,7 @@ dependencies {
     val coroutinesCoreVersion = "1.7.2"
     val loggingVersion = "3.0.5"
     val mockkVersion = "1.13.5"
-    val junitVersion = "5.9.3"
+    val junitVersion = "5.10.0"
     val testContainersVersion = "1.18.3"
     val lettuceVersion = "6.2.3.RELEASE"
     val kotlinMojangApi = "2.3.0"
