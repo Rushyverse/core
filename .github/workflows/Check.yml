@@ -43,6 +43,7 @@ jobs:
           arguments: build -x test
 
       - name: Test
-        uses: gradle/gradle-build-action@v2.6.0
+        uses: nick-fields/retry@v2
         with:
-          arguments: test
+          max_attempts: 3
+          command: gradlew test
