@@ -47,4 +47,4 @@ jobs:
         with:
           timeout_minutes: 10
           max_attempts: 3
-          command: gradlew test
+          command: ./gradlew test
