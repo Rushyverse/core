@@ -45,5 +45,6 @@ jobs:
       - name: Test
         uses: nick-fields/retry@v2
         with:
+          timeout_minutes: 10
           max_attempts: 3
           command: gradlew test
