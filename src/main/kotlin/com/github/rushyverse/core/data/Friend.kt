@@ -181,34 +181,6 @@ public data class Friend(
     val pending: Boolean,
 ) {
 
-    public companion object {
-
-        /**
-         * Create the table in database.
-         * @param database Database to create the table in.
-         */
-        public suspend fun createTable(database: R2dbcDatabase) {
-            val meta = _Friend.friend
-            val uuid = meta.uuid
-            val tableName = meta.tableName()
-            val uuid1Name = uuid.uuid1.name
-            val uuid2Name = uuid.uuid2.name
-
-            database.withTransaction {
-                database.runQuery(QueryDsl.create(meta))
-                database.runQuery(
-                    QueryDsl.executeScript(
-                        """
-                        CREATE UNIQUE INDEX ${tableName}_unique_idx
-                        ON $tableName (GREATEST($uuid1Name, $uuid2Name), LEAST($uuid1Name, $uuid2Name));
-                    """.trimIndent()
-                    )
-                )
-            }
-        }
-
-    }
-
     /**
      * First entity ID.
      */
