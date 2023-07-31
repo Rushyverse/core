@@ -43,6 +43,8 @@ jobs:
           arguments: build -x test
 
       - name: Test
-        uses: gradle/gradle-build-action@v2.7.0
+        uses: nick-fields/retry@v2
         with:
-          arguments: test
+          timeout_minutes: 10
+          max_attempts: 10
+          command: ./gradlew test

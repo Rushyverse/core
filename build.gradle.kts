@@ -1,10 +1,10 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.8.22"
-    kotlin("plugin.serialization") version "1.8.22"
+    embeddedKotlin("jvm")
+    embeddedKotlin("plugin.serialization")
     id("org.jetbrains.dokka") version "1.8.20"
-    id("com.google.devtools.ksp") version "1.9.0-1.0.11"
+    id("com.google.devtools.ksp") version "1.9.0-1.0.12"
     `java-library`
     `maven-publish`
     id("io.gitlab.arturbosch.detekt") version "1.23.0"
@@ -25,14 +25,14 @@ repositories {
 dependencies {
     val ktorVersion = "2.3.2"
     val ktSerializationVersion = "1.5.1"
-    val coroutinesCoreVersion = "1.7.2"
+    val coroutinesCoreVersion = "1.7.3"
     val loggingVersion = "3.0.5"
     val mockkVersion = "1.13.5"
-    val junitVersion = "5.9.3"
+    val junitVersion = "5.10.0"
     val testContainersVersion = "1.18.3"
     val lettuceVersion = "6.2.3.RELEASE"
     val kotlinMojangApi = "2.3.0"
-    val nettyCodecVersion = "4.1.94.Final"
+    val nettyCodecVersion = "4.1.96.Final"
     val assertJcoreVersion = "3.24.2"
     val komapperVersion = "1.12.0"
     val kotestVersion = "5.6.2"

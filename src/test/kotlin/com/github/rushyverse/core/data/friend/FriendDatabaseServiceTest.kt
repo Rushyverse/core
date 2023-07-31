@@ -6,15 +6,21 @@ import com.github.rushyverse.core.data.FriendDatabaseService
 import com.github.rushyverse.core.data._Friend
 import com.github.rushyverse.core.data.utils.DatabaseUtils
 import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
+import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.komapper.core.dsl.QueryDsl
+import org.komapper.core.dsl.query.bind
 import org.komapper.r2dbc.R2dbcDatabase
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import org.testcontainers.utility.MountableFile
 import java.util.*
 import kotlin.test.*
 
@@ -25,6 +31,10 @@ class FriendDatabaseServiceTest {
         @JvmStatic
         @Container
         private val psqlContainer = createPSQLContainer()
+            .withCopyToContainer(
+                MountableFile.forClasspathResource("sql/friend.sql"),
+                "/docker-entrypoint-initdb.d/init.sql"
+            )
     }
 
     private lateinit var service: FriendDatabaseService
@@ -33,18 +43,39 @@ class FriendDatabaseServiceTest {
     @BeforeTest
     fun onBefore() = runBlocking {
         database = R2dbcDatabase(createConnectionOptions(psqlContainer))
-
-        Friend.createTable(database)
         service = FriendDatabaseService(database)
     }
 
     @AfterTest
-    fun onAfter() = runBlocking {
-        database.runQuery(QueryDsl.drop(_Friend.friend))
+    fun onAfter() = runBlocking<Unit> {
+        database.runQuery(QueryDsl.delete(_Friend.friend).all().options { it.copy(allowMissingWhereClause = true) })
     }
 
     @Nested
     inner class AddFriend {
+
+        @ParameterizedTest
+        @ValueSource(strings = ["/*uuid*/'', ''", "'', /*uuid*/''"])
+        fun `should reject empty uuid`(uuidTags: String) = runTest {
+            val meta = _Friend.friend
+            val friendUuidColumn1Name = meta.uuid.uuid1.columnName
+            val friendUuidColumn2Name = meta.uuid.uuid2.columnName
+            val friendPendingColumnName = meta.pending.columnName
+
+            val query = QueryDsl.executeTemplate(
+                """
+                INSERT INTO ${meta.tableName()} ($friendUuidColumn1Name, $friendUuidColumn2Name, $friendPendingColumnName) 
+                VALUES ($uuidTags, false);
+                """.trimIndent()
+            ).bind("uuid", UUID.randomUUID())
+
+            val exception = assertThrows<R2dbcException> {
+                database.runQuery(query)
+            }
+
+            assertThat(exception).hasMessage("invalid input syntax for type uuid: \"\"")
+            assertThat(exception.sqlState).isEqualTo("22P02")
+        }
 
         @Test
         fun `should add one friend`() = runTest {
