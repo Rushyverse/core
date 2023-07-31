@@ -60,17 +60,18 @@ class FriendDatabaseServiceTest {
 
         @Test
         fun `should add several friends`() = runTest {
-            val uuid1 = UUID.randomUUID()
-            val uuid2 = UUID.randomUUID()
-            val uuid3 = UUID.randomUUID()
-
-            assertTrue { service.addFriend(uuid1, uuid2) }
-            assertTrue { service.addFriend(uuid1, uuid3) }
-
-            assertThat(getAll()).containsExactlyInAnyOrder(
-                Friend(uuid1, uuid2, false),
-                Friend(uuid1, uuid3, false)
-            )
+            fail()
+//            val uuid1 = UUID.randomUUID()
+//            val uuid2 = UUID.randomUUID()
+//            val uuid3 = UUID.randomUUID()
+//
+//            assertTrue { service.addFriend(uuid1, uuid2) }
+//            assertTrue { service.addFriend(uuid1, uuid3) }
+//
+//            assertThat(getAll()).containsExactlyInAnyOrder(
+//                Friend(uuid1, uuid2, false),
+//                Friend(uuid1, uuid3, false)
+//            )
         }
 
         @Test
