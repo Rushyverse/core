@@ -4,7 +4,7 @@ plugins {
     embeddedKotlin("jvm")
     embeddedKotlin("plugin.serialization")
     id("org.jetbrains.dokka") version "1.8.20"
-    id("com.google.devtools.ksp") version "1.9.0-1.0.12"
+    id("com.google.devtools.ksp") version "1.9.0-1.0.13"
     `java-library`
     `maven-publish`
     id("io.gitlab.arturbosch.detekt") version "1.23.1"
