@@ -5,9 +5,10 @@ plugins {
     embeddedKotlin("plugin.serialization")
     id("org.jetbrains.dokka") version "1.8.20"
     id("com.google.devtools.ksp") version "1.9.0-1.0.13"
+    id("io.gitlab.arturbosch.detekt") version "1.23.1"
     `java-library`
     `maven-publish`
-    id("io.gitlab.arturbosch.detekt") version "1.23.1"
+    jacoco
 }
 
 val javaVersion get() = JavaVersion.VERSION_17
@@ -15,7 +16,17 @@ val javaVersionString get() = javaVersion.toString()
 val javaVersionInt get() = javaVersionString.toInt()
 
 detekt {
+    // Allows having different behavior for CI.
+    // When building a branch, we want to fail the build if detekt fails.
+    // When building a PR, we want to ignore failures to report them in sonar.
+    val envIgnoreFailures = System.getenv("DETEKT_IGNORE_FAILURES")?.toBooleanStrictOrNull() ?: false
+    ignoreFailures = envIgnoreFailures
+
     config.from(file("config/detekt/detekt.yml"))
+}
+
+jacoco {
+    reportsDirectory.set(file("${layout.buildDirectory.get()}/reports/jacoco"))
 }
 
 repositories {
@@ -133,6 +144,14 @@ tasks {
         // CompileJava should be executed to build library in Jitpack
         dependsOn(deleteDokkaOutputDir, compileJava.get())
         outputDirectory.set(file(dokkaOutputDir))
+    }
+
+    jacocoTestReport {
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+            csv.required.set(false)
+        }
     }
 }
 

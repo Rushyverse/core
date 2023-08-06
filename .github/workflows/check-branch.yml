@@ -2,6 +2,8 @@ name: Check
 
 on:
   push:
+    branches-ignore:
+      - main
     paths-ignore:
       - '**.md'
 
@@ -23,6 +25,8 @@ jobs:
 
       - name: Detekt check
         uses: gradle/gradle-build-action@v2.7.0
+        env:
+          DETEKT_IGNORE_FAILURES: false
         with:
           arguments: detekt
 
