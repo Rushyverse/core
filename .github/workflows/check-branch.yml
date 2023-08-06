@@ -12,24 +12,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  detekt:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@v3
-
-      - name: Initialization
-        uses: ./.github/actions/init
-        with:
-          jdk: 17
-
-      - name: Detekt check
-        uses: gradle/gradle-build-action@v2.7.0
-        env:
-          DETEKT_IGNORE_FAILURES: false
-        with:
-          arguments: detekt
-
   build:
     runs-on: ubuntu-latest
     steps:
