@@ -16,6 +16,12 @@ val javaVersionString get() = javaVersion.toString()
 val javaVersionInt get() = javaVersionString.toInt()
 
 detekt {
+    // Allows having different behavior for CI.
+    // When building a branch, we want to fail the build if detekt fails.
+    // When building a PR, we want to ignore failures to report them in sonar.
+    val envIgnoreFailures = System.getenv("DETEKT_IGNORE_FAILURES")?.toBooleanStrictOrNull() ?: false
+    ignoreFailures = envIgnoreFailures
+
     config.from(file("config/detekt/detekt.yml"))
 }
 
