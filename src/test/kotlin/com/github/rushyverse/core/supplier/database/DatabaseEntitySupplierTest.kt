@@ -32,6 +32,7 @@ class DatabaseEntitySupplierTest {
         val configuration = DatabaseSupplierConfiguration(
             mockk<IFriendCacheService>() to friendDatabaseService,
             mockk<IGuildCacheService>() to guildDatabaseService,
+            mockk<IPlayerCacheService>() to mockk()
         )
         databaseEntitySupplier = DatabaseEntitySupplier(configuration)
     }
@@ -344,13 +345,13 @@ class DatabaseEntitySupplierTest {
             @Test
             fun `should create in supplier`() = runTest {
                 val slot1 = slot<String>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 val guild = mockk<Guild>()
                 coEvery { guildDatabaseService.createGuild(capture(slot1), capture(slot2)) } returns guild
 
                 val value1 = getRandomString()
-                val value2 = getRandomString()
+                val value2 = randomEntityId()
                 databaseEntitySupplier.createGuild(value1, value2)
                 coVerify(exactly = 1) { guildDatabaseService.createGuild(any(), any()) }
 
@@ -362,7 +363,7 @@ class DatabaseEntitySupplierTest {
             fun `should return the supplier result`() = runTest {
                 val guild = mockk<Guild>()
                 coEvery { guildDatabaseService.createGuild(any(), any()) } returns guild
-                val supplierGuild = databaseEntitySupplier.createGuild(getRandomString(), getRandomString())
+                val supplierGuild = databaseEntitySupplier.createGuild(getRandomString(), randomEntityId())
                 assertEquals(guild, supplierGuild)
                 coVerify(exactly = 1) { guildDatabaseService.createGuild(any(), any()) }
             }
@@ -445,12 +446,12 @@ class DatabaseEntitySupplierTest {
             @Test
             fun `should get in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildDatabaseService.isOwner(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { databaseEntitySupplier.isOwner(guildId, entityId) }
                 coVerify(exactly = 1) { guildDatabaseService.isOwner(any(), any()) }
 
@@ -462,7 +463,7 @@ class DatabaseEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildDatabaseService.isOwner(any(), any()) } returns result
-                assertEquals(result, databaseEntitySupplier.isOwner(Random.nextInt(), getRandomString()))
+                assertEquals(result, databaseEntitySupplier.isOwner(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildDatabaseService.isOwner(any(), any()) }
             }
 
@@ -474,12 +475,12 @@ class DatabaseEntitySupplierTest {
             @Test
             fun `should get in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildDatabaseService.isMember(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { databaseEntitySupplier.isMember(guildId, entityId) }
                 coVerify(exactly = 1) { guildDatabaseService.isMember(any(), any()) }
 
@@ -491,7 +492,7 @@ class DatabaseEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildDatabaseService.isMember(any(), any()) } returns result
-                assertEquals(result, databaseEntitySupplier.isMember(Random.nextInt(), getRandomString()))
+                assertEquals(result, databaseEntitySupplier.isMember(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildDatabaseService.isMember(any(), any()) }
             }
         }
@@ -502,12 +503,12 @@ class DatabaseEntitySupplierTest {
             @Test
             fun `should get in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildDatabaseService.hasInvitation(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { databaseEntitySupplier.hasInvitation(guildId, entityId) }
                 coVerify(exactly = 1) { guildDatabaseService.hasInvitation(any(), any()) }
 
@@ -519,7 +520,7 @@ class DatabaseEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildDatabaseService.hasInvitation(any(), any()) } returns result
-                assertEquals(result, databaseEntitySupplier.hasInvitation(Random.nextInt(), getRandomString()))
+                assertEquals(result, databaseEntitySupplier.hasInvitation(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildDatabaseService.hasInvitation(any(), any()) }
             }
         }
@@ -530,12 +531,12 @@ class DatabaseEntitySupplierTest {
             @Test
             fun `should add in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildDatabaseService.addMember(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { databaseEntitySupplier.addMember(guildId, entityId) }
                 coVerify(exactly = 1) { guildDatabaseService.addMember(any(), any()) }
 
@@ -547,7 +548,7 @@ class DatabaseEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildDatabaseService.addMember(any(), any()) } returns result
-                assertEquals(result, databaseEntitySupplier.addMember(Random.nextInt(), getRandomString()))
+                assertEquals(result, databaseEntitySupplier.addMember(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildDatabaseService.addMember(any(), any()) }
             }
 
@@ -559,7 +560,7 @@ class DatabaseEntitySupplierTest {
             @Test
             fun `should add in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
                 val slot3 = slot<Instant>()
 
                 coEvery {
@@ -571,7 +572,7 @@ class DatabaseEntitySupplierTest {
                 } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 val instant = Instant.now()
                 assertTrue { databaseEntitySupplier.addInvitation(guildId, entityId, instant) }
                 coVerify(exactly = 1) { guildDatabaseService.addInvitation(any(), any(), any()) }
@@ -585,7 +586,7 @@ class DatabaseEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildDatabaseService.addInvitation(any(), any(), any()) } returns result
-                assertEquals(result, databaseEntitySupplier.addInvitation(Random.nextInt(), getRandomString(), mockk()))
+                assertEquals(result, databaseEntitySupplier.addInvitation(Random.nextInt(), randomEntityId(), mockk()))
                 coVerify(exactly = 1) { guildDatabaseService.addInvitation(any(), any(), any()) }
             }
 
@@ -597,12 +598,12 @@ class DatabaseEntitySupplierTest {
             @Test
             fun `should remove in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildDatabaseService.removeMember(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { databaseEntitySupplier.removeMember(guildId, entityId) }
                 coVerify(exactly = 1) { guildDatabaseService.removeMember(any(), any()) }
 
@@ -614,7 +615,7 @@ class DatabaseEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildDatabaseService.removeMember(any(), any()) } returns result
-                assertEquals(result, databaseEntitySupplier.removeMember(Random.nextInt(), getRandomString()))
+                assertEquals(result, databaseEntitySupplier.removeMember(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildDatabaseService.removeMember(any(), any()) }
             }
 
@@ -626,12 +627,12 @@ class DatabaseEntitySupplierTest {
             @Test
             fun `should remove in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildDatabaseService.removeInvitation(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { databaseEntitySupplier.removeInvitation(guildId, entityId) }
                 coVerify(exactly = 1) { guildDatabaseService.removeInvitation(any(), any()) }
 
@@ -643,7 +644,7 @@ class DatabaseEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildDatabaseService.removeInvitation(any(), any()) } returns result
-                assertEquals(result, databaseEntitySupplier.removeInvitation(Random.nextInt(), getRandomString()))
+                assertEquals(result, databaseEntitySupplier.removeInvitation(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildDatabaseService.removeInvitation(any(), any()) }
             }
 
@@ -674,7 +675,7 @@ class DatabaseEntitySupplierTest {
 
             @Test
             fun `should return not empty collection when supplier returns not empty collection`() = runTest {
-                val expected = List(5) { GuildMember(Random.nextInt(), getRandomString(), mockk()) }
+                val expected = List(5) { GuildMember(Random.nextInt(), randomEntityId(), mockk()) }
                 coEvery { guildDatabaseService.getMembers(any()) } returns expected.asFlow()
                 assertEquals(expected, databaseEntitySupplier.getMembers(Random.nextInt()).toList())
                 coVerify(exactly = 1) { guildDatabaseService.getMembers(any()) }
@@ -707,7 +708,7 @@ class DatabaseEntitySupplierTest {
 
             @Test
             fun `should return not empty collection when supplier returns not empty collection`() = runTest {
-                val expected = List(5) { GuildInvite(Random.nextInt(), getRandomString(), mockk(), mockk()) }
+                val expected = List(5) { GuildInvite(Random.nextInt(), randomEntityId(), mockk(), mockk()) }
                 coEvery { guildDatabaseService.getInvitations(any()) } returns expected.asFlow()
                 assertEquals(expected, databaseEntitySupplier.getInvitations(Random.nextInt()).toList())
                 coVerify(exactly = 1) { guildDatabaseService.getInvitations(any()) }
@@ -716,4 +717,6 @@ class DatabaseEntitySupplierTest {
         }
 
     }
+
+    private fun randomEntityId() = UUID.randomUUID()
 }

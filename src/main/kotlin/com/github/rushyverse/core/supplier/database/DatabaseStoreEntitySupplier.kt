@@ -3,6 +3,7 @@ package com.github.rushyverse.core.supplier.database
 import com.github.rushyverse.core.data.Guild
 import com.github.rushyverse.core.data.GuildInvite
 import com.github.rushyverse.core.data.GuildMember
+import com.github.rushyverse.core.data.Player
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
@@ -90,7 +91,7 @@ public class DatabaseStoreEntitySupplier(
         supplierDeletedDeferred.await().plus(cacheDeleted)
     }
 
-    override suspend fun createGuild(name: String, ownerId: String): Guild {
+    override suspend fun createGuild(name: String, ownerId: UUID): Guild {
         return supplier.createGuild(name, ownerId).also {
             importCatchFailure(it, cache::addGuild)
         }
@@ -114,19 +115,19 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
+    override suspend fun isOwner(guildId: Int, entityId: UUID): Boolean {
         return supplier.isOwner(guildId, entityId)
     }
 
-    override suspend fun isMember(guildId: Int, entityId: String): Boolean {
+    override suspend fun isMember(guildId: Int, entityId: UUID): Boolean {
         return supplier.isMember(guildId, entityId)
     }
 
-    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+    override suspend fun hasInvitation(guildId: Int, entityId: UUID): Boolean {
         return supplier.hasInvitation(guildId, entityId)
     }
 
-    override suspend fun addMember(guildId: Int, entityId: String): Boolean {
+    override suspend fun addMember(guildId: Int, entityId: UUID): Boolean {
         return supplier.addMember(guildId, entityId).also {
             if (it) {
                 cache.addMember(guildId, entityId)
@@ -134,7 +135,7 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
+    override suspend fun addInvitation(guildId: Int, entityId: UUID, expiredAt: Instant?): Boolean {
         return supplier.addInvitation(guildId, entityId, expiredAt).also {
             if (it) {
                 cache.addInvitation(guildId, entityId, expiredAt)
@@ -142,7 +143,7 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
+    override suspend fun removeMember(guildId: Int, entityId: UUID): Boolean {
         return supplier.removeMember(guildId, entityId).also {
             if (it) {
                 cache.removeMember(guildId, entityId)
@@ -150,7 +151,7 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
+    override suspend fun removeInvitation(guildId: Int, entityId: UUID): Boolean {
         return supplier.removeInvitation(guildId, entityId).also {
             if (it) {
                 cache.removeInvitation(guildId, entityId)
@@ -167,6 +168,18 @@ public class DatabaseStoreEntitySupplier(
         .onEach {
             importCatchFailure(it, cache::addInvitation)
         }
+
+    override suspend fun save(player: Player): Boolean {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun get(uuid: UUID): Player? {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun remove(uuid: UUID): Boolean {
+        TODO("Not yet implemented")
+    }
 
     /**
      * Calls the [action] with the [value] and catches any [Exception] that may occur.

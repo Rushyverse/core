@@ -323,7 +323,7 @@ class DatabaseFallbackEntitySupplierTest {
             @Test
             fun `should invoke setPriority supplier first and not getPriority`() = runTest {
                 val name = getRandomString()
-                val owner = getRandomString()
+                val owner = randomEntityId()
                 val expectedGuild = mockk<Guild>()
                 coEvery { setPrioritySupplier.createGuild(name, owner) } returns expectedGuild
                 coEvery { getPrioritySupplier.createGuild(name, owner) } throws Exception()
@@ -440,7 +440,7 @@ class DatabaseFallbackEntitySupplierTest {
             @Test
             fun `should invoke getPriority supplier first and setPriority if return false`() = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.isOwner(id, entity) } returns true
                 coEvery { getPrioritySupplier.isOwner(id, entity) } returns false
 
@@ -452,7 +452,7 @@ class DatabaseFallbackEntitySupplierTest {
             @Test
             fun `should invoke getPriority supplier first and not setPriority if return true`() = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.isOwner(id, entity) } throws Exception()
                 coEvery { getPrioritySupplier.isOwner(id, entity) } returns true
 
@@ -464,7 +464,7 @@ class DatabaseFallbackEntitySupplierTest {
             @Test
             fun `should return false if both return false`() = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.isOwner(id, entity) } returns false
                 coEvery { getPrioritySupplier.isOwner(id, entity) } returns false
 
@@ -480,7 +480,7 @@ class DatabaseFallbackEntitySupplierTest {
             @Test
             fun `should invoke getPriority supplier first and setPriority if return false`() = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.isMember(id, entity) } returns true
                 coEvery { getPrioritySupplier.isMember(id, entity) } returns false
 
@@ -492,7 +492,7 @@ class DatabaseFallbackEntitySupplierTest {
             @Test
             fun `should invoke getPriority supplier first and not setPriority if return true`() = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.isMember(id, entity) } throws Exception()
                 coEvery { getPrioritySupplier.isMember(id, entity) } returns true
 
@@ -504,7 +504,7 @@ class DatabaseFallbackEntitySupplierTest {
             @Test
             fun `should return false if both return false`() = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.isMember(id, entity) } returns false
                 coEvery { getPrioritySupplier.isMember(id, entity) } returns false
 
@@ -520,7 +520,7 @@ class DatabaseFallbackEntitySupplierTest {
             @Test
             fun `should invoke getPriority supplier first and setPriority if return false`() = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.hasInvitation(id, entity) } returns true
                 coEvery { getPrioritySupplier.hasInvitation(id, entity) } returns false
 
@@ -532,7 +532,7 @@ class DatabaseFallbackEntitySupplierTest {
             @Test
             fun `should invoke getPriority supplier first and not setPriority if return true`() = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.hasInvitation(id, entity) } throws Exception()
                 coEvery { getPrioritySupplier.hasInvitation(id, entity) } returns true
 
@@ -544,7 +544,7 @@ class DatabaseFallbackEntitySupplierTest {
             @Test
             fun `should return false if both return false`() = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.hasInvitation(id, entity) } returns false
                 coEvery { getPrioritySupplier.hasInvitation(id, entity) } returns false
 
@@ -562,7 +562,7 @@ class DatabaseFallbackEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should invoke setPriority supplier first and not getPriority`(result: Boolean) = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.addMember(id, entity) } returns result
                 coEvery { getPrioritySupplier.addMember(id, entity) } throws Exception()
 
@@ -580,7 +580,7 @@ class DatabaseFallbackEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should invoke setPriority supplier first and not getPriority`(result: Boolean) = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 val expiredAt = mockk<Instant>()
                 coEvery { setPrioritySupplier.addInvitation(id, entity, expiredAt) } returns result
                 coEvery { getPrioritySupplier.addInvitation(id, entity, expiredAt) } throws Exception()
@@ -598,7 +598,7 @@ class DatabaseFallbackEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should invoke setPriority supplier first and not getPriority`(result: Boolean) = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.removeMember(id, entity) } returns result
                 coEvery { getPrioritySupplier.removeMember(id, entity) } throws Exception()
 
@@ -616,7 +616,7 @@ class DatabaseFallbackEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should invoke setPriority supplier first and not getPriority`(result: Boolean) = runTest {
                 val id = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 coEvery { setPrioritySupplier.removeMember(id, entity) } returns result
                 coEvery { getPrioritySupplier.removeMember(id, entity) } throws Exception()
 
@@ -714,4 +714,6 @@ class DatabaseFallbackEntitySupplierTest {
         }
 
     }
+
+    private fun randomEntityId() = UUID.randomUUID()
 }

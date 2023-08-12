@@ -368,7 +368,7 @@ class DatabaseStoreEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should set data in cache if set in supplier`(cacheResult: Boolean) = runTest {
                 val name = getRandomString()
-                val owner = getRandomString()
+                val owner = randomEntityId()
                 val guild = mockk<Guild>()
 
                 coEvery { supplier.createGuild(name, owner) } returns guild
@@ -481,7 +481,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should import all guilds if flow is entire collected`() = runTest {
                 val name = getRandomString()
-                val guilds = List(10) { Guild(Random.nextInt(), name, getRandomString()) }
+                val guilds = List(10) { Guild(Random.nextInt(), name, randomEntityId()) }
                 coEvery { supplier.getGuild(name) } returns guilds.asFlow()
 
                 assertThat(entitySupplier.getGuild(name).toList()).containsExactlyElementsOf(guilds)
@@ -495,7 +495,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should import partial guilds if flow is partially collected`() = runTest {
                 val name = getRandomString()
-                val guilds = List(10) { Guild(Random.nextInt(), name, getRandomString()) }
+                val guilds = List(10) { Guild(Random.nextInt(), name, randomEntityId()) }
                 val guildsToImport = guilds.take(5)
                 coEvery { supplier.getGuild(name) } returns guilds.asFlow()
 
@@ -521,7 +521,7 @@ class DatabaseStoreEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return the result returned by supplier without using cache`(result: Boolean) = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.isOwner(guildId, entity) } returns result
                 assertEquals(result, entitySupplier.isOwner(guildId, entity))
@@ -539,7 +539,7 @@ class DatabaseStoreEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return the result returned by supplier without using cache`(result: Boolean) = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.isMember(guildId, entity) } returns result
                 assertEquals(result, entitySupplier.isMember(guildId, entity))
@@ -557,7 +557,7 @@ class DatabaseStoreEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return the result returned by supplier without using cache`(result: Boolean) = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.hasInvitation(guildId, entity) } returns result
                 assertEquals(result, entitySupplier.hasInvitation(guildId, entity))
@@ -574,7 +574,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should set data in cache if set in supplier`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.addMember(guildId, entity) } returns true
                 coEvery { cache.addMember(guildId, entity) } returns true
@@ -587,7 +587,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should not set data in cache if not set in supplier`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.addMember(guildId, entity) } returns false
                 coEvery { cache.addMember(guildId, entity) } returns false
@@ -600,7 +600,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should return true if data is set in supplier but not in cache`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.addMember(guildId, entity) } returns true
                 coEvery { cache.addMember(guildId, entity) } returns false
@@ -618,7 +618,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should set data in cache if set in supplier`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 val expiredAt = mockk<Instant>()
 
                 coEvery { supplier.addInvitation(guildId, entity, expiredAt) } returns true
@@ -632,7 +632,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should not set data in cache if not set in supplier`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 val expiredAt = mockk<Instant>()
 
                 coEvery { supplier.addInvitation(guildId, entity, expiredAt) } returns false
@@ -646,7 +646,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should return true if data is set in supplier but not in cache`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
                 val expiredAt = mockk<Instant>()
 
                 coEvery { supplier.addInvitation(guildId, entity, expiredAt) } returns true
@@ -665,7 +665,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should set data in cache if set in supplier`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.removeMember(guildId, entity) } returns true
                 coEvery { cache.removeMember(guildId, entity) } returns true
@@ -678,7 +678,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should not set data in cache if not set in supplier`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.removeMember(guildId, entity) } returns false
                 coEvery { cache.removeMember(guildId, entity) } returns false
@@ -691,7 +691,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should return true if data is set in supplier but not in cache`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.removeMember(guildId, entity) } returns true
                 coEvery { cache.removeMember(guildId, entity) } returns false
@@ -709,7 +709,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should set data in cache if set in supplier`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.removeInvitation(guildId, entity) } returns true
                 coEvery { cache.removeInvitation(guildId, entity) } returns true
@@ -722,7 +722,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should not set data in cache if not set in supplier`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.removeInvitation(guildId, entity) } returns false
                 coEvery { cache.removeInvitation(guildId, entity) } returns false
@@ -735,7 +735,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should return true if data is set in supplier but not in cache`() = runTest {
                 val guildId = Random.nextInt()
-                val entity = getRandomString()
+                val entity = randomEntityId()
 
                 coEvery { supplier.removeInvitation(guildId, entity) } returns true
                 coEvery { cache.removeInvitation(guildId, entity) } returns false
@@ -762,7 +762,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should import all members if flow is entire collected`() = runTest {
                 val id = Random.nextInt()
-                val members = List(10) { GuildMember(id, getRandomString()) }
+                val members = List(10) { GuildMember(id, randomEntityId()) }
                 coEvery { supplier.getMembers(id) } returns members.asFlow()
 
                 assertThat(entitySupplier.getMembers(id).toList()).containsExactlyElementsOf(members)
@@ -776,7 +776,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should not throw exception if import throws exception`() = runTest {
                 val id = Random.nextInt()
-                val members = List(2) { GuildMember(id, getRandomString()) }
+                val members = List(2) { GuildMember(id, randomEntityId()) }
                 coEvery { supplier.getMembers(id) } returns members.asFlow()
                 coEvery { cache.addMember(members[0]) } throws Exception()
 
@@ -788,7 +788,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should import partial members if flow is partially collected`() = runTest {
                 val id = Random.nextInt()
-                val members = List(10) { GuildMember(id, getRandomString()) }
+                val members = List(10) { GuildMember(id, randomEntityId()) }
                 val toImport = members.take(5)
                 coEvery { supplier.getMembers(id) } returns members.asFlow()
 
@@ -834,7 +834,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should import all members if flow is entire collected`() = runTest {
                 val id = Random.nextInt()
-                val invites = List(10) { GuildInvite(id, getRandomString(), mockk()) }
+                val invites = List(10) { GuildInvite(id, randomEntityId(), mockk()) }
                 coEvery { supplier.getInvitations(id) } returns invites.asFlow()
 
                 assertThat(entitySupplier.getInvitations(id).toList()).containsExactlyElementsOf(invites)
@@ -848,7 +848,7 @@ class DatabaseStoreEntitySupplierTest {
             @Test
             fun `should import partial members if flow is partially collected`() = runTest {
                 val id = Random.nextInt()
-                val invites = List(10) { GuildInvite(id, getRandomString(), mockk()) }
+                val invites = List(10) { GuildInvite(id, randomEntityId(), mockk()) }
                 val toImport = invites.take(5)
                 coEvery { supplier.getInvitations(id) } returns invites.asFlow()
 
@@ -868,5 +868,7 @@ class DatabaseStoreEntitySupplierTest {
         }
 
     }
+
+    private fun randomEntityId() = UUID.randomUUID()
 
 }

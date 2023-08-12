@@ -1,9 +1,7 @@
 package com.github.rushyverse.core.data.friend
 
 import com.github.rushyverse.core.container.createPSQLContainer
-import com.github.rushyverse.core.data.Friend
-import com.github.rushyverse.core.data.FriendDatabaseService
-import com.github.rushyverse.core.data._Friend
+import com.github.rushyverse.core.data.*
 import com.github.rushyverse.core.data.utils.DatabaseUtils
 import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
 import io.r2dbc.spi.R2dbcException
@@ -32,18 +30,24 @@ class FriendDatabaseServiceTest {
         @Container
         private val psqlContainer = createPSQLContainer()
             .withCopyToContainer(
+                MountableFile.forClasspathResource("sql/player.sql"),
+                "/docker-entrypoint-initdb.d/1.sql"
+            )
+            .withCopyToContainer(
                 MountableFile.forClasspathResource("sql/friend.sql"),
-                "/docker-entrypoint-initdb.d/init.sql"
+                "/docker-entrypoint-initdb.d/2.sql"
             )
     }
 
     private lateinit var service: FriendDatabaseService
+    private lateinit var playerService: PlayerDatabaseService
     private lateinit var database: R2dbcDatabase
 
     @BeforeTest
     fun onBefore() = runBlocking {
         database = R2dbcDatabase(createConnectionOptions(psqlContainer))
         service = FriendDatabaseService(database)
+        playerService = PlayerDatabaseService(database)
     }
 
     @AfterTest
@@ -106,8 +110,8 @@ class FriendDatabaseServiceTest {
 
         @Test
         fun `should not add friend if relation already exists`() = runTest {
-            val uuid1 = UUID.randomUUID()
-            val uuid2 = UUID.randomUUID()
+            val uuid1 = saveNewPlayer()
+            val uuid2 = saveNewPlayer()
 
             assertTrue { service.addFriend(uuid1, uuid2) }
             assertFalse { service.addFriend(uuid1, uuid2) }
@@ -985,5 +989,11 @@ class FriendDatabaseServiceTest {
 
     private suspend fun getAll(): List<Friend> {
         return DatabaseUtils.getAll(database, _Friend.friend)
+    }
+
+    private suspend fun saveNewPlayer(uuid: UUID = UUID.randomUUID()): UUID {
+        val player = Player(uuid, Rank.PLAYER)
+        playerService.save(player)
+        return player.uuid
     }
 }

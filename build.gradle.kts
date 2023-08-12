@@ -97,6 +97,10 @@ dependencies {
     testImplementation("org.komapper:komapper-dialect-postgresql-jdbc")
 }
 
+ksp {
+    arg("komapper.enumStrategy", "name")
+}
+
 kotlin {
     explicitApi = org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode.Strict
     jvmToolchain(javaVersionInt)

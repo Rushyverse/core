@@ -26,14 +26,17 @@ class DatabaseCacheEntitySupplierTest {
 
     private lateinit var friendCacheService: IFriendCacheService
     private lateinit var guildCacheService: IGuildCacheService
+    private lateinit var playerCacheService: IPlayerCacheService
 
     @BeforeTest
     fun onBefore() = runBlocking {
         friendCacheService = mockk()
         guildCacheService = mockk()
+        playerCacheService = mockk()
         val configuration = DatabaseSupplierConfiguration(
             friendCacheService to mockk(),
-            guildCacheService to mockk()
+            guildCacheService to mockk(),
+            playerCacheService to mockk()
         )
         cacheEntitySupplier = DatabaseCacheEntitySupplier(configuration)
     }
@@ -411,13 +414,13 @@ class DatabaseCacheEntitySupplierTest {
             @Test
             fun `should create in supplier`() = runTest {
                 val slot1 = slot<String>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 val guild = mockk<Guild>()
                 coEvery { guildCacheService.createGuild(capture(slot1), capture(slot2)) } returns guild
 
                 val value1 = getRandomString()
-                val value2 = getRandomString()
+                val value2 = randomEntityId()
                 cacheEntitySupplier.createGuild(value1, value2)
                 coVerify(exactly = 1) { guildCacheService.createGuild(any(), any()) }
 
@@ -429,7 +432,7 @@ class DatabaseCacheEntitySupplierTest {
             fun `should return the supplier result`() = runTest {
                 val guild = mockk<Guild>()
                 coEvery { guildCacheService.createGuild(any(), any()) } returns guild
-                val supplierGuild = cacheEntitySupplier.createGuild(getRandomString(), getRandomString())
+                val supplierGuild = cacheEntitySupplier.createGuild(getRandomString(), randomEntityId())
                 assertEquals(guild, supplierGuild)
                 coVerify(exactly = 1) { guildCacheService.createGuild(any(), any()) }
             }
@@ -512,12 +515,12 @@ class DatabaseCacheEntitySupplierTest {
             @Test
             fun `should get in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildCacheService.isOwner(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { cacheEntitySupplier.isOwner(guildId, entityId) }
                 coVerify(exactly = 1) { guildCacheService.isOwner(any(), any()) }
 
@@ -529,7 +532,7 @@ class DatabaseCacheEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildCacheService.isOwner(any(), any()) } returns result
-                assertEquals(result, cacheEntitySupplier.isOwner(Random.nextInt(), getRandomString()))
+                assertEquals(result, cacheEntitySupplier.isOwner(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildCacheService.isOwner(any(), any()) }
             }
 
@@ -541,12 +544,12 @@ class DatabaseCacheEntitySupplierTest {
             @Test
             fun `should get in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildCacheService.isMember(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { cacheEntitySupplier.isMember(guildId, entityId) }
                 coVerify(exactly = 1) { guildCacheService.isMember(any(), any()) }
 
@@ -558,7 +561,7 @@ class DatabaseCacheEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildCacheService.isMember(any(), any()) } returns result
-                assertEquals(result, cacheEntitySupplier.isMember(Random.nextInt(), getRandomString()))
+                assertEquals(result, cacheEntitySupplier.isMember(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildCacheService.isMember(any(), any()) }
             }
         }
@@ -569,12 +572,12 @@ class DatabaseCacheEntitySupplierTest {
             @Test
             fun `should get in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildCacheService.hasInvitation(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { cacheEntitySupplier.hasInvitation(guildId, entityId) }
                 coVerify(exactly = 1) { guildCacheService.hasInvitation(any(), any()) }
 
@@ -586,7 +589,7 @@ class DatabaseCacheEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildCacheService.hasInvitation(any(), any()) } returns result
-                assertEquals(result, cacheEntitySupplier.hasInvitation(Random.nextInt(), getRandomString()))
+                assertEquals(result, cacheEntitySupplier.hasInvitation(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildCacheService.hasInvitation(any(), any()) }
             }
         }
@@ -597,12 +600,12 @@ class DatabaseCacheEntitySupplierTest {
             @Test
             fun `should add in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildCacheService.addMember(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { cacheEntitySupplier.addMember(guildId, entityId) }
                 coVerify(exactly = 1) { guildCacheService.addMember(any(), any()) }
 
@@ -614,7 +617,7 @@ class DatabaseCacheEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildCacheService.addMember(any(), any()) } returns result
-                assertEquals(result, cacheEntitySupplier.addMember(Random.nextInt(), getRandomString()))
+                assertEquals(result, cacheEntitySupplier.addMember(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildCacheService.addMember(any(), any()) }
             }
 
@@ -626,13 +629,13 @@ class DatabaseCacheEntitySupplierTest {
             @Test
             fun `should add in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
                 val slot3 = slot<Instant>()
 
                 coEvery { guildCacheService.addInvitation(capture(slot1), capture(slot2), capture(slot3)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 val instant = Instant.now()
                 assertTrue { cacheEntitySupplier.addInvitation(guildId, entityId, instant) }
                 coVerify(exactly = 1) { guildCacheService.addInvitation(any(), any(), any()) }
@@ -646,7 +649,7 @@ class DatabaseCacheEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildCacheService.addInvitation(any(), any(), any()) } returns result
-                assertEquals(result, cacheEntitySupplier.addInvitation(Random.nextInt(), getRandomString(), mockk()))
+                assertEquals(result, cacheEntitySupplier.addInvitation(Random.nextInt(), randomEntityId(), mockk()))
                 coVerify(exactly = 1) { guildCacheService.addInvitation(any(), any(), any()) }
             }
 
@@ -658,12 +661,12 @@ class DatabaseCacheEntitySupplierTest {
             @Test
             fun `should remove in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildCacheService.removeMember(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { cacheEntitySupplier.removeMember(guildId, entityId) }
                 coVerify(exactly = 1) { guildCacheService.removeMember(any(), any()) }
 
@@ -675,7 +678,7 @@ class DatabaseCacheEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildCacheService.removeMember(any(), any()) } returns result
-                assertEquals(result, cacheEntitySupplier.removeMember(Random.nextInt(), getRandomString()))
+                assertEquals(result, cacheEntitySupplier.removeMember(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildCacheService.removeMember(any(), any()) }
             }
 
@@ -687,12 +690,12 @@ class DatabaseCacheEntitySupplierTest {
             @Test
             fun `should remove in supplier`() = runTest {
                 val slot1 = slot<Int>()
-                val slot2 = slot<String>()
+                val slot2 = slot<UUID>()
 
                 coEvery { guildCacheService.removeInvitation(capture(slot1), capture(slot2)) } returns true
 
                 val guildId = Random.nextInt()
-                val entityId = getRandomString()
+                val entityId = randomEntityId()
                 assertTrue { cacheEntitySupplier.removeInvitation(guildId, entityId) }
                 coVerify(exactly = 1) { guildCacheService.removeInvitation(any(), any()) }
 
@@ -704,7 +707,7 @@ class DatabaseCacheEntitySupplierTest {
             @ValueSource(booleans = [true, false])
             fun `should return supplier result`(result: Boolean) = runTest {
                 coEvery { guildCacheService.removeInvitation(any(), any()) } returns result
-                assertEquals(result, cacheEntitySupplier.removeInvitation(Random.nextInt(), getRandomString()))
+                assertEquals(result, cacheEntitySupplier.removeInvitation(Random.nextInt(), randomEntityId()))
                 coVerify(exactly = 1) { guildCacheService.removeInvitation(any(), any()) }
             }
 
@@ -735,7 +738,7 @@ class DatabaseCacheEntitySupplierTest {
 
             @Test
             fun `should return not empty collection when supplier returns not empty collection`() = runTest {
-                val expected = List(5) { GuildMember(Random.nextInt(), getRandomString(), mockk()) }
+                val expected = List(5) { GuildMember(Random.nextInt(), randomEntityId(), mockk()) }
                 coEvery { guildCacheService.getMembers(any()) } returns expected.asFlow()
                 assertEquals(expected, cacheEntitySupplier.getMembers(Random.nextInt()).toList())
                 coVerify(exactly = 1) { guildCacheService.getMembers(any()) }
@@ -768,7 +771,7 @@ class DatabaseCacheEntitySupplierTest {
 
             @Test
             fun `should return not empty collection when supplier returns not empty collection`() = runTest {
-                val expected = List(5) { GuildInvite(Random.nextInt(), getRandomString(), mockk(), mockk()) }
+                val expected = List(5) { GuildInvite(Random.nextInt(), randomEntityId(), mockk(), mockk()) }
                 coEvery { guildCacheService.getInvitations(any()) } returns expected.asFlow()
                 assertEquals(expected, cacheEntitySupplier.getInvitations(Random.nextInt()).toList())
                 coVerify(exactly = 1) { guildCacheService.getInvitations(any()) }
@@ -777,5 +780,7 @@ class DatabaseCacheEntitySupplierTest {
         }
 
     }
+
+    private fun randomEntityId() = UUID.randomUUID()
 
 }

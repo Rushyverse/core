@@ -2,6 +2,7 @@ package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.data.IFriendService
 import com.github.rushyverse.core.data.IGuildService
+import com.github.rushyverse.core.data.IPlayerService
 
 /**
  * A class that will defer the requesting of entities to a [supplier].
@@ -35,7 +36,7 @@ public interface IDatabaseStrategizable {
  * @see DatabaseStoreEntitySupplier
  * @see DatabaseFallbackEntitySupplier
  */
-public interface IDatabaseEntitySupplier : IFriendService, IGuildService {
+public interface IDatabaseEntitySupplier : IFriendService, IGuildService, IPlayerService {
 
     public companion object {
 

@@ -3,6 +3,7 @@ package com.github.rushyverse.core.supplier.database
 import com.github.rushyverse.core.data.IFriendCacheService
 import com.github.rushyverse.core.data.IFriendDatabaseService
 import com.github.rushyverse.core.data.IGuildCacheService
+import com.github.rushyverse.core.data.IPlayerCacheService
 import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,6 +16,7 @@ class IDatabaseEntitySupplierTest {
         val configuration = DatabaseSupplierConfiguration(
             mockk<IFriendCacheService>() to service,
             mockk<IGuildCacheService>() to mockk(),
+            mockk<IPlayerCacheService>() to mockk()
         )
         val supplier = IDatabaseEntitySupplier.database(configuration)
         assertEquals(DatabaseEntitySupplier::class, supplier::class)
@@ -25,7 +27,8 @@ class IDatabaseEntitySupplierTest {
         val service = mockk<IFriendCacheService>()
         val configuration = DatabaseSupplierConfiguration(
             service to mockk(),
-            mockk<IGuildCacheService>() to mockk()
+            mockk<IGuildCacheService>() to mockk(),
+            mockk<IPlayerCacheService>() to mockk()
         )
         val supplier = IDatabaseEntitySupplier.cache(configuration)
         assertEquals(DatabaseCacheEntitySupplier::class, supplier::class)
@@ -37,7 +40,8 @@ class IDatabaseEntitySupplierTest {
         val databaseService = mockk<IFriendDatabaseService>()
         val configuration = DatabaseSupplierConfiguration(
             cacheService to databaseService,
-            mockk<IGuildCacheService>() to mockk()
+            mockk<IGuildCacheService>() to mockk(),
+            mockk<IPlayerCacheService>() to mockk()
         )
         val supplier = IDatabaseEntitySupplier.cachingDatabase(configuration)
         assertEquals(DatabaseStoreEntitySupplier::class, supplier::class)
@@ -51,7 +55,8 @@ class IDatabaseEntitySupplierTest {
         val databaseService = mockk<IFriendDatabaseService>()
         val configuration = DatabaseSupplierConfiguration(
             cacheService to databaseService,
-            mockk<IGuildCacheService>() to mockk()
+            mockk<IGuildCacheService>() to mockk(),
+            mockk<IPlayerCacheService>() to mockk()
         )
         val supplier = IDatabaseEntitySupplier.cacheWithDatabaseFallback(configuration)
         assertEquals(DatabaseFallbackEntitySupplier::class, supplier::class)
@@ -65,7 +70,8 @@ class IDatabaseEntitySupplierTest {
         val databaseService = mockk<IFriendDatabaseService>()
         val configuration = DatabaseSupplierConfiguration(
             cacheService to databaseService,
-            mockk<IGuildCacheService>() to mockk()
+            mockk<IGuildCacheService>() to mockk(),
+            mockk<IPlayerCacheService>() to mockk()
         )
         val supplier = IDatabaseEntitySupplier.cacheWithCachingDatabaseFallback(configuration)
         assertEquals(DatabaseFallbackEntitySupplier::class, supplier::class)
