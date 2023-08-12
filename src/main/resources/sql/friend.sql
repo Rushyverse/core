@@ -4,7 +4,9 @@ CREATE TABLE friend
     uuid1 uuid NOT NULL,
     uuid2 uuid NOT NULL,
     pending BOOLEAN NOT NULL DEFAULT TRUE,
-    PRIMARY KEY (uuid1, uuid2)
+    PRIMARY KEY (uuid1, uuid2),
+    FOREIGN KEY (uuid1) REFERENCES player(uuid) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (uuid2) REFERENCES player(uuid) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- Add index on uuid1 and uuid2 to be able to search friends by uuid
