@@ -6,7 +6,7 @@ import com.github.rushyverse.core.data.ProfileSkinCacheService
 import com.github.rushyverse.core.utils.createProfileSkin
 import com.github.rushyverse.core.utils.getRandomString
 import com.github.rushyverse.core.utils.getTTL
-import io.github.universeproject.kotlinmojangapi.ProfileSkin
+import com.github.rushyverse.mojang.api.ProfileSkin
 import io.lettuce.core.RedisURI
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await

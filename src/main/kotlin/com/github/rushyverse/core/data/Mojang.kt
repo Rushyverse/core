@@ -3,7 +3,7 @@ package com.github.rushyverse.core.data
 import com.github.rushyverse.core.supplier.http.HttpSupplierConfiguration
 import com.github.rushyverse.core.supplier.http.IHttpEntitySupplier
 import com.github.rushyverse.core.supplier.http.IHttpStrategizable
-import io.github.universeproject.kotlinmojangapi.ProfileSkin
+import com.github.rushyverse.mojang.api.ProfileSkin
 
 /**
  * Service to retrieve data about players.

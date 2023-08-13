@@ -5,7 +5,7 @@ import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.MojangService
 import com.github.rushyverse.core.supplier.http.HttpSupplierConfiguration
 import com.github.rushyverse.core.supplier.http.IHttpEntitySupplier
-import io.github.universeproject.kotlinmojangapi.MojangAPIImpl
+import com.github.rushyverse.mojang.api.MojangAPIImpl
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*

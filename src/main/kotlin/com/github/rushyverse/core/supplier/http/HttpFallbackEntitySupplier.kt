@@ -1,7 +1,7 @@
 package com.github.rushyverse.core.supplier.http
 
-import io.github.universeproject.kotlinmojangapi.ProfileId
-import io.github.universeproject.kotlinmojangapi.ProfileSkin
+import com.github.rushyverse.mojang.api.ProfileId
+import com.github.rushyverse.mojang.api.ProfileSkin
 
 /**
  * [IHttpEntitySupplier] that uses the first supplier to retrieve a data, if the value is null,
