@@ -2,6 +2,7 @@ package com.github.rushyverse.core.data
 
 import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
+import com.github.rushyverse.core.cache.SUCCEED
 import com.github.rushyverse.core.data._Guild.Companion.guild
 import com.github.rushyverse.core.data._GuildInvite.Companion.guildInvite
 import com.github.rushyverse.core.extension.safeCollect
@@ -637,7 +638,7 @@ public class GuildCacheService(
 
         return cacheClient.connect {
             val key = addGuildKey(guild.id.toString())
-            it.set(key, encodeToByteArray(Guild.serializer(), guild)) == "OK"
+            it.set(key, encodeToByteArray(Guild.serializer(), guild)) == SUCCEED
         }
     }
 

@@ -11,6 +11,11 @@ import kotlinx.serialization.SerializationStrategy
 import kotlin.time.Duration
 
 /**
+ * Constant to use when a cache operation succeeds.
+ */
+public const val SUCCEED: String = "OK"
+
+/**
  * Service to encode and decode information with cache.
  * @property cacheClient The client to use to connect to cache.
  * @property prefixKey The prefix key to use to identify data in cache.
