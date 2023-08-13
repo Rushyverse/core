@@ -43,7 +43,7 @@ dependencies {
     val junitVersion = "5.10.0"
     val testContainersVersion = "1.18.3"
     val lettuceVersion = "6.2.3.RELEASE"
-    val mojangApi = "2104df63d7"
+    val mojangApi = "v1.0.1"
     val nettyCodecVersion = "4.1.96.Final"
     val assertJcoreVersion = "3.24.2"
     val komapperVersion = "1.12.0"
