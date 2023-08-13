@@ -2,8 +2,6 @@ package com.github.rushyverse.core.data
 
 import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
-import com.github.rushyverse.core.cache.SUCCEED
-import com.github.rushyverse.core.data._Player.Companion.player
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
@@ -82,7 +80,7 @@ public data class Player(
  */
 public class PlayerCacheService(
     client: CacheClient,
-    prefixKey: String = DEFAULT_PREFIX_KEY_USER_CACHE
+    prefixKey: String = "player:"
 ) : AbstractCacheService(client, prefixKey), IPlayerCacheService {
 
     /**
@@ -90,10 +88,9 @@ public class PlayerCacheService(
      * The key allows targeting a specific type of data.
      * @property key Key in the cache.
      */
-    // TODO Check to use map
     public enum class Type(public val key: String) {
-        ADD_PLAYER("player:add"),
-        REMOVE_PLAYER("player:remove"),
+        ADD_PLAYER("add"),
+        REMOVE_PLAYER("remove"),
     }
 
     override suspend fun save(player: Player): Boolean {
@@ -104,24 +101,27 @@ public class PlayerCacheService(
         // 4. If it is not the same, save it.
         // 5. If it is the same, do nothing.
         // 6. Remove the key in [Type.REMOVE_PLAYER] if it exists.
-        val addKey = encodeFormattedKeyWithPrefix(Type.ADD_PLAYER.key, player.uuid.toString())
-        val removeKey = encodeFormattedKeyWithPrefix(Type.REMOVE_PLAYER.key, player.uuid.toString())
+        val uuidByteArray = encodeToByteArray(UUIDSerializer, player.uuid)
+        val addKey = encodeKeyWithPrefix(Type.ADD_PLAYER.key)
+        val removeKey = encodeKeyWithPrefix(Type.REMOVE_PLAYER.key)
 
         return cacheClient.connect { connection ->
-            val playerStored = connection.get(addKey)
+            val playerStored = connection.hget(addKey, uuidByteArray)
 
+            val playerSerializer = Player.serializer()
             val result = if(playerStored == null) {
-                connection.set(addKey, encodeToByteArray(Player.serializer(), player)) == SUCCEED
+                connection.hset(addKey, uuidByteArray, encodeToByteArray(playerSerializer, player)) == true
             } else {
-                val decodedPlayerStored = decodeFromByteArrayOrNull(Player.serializer(), playerStored)
+                val decodedPlayerStored = decodeFromByteArrayOrNull(playerSerializer, playerStored)
                 if(decodedPlayerStored != player) {
-                    connection.set(addKey, encodeToByteArray(Player.serializer(), player)) == SUCCEED
+                    connection.hset(addKey, uuidByteArray, encodeToByteArray(playerSerializer, player))
+                    true
                 } else {
                     false
                 }
             }
 
-            result.or(connection.del(removeKey) == 1L)
+            result.or(connection.srem(removeKey, uuidByteArray) == 1L)
         }
     }
 
@@ -132,9 +132,10 @@ public class PlayerCacheService(
         // 3. If the player is in cache, return it.
         // When a player is saved, the key in [Type.REMOVE_PLAYER] is removed, so we don't need to check if
         // the player is registered as deleted.
-        val key = encodeFormattedKeyWithPrefix(Type.ADD_PLAYER.key, uuid.toString())
+        val uuidByteArray = encodeToByteArray(UUIDSerializer, uuid)
+        val addKey = encodeKeyWithPrefix(Type.ADD_PLAYER.key)
         return cacheClient.connect { connection ->
-            connection.get(key)?.let { decodeFromByteArrayOrNull(Player.serializer(), it) }
+            connection.hget(addKey, uuidByteArray)?.let { decodeFromByteArrayOrNull(Player.serializer(), it) }
         }
     }
 
@@ -144,16 +145,13 @@ public class PlayerCacheService(
         // 2. If it is, do nothing.
         // 3. If it is not, save it as deleted.
         // 4. Remove the key in [Type.ADD_PLAYER] if it exists.
-        val addKey = encodeFormattedKeyWithPrefix(Type.ADD_PLAYER.key, player.uuid.toString())
-        val removeKey = encodeFormattedKeyWithPrefix(Type.REMOVE_PLAYER.key, player.uuid.toString())
+        val uuidByteArray = encodeToByteArray(UUIDSerializer, uuid)
+        val addKey = encodeKeyWithPrefix(Type.ADD_PLAYER.key)
+        val removeKey = encodeKeyWithPrefix(Type.REMOVE_PLAYER.key)
 
         return cacheClient.connect { connection ->
-            var result = false
-            if(connection.exists(removeKey) == 0L) {
-                result = connection.set(removeKey, encodeToByteArray(UUIDSerializer, uuid)) == SUCCEED
-            }
-
-            result.or(connection.del(addKey) == 1L)
+            val removePlayer = connection.sadd(removeKey, uuidByteArray) == 1L
+            removePlayer.or(connection.hdel(addKey, uuidByteArray) == 1L)
         }
     }
 
