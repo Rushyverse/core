@@ -1,7 +1,7 @@
 package com.github.rushyverse.core.utils
 
-import io.github.universeproject.kotlinmojangapi.ProfileId
-import io.github.universeproject.kotlinmojangapi.ProfileSkin
+import com.github.rushyverse.mojang.api.ProfileId
+import com.github.rushyverse.mojang.api.ProfileSkin
 import java.util.*
 
 val stringGenerator = generateSequence { UUID.randomUUID().toString() }.distinct().iterator()

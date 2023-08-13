@@ -6,7 +6,7 @@ import com.github.rushyverse.core.data.ProfileIdCacheService
 import com.github.rushyverse.core.data.ProfileSkinCacheService
 import com.github.rushyverse.core.utils.createProfileId
 import com.github.rushyverse.core.utils.getRandomString
-import io.github.universeproject.kotlinmojangapi.MojangAPI
+import com.github.rushyverse.mojang.api.MojangAPI
 import io.lettuce.core.RedisURI
 import io.mockk.coEvery
 import io.mockk.coVerify

@@ -5,7 +5,7 @@ import com.github.rushyverse.core.data.IProfileIdCacheService
 import com.github.rushyverse.core.data.IProfileSkinCacheService
 import com.github.rushyverse.core.data.ProfileIdCacheService
 import com.github.rushyverse.core.data.ProfileSkinCacheService
-import io.github.universeproject.kotlinmojangapi.MojangAPI
+import com.github.rushyverse.mojang.api.MojangAPI
 
 /**
  * Contains the configuration for a HTTP supplier.

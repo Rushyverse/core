@@ -3,7 +3,7 @@ package com.github.rushyverse.core.supplier.http
 import com.github.rushyverse.core.utils.createProfileId
 import com.github.rushyverse.core.utils.createProfileSkin
 import com.github.rushyverse.core.utils.getRandomString
-import io.github.universeproject.kotlinmojangapi.MojangAPI
+import com.github.rushyverse.mojang.api.MojangAPI
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

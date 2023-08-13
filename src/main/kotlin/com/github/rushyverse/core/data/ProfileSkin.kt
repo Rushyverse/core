@@ -2,7 +2,7 @@ package com.github.rushyverse.core.data
 
 import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
-import io.github.universeproject.kotlinmojangapi.ProfileSkin
+import com.github.rushyverse.mojang.api.ProfileSkin
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 
