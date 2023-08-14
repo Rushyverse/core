@@ -64,7 +64,7 @@ public data class Player(
     @KomapperEnum(type = EnumType.NAME)
     val rank: Rank,
     @KomapperEnum(type = EnumType.NAME)
-    val language: SupportedLanguage
+    val language: Language
 )
 
 /**

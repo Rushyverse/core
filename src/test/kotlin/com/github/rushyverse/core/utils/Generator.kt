@@ -2,7 +2,7 @@ package com.github.rushyverse.core.utils
 
 import com.github.rushyverse.core.data.player.Player
 import com.github.rushyverse.core.data.player.Rank
-import com.github.rushyverse.core.data.player.SupportedLanguage
+import com.github.rushyverse.core.data.player.Language
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import java.util.*
@@ -27,8 +27,8 @@ fun createPlayer(uuid: UUID = UUID.randomUUID()): Player {
     return Player(
         uuid = uuid,
         rank = Rank.entries.random(),
-        language = SupportedLanguage.entries.random()
+        language = Language.entries.random()
     )
 }
 
-public fun randomEntityId() = UUID.randomUUID()
+fun randomEntityId() = UUID.randomUUID()
