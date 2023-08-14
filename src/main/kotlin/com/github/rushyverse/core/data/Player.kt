@@ -24,21 +24,21 @@ public interface IPlayerService {
      * @param player Player to save.
      * @return `true` if the player was created or updated, `false` otherwise.
      */
-    public suspend fun save(player: Player): Boolean
+    public suspend fun savePlayer(player: Player): Boolean
 
     /**
      * Get a player by their UUID.
      * @param uuid UUID of the player.
      * @return Player if found, `null` otherwise.
      */
-    public suspend fun get(uuid: UUID): Player?
+    public suspend fun getPlayer(uuid: UUID): Player?
 
     /**
      * Remove a player by their UUID.
      * @param uuid UUID of the player.
      * @return `true` if the player was removed, `false` otherwise.
      */
-    public suspend fun remove(uuid: UUID): Boolean
+    public suspend fun removePlayer(uuid: UUID): Boolean
 }
 
 /**
@@ -93,7 +93,7 @@ public class PlayerCacheService(
         REMOVE_PLAYER("remove"),
     }
 
-    override suspend fun save(player: Player): Boolean {
+    override suspend fun savePlayer(player: Player): Boolean {
         // Steps:
         // 1. Get the player from cache.
         // 2. If the player is not in cache, save it.
@@ -103,15 +103,17 @@ public class PlayerCacheService(
         // 6. Remove the key in [Type.REMOVE_PLAYER] if it exists.
         val uuidByteArray = encodeToByteArray(UUIDSerializer, player.uuid)
         val addKey = encodeKeyWithPrefix(Type.ADD_PLAYER.key)
-        val removeKey = encodeKeyWithPrefix(Type.REMOVE_PLAYER.key)
 
         return cacheClient.connect { connection ->
             val playerStored = connection.hget(addKey, uuidByteArray)
 
             val playerSerializer = Player.serializer()
             val result = if(playerStored == null) {
+                // Save the player if it is not in cache.
                 connection.hset(addKey, uuidByteArray, encodeToByteArray(playerSerializer, player)) == true
             } else {
+                // Verify if the player is the same as the one we want to save.
+                // If it is not, save it to update the cache.
                 val decodedPlayerStored = decodeFromByteArrayOrNull(playerSerializer, playerStored)
                 if(decodedPlayerStored != player) {
                     connection.hset(addKey, uuidByteArray, encodeToByteArray(playerSerializer, player))
@@ -121,11 +123,12 @@ public class PlayerCacheService(
                 }
             }
 
+            val removeKey = encodeKeyWithPrefix(Type.REMOVE_PLAYER.key)
             result.or(connection.srem(removeKey, uuidByteArray) == 1L)
         }
     }
 
-    override suspend fun get(uuid: UUID): Player? {
+    override suspend fun getPlayer(uuid: UUID): Player? {
         // Steps:
         // 1. Get the player from cache.
         // 2. If the player is not in cache, return null.
@@ -139,7 +142,7 @@ public class PlayerCacheService(
         }
     }
 
-    override suspend fun remove(uuid: UUID): Boolean {
+    override suspend fun removePlayer(uuid: UUID): Boolean {
         // Steps:
         // 1. Check if id is already registered as deleted.
         // 2. If it is, do nothing.
@@ -159,7 +162,7 @@ public class PlayerCacheService(
 
 public class PlayerDatabaseService(public val database: R2dbcDatabase) : IPlayerDatabaseService {
 
-    override suspend fun save(player: Player): Boolean {
+    override suspend fun savePlayer(player: Player): Boolean {
         val meta = _Player.player
         val query = QueryDsl.insert(meta)
             .onDuplicateKeyUpdate()
@@ -174,7 +177,7 @@ public class PlayerDatabaseService(public val database: R2dbcDatabase) : IPlayer
         return database.runQuery(query) > 0
     }
 
-    override suspend fun get(uuid: UUID): Player? {
+    override suspend fun getPlayer(uuid: UUID): Player? {
         val meta = _Player.player
         val query = QueryDsl.from(meta).where {
             meta.uuid eq uuid
@@ -182,7 +185,7 @@ public class PlayerDatabaseService(public val database: R2dbcDatabase) : IPlayer
         return database.runQuery(query).firstOrNull()
     }
 
-    override suspend fun remove(uuid: UUID): Boolean {
+    override suspend fun removePlayer(uuid: UUID): Boolean {
         val meta = _Player.player
         val query = QueryDsl.delete(meta).where {
             meta.uuid eq uuid

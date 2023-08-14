@@ -3,7 +3,7 @@ package com.github.rushyverse.core.data.friend
 import com.github.rushyverse.core.data.FriendService
 import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomString
 import io.mockk.*
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -20,19 +20,19 @@ class FriendServiceTest {
 
     @BeforeTest
     fun onBefore() {
-        service = FriendService(mockk(getRandomString()))
+        service = FriendService(mockk(randomString()))
     }
 
     @Test
     fun `should create a new instance with another strategy`() {
-        val configuration = mockk<DatabaseSupplierConfiguration>(getRandomString())
-        val strategy = mockk<IDatabaseEntitySupplier>(getRandomString())
+        val configuration = mockk<DatabaseSupplierConfiguration>(randomString())
+        val strategy = mockk<IDatabaseEntitySupplier>(randomString())
         every { strategy.configuration } returns configuration
 
         val service = FriendService(strategy)
         assertEquals(strategy, service.supplier)
 
-        val strategy2 = mockk<IDatabaseEntitySupplier>(getRandomString())
+        val strategy2 = mockk<IDatabaseEntitySupplier>(randomString())
         val service2 = service.withStrategy {
             assertEquals(configuration, it)
             strategy2
@@ -68,7 +68,7 @@ class FriendServiceTest {
         }
 
         @Test
-        fun `should return true when supplier returns false`() = runTest {
+        fun `should return true when supplier returns true`() = runTest {
             coEvery { supplier.addFriend(any(), any()) } returns true
             assertTrue { service.addFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.addFriend(any(), any()) }
@@ -102,7 +102,7 @@ class FriendServiceTest {
         }
 
         @Test
-        fun `should return true when supplier returns false`() = runTest {
+        fun `should return true when supplier returns true`() = runTest {
             coEvery { supplier.addPendingFriend(any(), any()) } returns true
             assertTrue { service.addPendingFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.addPendingFriend(any(), any()) }
@@ -136,7 +136,7 @@ class FriendServiceTest {
         }
 
         @Test
-        fun `should return true when supplier returns false`() = runTest {
+        fun `should return true when supplier returns true`() = runTest {
             coEvery { supplier.removeFriend(any(), any()) } returns true
             assertTrue { service.removeFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.removeFriend(any(), any()) }
@@ -170,7 +170,7 @@ class FriendServiceTest {
         }
 
         @Test
-        fun `should return true when supplier returns false`() = runTest {
+        fun `should return true when supplier returns true`() = runTest {
             coEvery { supplier.removePendingFriend(any(), any()) } returns true
             assertTrue { service.removePendingFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.removePendingFriend(any(), any()) }
@@ -270,7 +270,7 @@ class FriendServiceTest {
         }
 
         @Test
-        fun `should return true when supplier returns false`() = runTest {
+        fun `should return true when supplier returns true`() = runTest {
             coEvery { supplier.isFriend(any(), any()) } returns true
             assertTrue { service.isFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.isFriend(any(), any()) }
@@ -304,7 +304,7 @@ class FriendServiceTest {
         }
 
         @Test
-        fun `should return true when supplier returns false`() = runTest {
+        fun `should return true when supplier returns true`() = runTest {
             coEvery { supplier.isPendingFriend(any(), any()) } returns true
             assertTrue { service.isPendingFriend(mockk(), mockk()) }
             coVerify(exactly = 1) { supplier.isPendingFriend(any(), any()) }

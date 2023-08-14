@@ -1,8 +1,8 @@
 package com.github.rushyverse.core.supplier.http
 
-import com.github.rushyverse.core.utils.createProfileId
-import com.github.rushyverse.core.utils.createProfileSkin
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomProfileId
+import com.github.rushyverse.core.utils.randomProfileSkin
+import com.github.rushyverse.core.utils.randomString
 import io.github.universeproject.kotlinmojangapi.MojangAPI
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -22,7 +22,7 @@ class HttpEntitySupplierTest {
 
     @BeforeTest
     fun onBefore() {
-        mojangAPI = mockk(getRandomString())
+        mojangAPI = mockk(randomString())
         val configuration = HttpSupplierConfiguration(mojangAPI, mockk(), mockk())
         restEntitySupplier = HttpEntitySupplier(configuration)
     }
@@ -39,14 +39,14 @@ class HttpEntitySupplierTest {
         @Test
         override fun `data not found from rest`() = runTest {
             coEvery { mojangAPI.getUUID(any<String>()) } returns null
-            val id = getRandomString()
+            val id = randomString()
             assertNull(restEntitySupplier.getIdByName(id))
             coVerify(exactly = 1) { mojangAPI.getUUID(id) }
         }
 
         @Test
         override fun `data is retrieved from rest`() = runTest {
-            val profileId = createProfileId()
+            val profileId = randomProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
             assertEquals(profileId, restEntitySupplier.getIdByName(name))
@@ -62,14 +62,14 @@ class HttpEntitySupplierTest {
         @Test
         override fun `data not found from rest`() = runTest {
             coEvery { mojangAPI.getSkin(any()) } returns null
-            val name = getRandomString()
+            val name = randomString()
             assertNull(restEntitySupplier.getSkinById(name))
             coVerify(exactly = 1) { mojangAPI.getSkin(name) }
         }
 
         @Test
         override fun `data is retrieved from rest`() = runTest {
-            val skin = createProfileSkin()
+            val skin = randomProfileSkin()
             val id = skin.id
             coEvery { mojangAPI.getSkin(id) } returns skin
             assertEquals(skin, restEntitySupplier.getSkinById(id))

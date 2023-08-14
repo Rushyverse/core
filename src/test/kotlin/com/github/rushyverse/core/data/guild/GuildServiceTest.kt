@@ -6,7 +6,8 @@ import com.github.rushyverse.core.data.GuildMember
 import com.github.rushyverse.core.data.GuildService
 import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomEntityId
+import com.github.rushyverse.core.utils.randomString
 import io.mockk.*
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -31,19 +32,19 @@ class GuildServiceTest {
 
     @BeforeTest
     fun onBefore() {
-        service = GuildService(mockk(getRandomString()))
+        service = GuildService(mockk(randomString()))
     }
 
     @Test
     fun `should create a new instance with another strategy`() {
-        val configuration = mockk<DatabaseSupplierConfiguration>(getRandomString())
-        val strategy = mockk<IDatabaseEntitySupplier>(getRandomString())
+        val configuration = mockk<DatabaseSupplierConfiguration>(randomString())
+        val strategy = mockk<IDatabaseEntitySupplier>(randomString())
         every { strategy.configuration } returns configuration
 
         val service = GuildService(strategy)
         assertEquals(strategy, service.supplier)
 
-        val strategy2 = mockk<IDatabaseEntitySupplier>(getRandomString())
+        val strategy2 = mockk<IDatabaseEntitySupplier>(randomString())
         val service2 = service.withStrategy {
             assertEquals(configuration, it)
             strategy2
@@ -62,7 +63,7 @@ class GuildServiceTest {
 
             coEvery { supplier.createGuild(capture(slot1), capture(slot2)) } returns mockk()
 
-            val name = getRandomString()
+            val name = randomString()
             val owner = randomEntityId()
             service.createGuild(name, owner)
             coVerify(exactly = 1) { supplier.createGuild(name, owner) }
@@ -142,7 +143,7 @@ class GuildServiceTest {
 
             coEvery { supplier.getGuild(capture(slot1)) } returns emptyFlow()
 
-            val name = getRandomString()
+            val name = randomString()
             assertThat(service.getGuild(name).toList()).isEmpty()
             coVerify(exactly = 1) { supplier.getGuild(any<String>()) }
 
@@ -152,15 +153,15 @@ class GuildServiceTest {
         @Test
         fun `should return empty collection when supplier returns empty collection`() = runTest {
             coEvery { supplier.getGuild(any<String>()) } returns emptyFlow()
-            assertEquals(emptyList(), service.getGuild(getRandomString()).toList())
+            assertEquals(emptyList(), service.getGuild(randomString()).toList())
             coVerify(exactly = 1) { supplier.getGuild(any<String>()) }
         }
 
         @Test
         fun `should return not empty collection when supplier returns not empty collection`() = runTest {
-            val expected = List(5) { mockk<Guild>(getRandomString()) }
+            val expected = List(5) { mockk<Guild>(randomString()) }
             coEvery { supplier.getGuild(any<String>()) } returns expected.asFlow()
-            assertThat(service.getGuild(getRandomString()).toList()).containsExactlyElementsOf(expected)
+            assertThat(service.getGuild(randomString()).toList()).containsExactlyElementsOf(expected)
             coVerify(exactly = 1) { supplier.getGuild(any<String>()) }
         }
 
@@ -390,7 +391,7 @@ class GuildServiceTest {
 
         @Test
         fun `should return not empty collection when supplier returns not empty collection`() = runTest {
-            val expected = List(5) { mockk<GuildMember>(getRandomString()) }
+            val expected = List(5) { mockk<GuildMember>(randomString()) }
             coEvery { supplier.getMembers(any<Int>()) } returns expected.asFlow()
             assertThat(service.getMembers(Random.nextInt()).toList()).containsExactlyElementsOf(expected)
             coVerify(exactly = 1) { supplier.getMembers(any<Int>()) }
@@ -422,12 +423,10 @@ class GuildServiceTest {
 
         @Test
         fun `should return not empty collection when supplier returns not empty collection`() = runTest {
-            val expected = List(5) { mockk<GuildInvite>(getRandomString()) }
+            val expected = List(5) { mockk<GuildInvite>(randomString()) }
             coEvery { supplier.getInvitations(any<Int>()) } returns expected.asFlow()
             assertThat(service.getInvitations(Random.nextInt()).toList()).containsExactlyElementsOf(expected)
             coVerify(exactly = 1) { supplier.getInvitations(any<Int>()) }
         }
     }
-
-    private fun randomEntityId() = UUID.randomUUID()
 }

@@ -3,7 +3,8 @@ package com.github.rushyverse.core.supplier.database
 import com.github.rushyverse.core.data.Guild
 import com.github.rushyverse.core.data.GuildInvite
 import com.github.rushyverse.core.data.GuildMember
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomEntityId
+import com.github.rushyverse.core.utils.randomString
 import io.mockk.*
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -27,14 +28,14 @@ class DatabaseStoreEntitySupplierTest {
 
     @BeforeTest
     fun onBefore() {
-        cache = mockk(getRandomString())
-        supplier = mockk(getRandomString())
+        cache = mockk(randomString())
+        supplier = mockk(randomString())
         entitySupplier = DatabaseStoreEntitySupplier(cache, supplier)
     }
 
     @Test
     fun `get configuration will get from cache supplier`() = runTest {
-        val configuration = mockk<DatabaseSupplierConfiguration>(getRandomString())
+        val configuration = mockk<DatabaseSupplierConfiguration>(randomString())
         every { cache.configuration } returns configuration
 
         assertEquals(configuration, entitySupplier.configuration)
@@ -367,7 +368,7 @@ class DatabaseStoreEntitySupplierTest {
             @ParameterizedTest
             @ValueSource(booleans = [true, false])
             fun `should set data in cache if set in supplier`(cacheResult: Boolean) = runTest {
-                val name = getRandomString()
+                val name = randomString()
                 val owner = randomEntityId()
                 val guild = mockk<Guild>()
 
@@ -458,7 +459,7 @@ class DatabaseStoreEntitySupplierTest {
 
             @Test
             fun `should not import guild if flow is empty`() = runTest {
-                val name = getRandomString()
+                val name = randomString()
                 coEvery { supplier.getGuild(name) } returns emptyFlow()
 
                 assertThat(entitySupplier.getGuild(name).toList()).isEmpty()
@@ -468,7 +469,7 @@ class DatabaseStoreEntitySupplierTest {
 
             @Test
             fun `should not throw exception if import throws exception`() = runTest {
-                val name = getRandomString()
+                val name = randomString()
                 val guilds = List(2) { mockk<Guild>() }
                 coEvery { supplier.getGuild(name) } returns guilds.asFlow()
                 coEvery { cache.addGuild(guilds[0]) } throws Exception()
@@ -480,7 +481,7 @@ class DatabaseStoreEntitySupplierTest {
 
             @Test
             fun `should import all guilds if flow is entire collected`() = runTest {
-                val name = getRandomString()
+                val name = randomString()
                 val guilds = List(10) { Guild(Random.nextInt(), name, randomEntityId()) }
                 coEvery { supplier.getGuild(name) } returns guilds.asFlow()
 
@@ -494,7 +495,7 @@ class DatabaseStoreEntitySupplierTest {
 
             @Test
             fun `should import partial guilds if flow is partially collected`() = runTest {
-                val name = getRandomString()
+                val name = randomString()
                 val guilds = List(10) { Guild(Random.nextInt(), name, randomEntityId()) }
                 val guildsToImport = guilds.take(5)
                 coEvery { supplier.getGuild(name) } returns guilds.asFlow()
@@ -868,7 +869,5 @@ class DatabaseStoreEntitySupplierTest {
         }
 
     }
-
-    private fun randomEntityId() = UUID.randomUUID()
 
 }

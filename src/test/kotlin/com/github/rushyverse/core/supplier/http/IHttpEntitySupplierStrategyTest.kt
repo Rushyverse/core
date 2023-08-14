@@ -4,8 +4,8 @@ import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.ProfileIdCacheService
 import com.github.rushyverse.core.data.ProfileSkinCacheService
-import com.github.rushyverse.core.utils.createProfileId
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomProfileId
+import com.github.rushyverse.core.utils.randomString
 import io.github.universeproject.kotlinmojangapi.MojangAPI
 import io.lettuce.core.RedisURI
 import io.mockk.coEvery
@@ -45,7 +45,7 @@ class IHttpEntitySupplierStrategyTest {
             uri = RedisURI.create(redisContainer.url)
         }
 
-        mojangAPI = mockk(getRandomString())
+        mojangAPI = mockk(randomString())
 
         cacheEntitySupplier = HttpCacheEntitySupplier(
             HttpSupplierConfiguration(
@@ -88,7 +88,7 @@ class IHttpEntitySupplierStrategyTest {
 
         @Test
         fun `data found in rest is saved into cache`() = runTest {
-            val profileId = createProfileId()
+            val profileId = randomProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
             assertEquals(profileId, supplier.getIdByName(name))
@@ -98,7 +98,7 @@ class IHttpEntitySupplierStrategyTest {
 
         @Test
         fun `data present in cache is not used to find value`() = runTest {
-            val profileId = createProfileId()
+            val profileId = randomProfileId()
             val name = profileId.name
             cacheEntitySupplier.save(profileId)
 
@@ -121,7 +121,7 @@ class IHttpEntitySupplierStrategyTest {
 
         @Test
         fun `data found in rest is not saved into cache`() = runTest {
-            val profileId = createProfileId()
+            val profileId = randomProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
             assertEquals(profileId, supplier.getIdByName(name))
@@ -131,7 +131,7 @@ class IHttpEntitySupplierStrategyTest {
 
         @Test
         fun `data present in cache is use to avoid rest call`() = runTest {
-            val profileId = createProfileId()
+            val profileId = randomProfileId()
             val name = profileId.name
             cacheEntitySupplier.save(profileId)
 
@@ -154,7 +154,7 @@ class IHttpEntitySupplierStrategyTest {
 
         @Test
         fun `data found in rest is saved into cache`() = runTest {
-            val profileId = createProfileId()
+            val profileId = randomProfileId()
             val name = profileId.name
             coEvery { mojangAPI.getUUID(name) } returns profileId
             assertEquals(profileId, supplier.getIdByName(name))
@@ -164,7 +164,7 @@ class IHttpEntitySupplierStrategyTest {
 
         @Test
         fun `data present in cache is use to avoid rest call`() = runTest {
-            val profileId = createProfileId()
+            val profileId = randomProfileId()
             val name = profileId.name
             cacheEntitySupplier.save(profileId)
 

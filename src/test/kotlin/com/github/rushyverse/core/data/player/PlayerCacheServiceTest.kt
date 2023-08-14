@@ -71,7 +71,7 @@ class PlayerCacheServiceTest {
         @Test
         fun `should create a new player if ID does not exist`() = runTest {
             val player = Player(UUID.randomUUID(), Rank.PLAYER)
-            service.save(player) shouldBe true
+            service.savePlayer(player) shouldBe true
 
             getAdded() shouldBe listOf(player)
         }
@@ -81,8 +81,8 @@ class PlayerCacheServiceTest {
             val player = Player(UUID.randomUUID(), Rank.PLAYER)
             val playerUpdated = player.copy(rank = Rank.ADMIN)
 
-            service.save(player) shouldBe true
-            service.save(playerUpdated) shouldBe true
+            service.savePlayer(player) shouldBe true
+            service.savePlayer(playerUpdated) shouldBe true
 
             getAdded() shouldBe listOf(playerUpdated)
         }
@@ -91,11 +91,11 @@ class PlayerCacheServiceTest {
         fun `should delete removed key for player when created`() = runTest {
             val player = Player(UUID.randomUUID(), Rank.PLAYER)
 
-            service.remove(player.uuid)
+            service.removePlayer(player.uuid)
 
             getRemoved() shouldBe listOf(player.uuid)
 
-            service.save(player) shouldBe true
+            service.savePlayer(player) shouldBe true
 
             getAdded() shouldBe listOf(player)
             getRemoved() shouldBe emptyList()
@@ -104,15 +104,15 @@ class PlayerCacheServiceTest {
         @Test
         fun `should delete removed key for player when updated`() = runTest {
             val player = Player(UUID.randomUUID(), Rank.PLAYER)
-            service.save(player) shouldBe true
+            service.savePlayer(player) shouldBe true
 
             val playerUpdated = player.copy(rank = Rank.ADMIN)
 
-            service.remove(player.uuid)
+            service.removePlayer(player.uuid)
 
             getRemoved() shouldBe listOf(player.uuid)
 
-            service.save(playerUpdated) shouldBe true
+            service.savePlayer(playerUpdated) shouldBe true
 
             getAdded() shouldBe listOf(playerUpdated)
             getRemoved() shouldBe emptyList()
@@ -121,13 +121,13 @@ class PlayerCacheServiceTest {
         @Test
         fun `should delete removed key for player nothing change`() = runTest {
             val player = Player(UUID.randomUUID(), Rank.PLAYER)
-            service.save(player) shouldBe true
+            service.savePlayer(player) shouldBe true
 
-            service.remove(player.uuid)
+            service.removePlayer(player.uuid)
 
             getRemoved() shouldBe listOf(player.uuid)
 
-            service.save(player) shouldBe true
+            service.savePlayer(player) shouldBe true
 
             getAdded() shouldBe listOf(player)
             getRemoved() shouldBe emptyList()
@@ -138,8 +138,8 @@ class PlayerCacheServiceTest {
         fun `should return false if no updated`() = runTest {
             val player = Player(UUID.randomUUID(), Rank.PLAYER)
 
-            service.save(player) shouldBe true
-            service.save(player) shouldBe false
+            service.savePlayer(player) shouldBe true
+            service.savePlayer(player) shouldBe false
 
             getAdded() shouldBe listOf(player)
         }

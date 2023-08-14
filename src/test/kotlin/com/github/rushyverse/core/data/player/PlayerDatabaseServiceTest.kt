@@ -51,25 +51,25 @@ class PlayerDatabaseServiceTest {
         @Test
         fun `should create a new player if ID does not exist`() = runTest {
             val player = Player(UUID.randomUUID(), Rank.PLAYER)
-            playerService.save(player) shouldBe true
+            playerService.savePlayer(player) shouldBe true
             getAll() shouldBe listOf(player)
         }
 
         @Test
         fun `should update an existing player if ID exists`() = runTest {
             val player = Player(UUID.randomUUID(), Rank.PLAYER)
-            playerService.save(player) shouldBe true
+            playerService.savePlayer(player) shouldBe true
 
             val playerUpdated = player.copy(rank = Rank.ADMIN)
-            playerService.save(playerUpdated) shouldBe true
+            playerService.savePlayer(playerUpdated) shouldBe true
             getAll() shouldBe listOf(playerUpdated)
         }
 
         @Test
         fun `should return false if no rows were affected`() = runTest {
             val player = Player(UUID.randomUUID(), Rank.PLAYER)
-            playerService.save(player) shouldBe true
-            playerService.save(player) shouldBe false
+            playerService.savePlayer(player) shouldBe true
+            playerService.savePlayer(player) shouldBe false
         }
 
     }
@@ -82,17 +82,17 @@ class PlayerDatabaseServiceTest {
             List(10) {
                 Player(UUID.randomUUID(), Rank.PLAYER)
             }.forEach {
-                playerService.save(it)
+                playerService.savePlayer(it)
             }
 
-            playerService.get(UUID.randomUUID()) shouldBe null
+            playerService.getPlayer(UUID.randomUUID()) shouldBe null
         }
 
         @Test
         fun `should return the player if ID exists`() = runTest {
             val player = Player(UUID.randomUUID(), Rank.PLAYER)
-            playerService.save(player) shouldBe true
-            playerService.get(player.uuid) shouldBe player
+            playerService.savePlayer(player) shouldBe true
+            playerService.getPlayer(player.uuid) shouldBe player
         }
 
     }
@@ -105,10 +105,10 @@ class PlayerDatabaseServiceTest {
             List(10) {
                 Player(UUID.randomUUID(), Rank.PLAYER)
             }.forEach {
-                playerService.save(it)
+                playerService.savePlayer(it)
             }
 
-            playerService.remove(UUID.randomUUID()) shouldBe false
+            playerService.removePlayer(UUID.randomUUID()) shouldBe false
         }
 
         @Test
@@ -118,10 +118,10 @@ class PlayerDatabaseServiceTest {
             }
 
             players.forEach {
-                playerService.save(it)
+                playerService.savePlayer(it)
             }
 
-            playerService.remove(players.first().uuid) shouldBe true
+            playerService.removePlayer(players.first().uuid) shouldBe true
 
             getAll() shouldBe players.drop(1)
         }

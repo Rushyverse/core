@@ -1,6 +1,6 @@
 package com.github.rushyverse.core.cache.message
 
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomString
 import io.kotest.assertions.json.shouldEqualJson
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -63,7 +63,7 @@ class IdentifiableMessageSerializerTest {
         @Test
         fun `should serialize string message`() {
             val serializer = IdentifiableMessageSerializer(String.serializer())
-            val id = getRandomString()
+            val id = randomString()
             val message = IdentifiableMessage(id, "data")
             val actual = Json.encodeToString(serializer, message)
             actual shouldEqualJson """
@@ -77,7 +77,7 @@ class IdentifiableMessageSerializerTest {
         @Test
         fun `should serialize message`() {
             val serializer = IdentifiableMessageSerializer(ColorAsObjectSerializer)
-            val id = getRandomString()
+            val id = randomString()
             val message = IdentifiableMessage(id, Color(0x05F0C1))
             val actual = Json.encodeToString(serializer, message)
             actual shouldEqualJson """
@@ -100,8 +100,8 @@ class IdentifiableMessageSerializerTest {
         @Test
         fun `should deserialize string message`() {
             val serializer = IdentifiableMessageSerializer(String.serializer())
-            val id = getRandomString()
-            val data = getRandomString()
+            val id = randomString()
+            val data = randomString()
             val message = IdentifiableMessage(id, data)
             val expected = """
                 {
@@ -116,7 +116,7 @@ class IdentifiableMessageSerializerTest {
         @Test
         fun `should deserialize message`() {
             val serializer = IdentifiableMessageSerializer(ColorAsObjectSerializer)
-            val id = getRandomString()
+            val id = randomString()
             val message = IdentifiableMessage(id, Color(0x05F0C1))
             val expected = """
                 {

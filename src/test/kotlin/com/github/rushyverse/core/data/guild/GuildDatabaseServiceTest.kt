@@ -5,7 +5,8 @@ import com.github.rushyverse.core.data.*
 import com.github.rushyverse.core.data.utils.DatabaseUtils
 import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
 import com.github.rushyverse.core.data.utils.MicroClockProvider
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomEntityId
+import com.github.rushyverse.core.utils.randomString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -89,7 +90,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return 0 if all invitations don't have expiration date`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val invitations = List(5) { randomEntityId() }
             invitations.forEach {
                 service.addInvitation(guild.id, it, null)
@@ -105,7 +106,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return 1 if one invitation is deleted`() = runBlocking<Unit> {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val invitations = List(5) { randomEntityId() }
             invitations.forEach {
                 service.addInvitation(guild.id, it, null)
@@ -125,7 +126,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return number of all invitations is deleted`() = runBlocking {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val invitations = List(5) { randomEntityId() }
             val seconds = 1L
             val expirationDate = Instant.now().plusSeconds(seconds)
@@ -143,8 +144,8 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should delete invitation for several guilds`() = runBlocking {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
-            val guild2 = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
+            val guild2 = service.createGuild(randomString(), randomEntityId())
             val invitations1 = List(2) { randomEntityId() }
             val invitations2 = List(2) { randomEntityId() }
 
@@ -177,15 +178,15 @@ class GuildDatabaseServiceTest {
 
             @Test
             fun `should create a new guild`() = runTest {
-                val guild = service.createGuild(getRandomString(), randomEntityId())
+                val guild = service.createGuild(randomString(), randomEntityId())
                 val guilds = getAllGuilds()
                 assertThat(guilds).containsExactly(guild)
             }
 
             @Test
             fun `should create guild if owner is an owner of another guild`() = runTest {
-                val guild = service.createGuild(getRandomString(), randomEntityId())
-                val guild2 = service.createGuild(getRandomString(), guild.ownerId)
+                val guild = service.createGuild(randomString(), randomEntityId())
+                val guild2 = service.createGuild(randomString(), guild.ownerId)
                 assertNotEquals(guild.id, guild2.id)
 
                 val guilds = getAllGuilds()
@@ -195,10 +196,10 @@ class GuildDatabaseServiceTest {
             @Test
             fun `should create guild if owner is a member of another guild`() = runTest {
                 val entity = randomEntityId()
-                val guild = service.createGuild(getRandomString(), randomEntityId())
+                val guild = service.createGuild(randomString(), randomEntityId())
                 service.addMember(guild.id, entity)
 
-                val guild2 = service.createGuild(getRandomString(), entity)
+                val guild2 = service.createGuild(randomString(), entity)
 
                 val guilds = getAllGuilds()
                 assertThat(guilds).containsExactly(guild, guild2)
@@ -210,7 +211,7 @@ class GuildDatabaseServiceTest {
 
             @Test
             fun `should create guilds with the same name`() = runTest {
-                val name = getRandomString()
+                val name = randomString()
                 val guild = service.createGuild(name, randomEntityId())
                 val guild2 = service.createGuild(name, randomEntityId())
                 assertNotEquals(guild.id, guild2.id)
@@ -235,7 +236,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return true if the guild exists`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             assertTrue { service.deleteGuild(guild.id) }
             assertThat(getAllGuilds()).isEmpty()
         }
@@ -248,8 +249,8 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should delete only the targeted guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
-            val guild2 = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
+            val guild2 = service.createGuild(randomString(), randomEntityId())
 
             assertTrue { service.deleteGuild(guild.id) }
             assertThat(getAllGuilds()).containsExactly(guild2)
@@ -260,14 +261,14 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return false if the guild is deleted`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             assertTrue { service.deleteGuild(guild.id) }
             assertFalse { service.deleteGuild(guild.id) }
         }
 
         @Test
         fun `should delete all linked data to the deleted guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val guildId = guild.id
             val sizeData = 10
             repeat(sizeData) {
@@ -288,7 +289,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should not delete another guild data`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val guildId = guild.id
 
             val sizeData = 10
@@ -299,7 +300,7 @@ class GuildDatabaseServiceTest {
                 service.addInvitation(guildId, randomEntityId(), null)
             }
 
-            val guild2 = service.createGuild(getRandomString(), randomEntityId())
+            val guild2 = service.createGuild(randomString(), randomEntityId())
             val guildId2 = guild2.id
             repeat(sizeData) {
                 service.addMember(guildId2, randomEntityId())
@@ -328,7 +329,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return the guild`() = runTest {
-            service.createGuild(getRandomString(), randomEntityId())
+            service.createGuild(randomString(), randomEntityId())
             val guilds = getAllGuilds()
             assertEquals(1, guilds.size)
             val guild = guilds[0]
@@ -338,8 +339,8 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return each guild with the corresponding id`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
-            val guild2 = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
+            val guild2 = service.createGuild(randomString(), randomEntityId())
             assertEquals(guild, service.getGuild(guild.id))
             assertEquals(guild2, service.getGuild(guild2.id))
         }
@@ -352,7 +353,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return null if the guild is deleted`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             service.deleteGuild(guild.id)
             val retrievedGuild = service.getGuild(guild.id)
             assertNull(retrievedGuild)
@@ -365,7 +366,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return the guild with the same name`() = runTest {
-            val name = getRandomString()
+            val name = randomString()
             val guild = service.createGuild(name, randomEntityId())
             val (retrievedGuild) = service.getGuild(name).toList()
             assertEquals(guild, retrievedGuild)
@@ -373,7 +374,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return empty flow if the guild is deleted`() = runTest {
-            val name = getRandomString()
+            val name = randomString()
             val guild = service.createGuild(name, randomEntityId())
             val guild2 = service.createGuild(name, randomEntityId())
             service.deleteGuild(guild.id)
@@ -385,7 +386,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should retrieve several guilds with the same name`() = runTest {
-            val name = getRandomString()
+            val name = randomString()
             service.createGuild(name, randomEntityId())
             service.createGuild(name, randomEntityId())
 
@@ -398,7 +399,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return empty flow when no guild has the name`() = runTest {
-            val guild = service.getGuild(getRandomString()).toList()
+            val guild = service.getGuild(randomString()).toList()
             assertEquals(0, guild.size)
         }
 
@@ -418,15 +419,15 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return true if the entity is owner of the guild`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             assertTrue { service.isOwner(guild.id, owner) }
         }
 
         @Test
         fun `should return true if entity is owner of several guilds`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
-            val guild2 = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
+            val guild2 = service.createGuild(randomString(), owner)
             assertTrue { service.isOwner(guild.id, owner) }
             assertTrue { service.isOwner(guild2.id, owner) }
         }
@@ -434,7 +435,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return false if the entity is not the owner`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             assertFalse { service.isOwner(guild.id, randomEntityId()) }
         }
 
@@ -450,13 +451,13 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return true if the entity is owner`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             assertTrue { service.isMember(guild.id, owner) }
         }
 
         @Test
         fun `should return true if entity is member`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             service.addMember(guild.id, entityId)
             assertTrue { service.isMember(guild.id, entityId) }
@@ -464,14 +465,14 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return false when entity is not member`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             assertFalse { service.isMember(guild.id, entityId) }
         }
 
         @Test
         fun `should return false when entity is invited`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             service.addInvitation(guild.id, entityId, null)
             assertFalse { service.isMember(guild.id, entityId) }
@@ -479,8 +480,8 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return false if entity is member of another guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
-            val guild2 = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
+            val guild2 = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             service.addMember(guild.id, entityId)
             assertTrue { service.isMember(guild.id, entityId) }
@@ -489,7 +490,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return false after the deletion of the member`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entity = randomEntityId()
             service.addMember(guild.id, entity)
             service.removeMember(guild.id, entity)
@@ -510,7 +511,7 @@ class GuildDatabaseServiceTest {
 
             @Test
             fun `should define using current time`() = runTest {
-                val guild = service.createGuild(getRandomString(), randomEntityId())
+                val guild = service.createGuild(randomString(), randomEntityId())
                 val entityId = randomEntityId()
                 val now = Instant.now()
                 assertTrue { service.addMember(guild.id, entityId) }
@@ -533,7 +534,7 @@ class GuildDatabaseServiceTest {
                 })
                 service = GuildDatabaseService(database)
 
-                val guild = service.createGuild(getRandomString(), randomEntityId())
+                val guild = service.createGuild(randomString(), randomEntityId())
                 val entityId = randomEntityId()
                 val now = Instant.now()
                 assertTrue { service.addMember(guild.id, entityId) }
@@ -552,7 +553,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return true if the entity is added as member`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             val entityId = randomEntityId()
             assertTrue { service.addMember(guild.id, entityId) }
 
@@ -566,7 +567,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return false if the entity is already a member of the guild`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             val entityId = randomEntityId()
             assertTrue { service.addMember(guild.id, entityId) }
             assertFalse { service.addMember(guild.id, entityId) }
@@ -581,7 +582,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should throw if the entity is the owner`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             assertThrows<GuildMemberIsOwnerOfGuildException> {
                 service.addMember(guild.id, owner)
             }
@@ -595,7 +596,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should delete invitation when entity is added as member`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             val entityId = randomEntityId()
             assertTrue { service.addInvitation(guild.id, entityId, null) }
             assertTrue { service.addMember(guild.id, entityId) }
@@ -622,7 +623,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should support several members for one guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
 
             val members = (1..10).map { GuildMember(guild.id, randomEntityId()) }
             members.forEach { service.addMember(it.guildId, it.entityId) }
@@ -638,7 +639,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return true if entity is member`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             val entityId = randomEntityId()
             service.addMember(guild.id, entityId)
             assertTrue { service.removeMember(guild.id, entityId) }
@@ -652,7 +653,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return false if entity is not member`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             val entityId = randomEntityId()
             assertFalse { service.removeMember(guild.id, entityId) }
 
@@ -665,7 +666,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return false if another entity is member in the guild`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             val entityId = randomEntityId()
             service.addMember(guild.id, entityId)
 
@@ -687,7 +688,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return false if remove the member for owner`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             assertFalse { service.removeMember(guild.id, owner) }
 
             val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
@@ -703,7 +704,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return a flow with only the owner if no member`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
             assertThat(members).containsExactlyInAnyOrder(
                 GuildMember(guild.id, owner)
@@ -713,7 +714,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return a flow with the owner and members`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             val membersToAdd = List(2) { randomEntityId() }
             membersToAdd.forEach { service.addMember(guild.id, it) }
 
@@ -726,7 +727,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should ignore invited entities`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             service.addInvitation(guild.id, randomEntityId(), null)
 
             val members = service.getMembers(guild.id).map(GuildMember::defaultTime).toList()
@@ -750,7 +751,7 @@ class GuildDatabaseServiceTest {
 
             @Test
             fun `should define using current time`() = runTest {
-                val guild = service.createGuild(getRandomString(), randomEntityId())
+                val guild = service.createGuild(randomString(), randomEntityId())
                 val entityId = randomEntityId()
                 val now = Instant.now()
                 assertTrue { service.addInvitation(guild.id, entityId, null) }
@@ -773,7 +774,7 @@ class GuildDatabaseServiceTest {
                 })
                 service = GuildDatabaseService(database)
 
-                val guild = service.createGuild(getRandomString(), randomEntityId())
+                val guild = service.createGuild(randomString(), randomEntityId())
                 val entityId = randomEntityId()
                 val now = Instant.now()
                 assertTrue { service.addInvitation(guild.id, entityId, null) }
@@ -795,7 +796,7 @@ class GuildDatabaseServiceTest {
 
             @Test
             fun `should keep the expiration date integrity`() = runTest {
-                val guild = service.createGuild(getRandomString(), randomEntityId())
+                val guild = service.createGuild(randomString(), randomEntityId())
                 val entityId = randomEntityId()
                 val now = Instant.now()
                 val expirationDate = now.plusSeconds(10)
@@ -816,7 +817,7 @@ class GuildDatabaseServiceTest {
 
             @Test
             fun `should save the invitation without expiration`() = runTest {
-                val guild = service.createGuild(getRandomString(), randomEntityId())
+                val guild = service.createGuild(randomString(), randomEntityId())
                 val entityId = randomEntityId()
                 val now = Instant.now()
                 assertTrue { service.addInvitation(guild.id, entityId, null) }
@@ -833,7 +834,7 @@ class GuildDatabaseServiceTest {
 
             @Test
             fun `should throw exception if the expire date is before now`() = runTest {
-                val guild = service.createGuild(getRandomString(), randomEntityId())
+                val guild = service.createGuild(randomString(), randomEntityId())
                 val entityId = randomEntityId()
                 val expiredAt = Instant.now().minusMillis(1)
 
@@ -844,7 +845,7 @@ class GuildDatabaseServiceTest {
 
             @Test
             fun `should insert for already present entity with an expired invitation`() = runBlocking {
-                val guild = service.createGuild(getRandomString(), randomEntityId())
+                val guild = service.createGuild(randomString(), randomEntityId())
                 val entityId = randomEntityId()
                 val now = Instant.now()
                 assertTrue { service.addInvitation(guild.id, entityId, now.plusMillis(WAIT_EXPIRATION_MILLIS)) }
@@ -866,7 +867,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return true if the entity is invited`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             assertTrue { service.addInvitation(guild.id, entityId, null) }
 
@@ -878,7 +879,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should throw exception if the entity is already a member of the guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             assertTrue { service.addMember(guild.id, entityId) }
             assertThrows<GuildInvitedIsAlreadyMemberException> {
@@ -891,8 +892,8 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return true if the entity is already invited in another guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
-            val guild2 = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
+            val guild2 = service.createGuild(randomString(), randomEntityId())
 
             val entityId = randomEntityId()
             assertTrue { service.addInvitation(guild.id, entityId, null) }
@@ -910,7 +911,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should throw exception if the entity is the owner`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             assertThrows<GuildInvitedIsAlreadyMemberException> {
                 service.addInvitation(guild.id, guild.ownerId, null)
             }
@@ -921,7 +922,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should update the invitation`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             val expiredAt = Instant.now().plusSeconds(10)
             assertTrue { service.addInvitation(guild.id, entityId, null) }
@@ -937,7 +938,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should support several invitation for one guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             val entityId2 = randomEntityId()
 
@@ -956,7 +957,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should delete invitation when add in the table`() = runBlocking {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             val entityId2 = randomEntityId()
 
@@ -989,7 +990,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return true if entity is invited`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             service.addInvitation(guild.id, entityId, null)
             assertTrue { service.hasInvitation(guild.id, entityId) }
@@ -997,14 +998,14 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return false when entity is not invited`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             assertFalse { service.hasInvitation(guild.id, entityId) }
         }
 
         @Test
         fun `should return false if invitation is expired`() = runBlocking<Unit> {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
 
             val expiredAt = Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS)
@@ -1018,7 +1019,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return false when entity is member`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
 
             val entity = randomEntityId()
             service.addMember(guild.id, entity)
@@ -1027,8 +1028,8 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return false if entity is invited to another guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
-            val guild2 = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
+            val guild2 = service.createGuild(randomString(), randomEntityId())
 
             val entityId = randomEntityId()
             service.addInvitation(guild.id, entityId, null)
@@ -1037,7 +1038,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return false after the deletion of the invitation`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             service.addInvitation(guild.id, entityId, null)
             service.removeInvitation(guild.id, entityId)
@@ -1046,7 +1047,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return false if the entity is owner`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             assertFalse { service.hasInvitation(guild.id, guild.ownerId) }
         }
 
@@ -1061,7 +1062,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return true if entity is invited in the guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             service.addInvitation(guild.id, entityId, null)
             assertTrue { service.removeInvitation(guild.id, entityId) }
@@ -1072,7 +1073,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return false if entity is not invited`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             assertFalse { service.removeInvitation(guild.id, entityId) }
 
@@ -1082,7 +1083,7 @@ class GuildDatabaseServiceTest {
 
         @Test
         fun `should return false if another entity is invited in the guild`() = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val entityId = randomEntityId()
             val entityId2 = randomEntityId()
             service.addInvitation(guild.id, entityId, null)
@@ -1102,7 +1103,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return false if remove the invitation for owner`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             assertFalse { service.removeInvitation(guild.id, owner) }
         }
     }
@@ -1113,7 +1114,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return empty list if guild doesn't have invitation`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             val invites = service.getInvitations(guild.id).toList()
             assertContentEquals(emptyList(), invites)
         }
@@ -1121,7 +1122,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `when guild has invitations`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             val invitesToAdd = List(2) { randomEntityId() }
             val invites = invitesToAdd.map { GuildInvite(guild.id, it, null) }.onEach {
                 service.addInvitation(it.guildId, it.entityId, it.expiredAt)
@@ -1134,7 +1135,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return empty list when an entity is member but not invited`() = runTest {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
             service.addMember(guild.id, randomEntityId())
 
             val invites = service.getInvitations(guild.id).toList()
@@ -1150,7 +1151,7 @@ class GuildDatabaseServiceTest {
         @ParameterizedTest
         @ValueSource(ints = [1, 2, 3, 4, 5])
         fun `should ignore the deleted invitations`(number: Int) = runTest {
-            val guild = service.createGuild(getRandomString(), randomEntityId())
+            val guild = service.createGuild(randomString(), randomEntityId())
             val guildId = guild.id
             val invites = List(number) { GuildInvite(guildId, randomEntityId(), null) }
             invites.forEach { service.addInvitation(it.guildId, it.entityId, it.expiredAt) }
@@ -1166,7 +1167,7 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should filter out the expired invitations`() = runBlocking<Unit> {
             val owner = randomEntityId()
-            val guild = service.createGuild(getRandomString(), owner)
+            val guild = service.createGuild(randomString(), owner)
 
             val invitesNotExpired = List(2) { GuildInvite(guild.id, randomEntityId(), null) }
             invitesNotExpired.forEach { service.addInvitation(it.guildId, it.entityId, it.expiredAt) }
@@ -1208,6 +1209,4 @@ class GuildDatabaseServiceTest {
     private suspend fun getAllInvites(): List<GuildInvite> {
         return DatabaseUtils.getAll(database, _GuildInvite.guildInvite)
     }
-
-    private fun randomEntityId() = UUID.randomUUID()
 }

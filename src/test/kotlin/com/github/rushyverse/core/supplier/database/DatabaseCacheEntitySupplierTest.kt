@@ -1,7 +1,8 @@
 package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.data.*
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomEntityId
+import com.github.rushyverse.core.utils.randomString
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -71,7 +72,7 @@ class DatabaseCacheEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendCacheService.addFriend(any(), any()) } returns true
                 assertTrue { cacheEntitySupplier.addFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendCacheService.addFriend(any(), any()) }
@@ -105,7 +106,7 @@ class DatabaseCacheEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendCacheService.addPendingFriend(any(), any()) } returns true
                 assertTrue { cacheEntitySupplier.addPendingFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendCacheService.addPendingFriend(any(), any()) }
@@ -139,7 +140,7 @@ class DatabaseCacheEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendCacheService.removeFriend(any(), any()) } returns true
                 assertTrue { cacheEntitySupplier.removeFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendCacheService.removeFriend(any(), any()) }
@@ -173,7 +174,7 @@ class DatabaseCacheEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendCacheService.removePendingFriend(any(), any()) } returns true
                 assertTrue { cacheEntitySupplier.removePendingFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendCacheService.removePendingFriend(any(), any()) }
@@ -273,7 +274,7 @@ class DatabaseCacheEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendCacheService.setFriends(any(), any()) } returns true
                 assertTrue { cacheEntitySupplier.setFriends(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendCacheService.setFriends(any(), any()) }
@@ -308,7 +309,7 @@ class DatabaseCacheEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendCacheService.setPendingFriends(any(), any()) } returns true
                 assertTrue { cacheEntitySupplier.setPendingFriends(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendCacheService.setPendingFriends(any(), any()) }
@@ -343,7 +344,7 @@ class DatabaseCacheEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendCacheService.isFriend(any(), any()) } returns true
                 assertTrue { cacheEntitySupplier.isFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendCacheService.isFriend(any(), any()) }
@@ -377,7 +378,7 @@ class DatabaseCacheEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendCacheService.isPendingFriend(any(), any()) } returns true
                 assertTrue { cacheEntitySupplier.isPendingFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendCacheService.isPendingFriend(any(), any()) }
@@ -419,7 +420,7 @@ class DatabaseCacheEntitySupplierTest {
                 val guild = mockk<Guild>()
                 coEvery { guildCacheService.createGuild(capture(slot1), capture(slot2)) } returns guild
 
-                val value1 = getRandomString()
+                val value1 = randomString()
                 val value2 = randomEntityId()
                 cacheEntitySupplier.createGuild(value1, value2)
                 coVerify(exactly = 1) { guildCacheService.createGuild(any(), any()) }
@@ -432,7 +433,7 @@ class DatabaseCacheEntitySupplierTest {
             fun `should return the supplier result`() = runTest {
                 val guild = mockk<Guild>()
                 coEvery { guildCacheService.createGuild(any(), any()) } returns guild
-                val supplierGuild = cacheEntitySupplier.createGuild(getRandomString(), randomEntityId())
+                val supplierGuild = cacheEntitySupplier.createGuild(randomString(), randomEntityId())
                 assertEquals(guild, supplierGuild)
                 coVerify(exactly = 1) { guildCacheService.createGuild(any(), any()) }
             }
@@ -500,7 +501,7 @@ class DatabaseCacheEntitySupplierTest {
                 val guilds = flowOf(mockk<Guild>(), mockk<Guild>())
                 coEvery { guildCacheService.getGuild(capture(slot)) } returns guilds
 
-                val id = getRandomString()
+                val id = randomString()
                 val supplierGuild = cacheEntitySupplier.getGuild(id)
                 assertEquals(guilds, supplierGuild)
                 coVerify(exactly = 1) { guildCacheService.getGuild(any<String>()) }
@@ -780,7 +781,4 @@ class DatabaseCacheEntitySupplierTest {
         }
 
     }
-
-    private fun randomEntityId() = UUID.randomUUID()
-
 }

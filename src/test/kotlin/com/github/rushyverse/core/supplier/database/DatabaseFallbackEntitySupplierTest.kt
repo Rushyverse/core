@@ -3,7 +3,8 @@ package com.github.rushyverse.core.supplier.database
 import com.github.rushyverse.core.data.Guild
 import com.github.rushyverse.core.data.GuildInvite
 import com.github.rushyverse.core.data.GuildMember
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomEntityId
+import com.github.rushyverse.core.utils.randomString
 import io.mockk.*
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -27,14 +28,14 @@ class DatabaseFallbackEntitySupplierTest {
 
     @BeforeTest
     fun onBefore() {
-        getPrioritySupplier = mockk(getRandomString())
-        setPrioritySupplier = mockk(getRandomString())
+        getPrioritySupplier = mockk(randomString())
+        setPrioritySupplier = mockk(randomString())
         fallbackEntitySupplier = DatabaseFallbackEntitySupplier(getPrioritySupplier, setPrioritySupplier)
     }
 
     @Test
     fun `get configuration will get from getPriority supplier`() = runTest {
-        val configuration = mockk<DatabaseSupplierConfiguration>(getRandomString())
+        val configuration = mockk<DatabaseSupplierConfiguration>(randomString())
         every { getPrioritySupplier.configuration } returns configuration
 
         assertEquals(configuration, fallbackEntitySupplier.configuration)
@@ -322,7 +323,7 @@ class DatabaseFallbackEntitySupplierTest {
 
             @Test
             fun `should invoke setPriority supplier first and not getPriority`() = runTest {
-                val name = getRandomString()
+                val name = randomString()
                 val owner = randomEntityId()
                 val expectedGuild = mockk<Guild>()
                 coEvery { setPrioritySupplier.createGuild(name, owner) } returns expectedGuild
@@ -396,7 +397,7 @@ class DatabaseFallbackEntitySupplierTest {
 
             @Test
             fun `should invoke getPriority supplier first and setPriority if empty`() = runTest {
-                val name = getRandomString()
+                val name = randomString()
                 val expectedGuilds = flowOf(mockk<Guild>(), mockk())
                 coEvery { setPrioritySupplier.getGuild(name) } returns expectedGuilds
                 coEvery { getPrioritySupplier.getGuild(name) } returns emptyFlow()
@@ -410,7 +411,7 @@ class DatabaseFallbackEntitySupplierTest {
 
             @Test
             fun `should invoke getPriority supplier first and not setPriority if return not empty`() = runTest {
-                val name = getRandomString()
+                val name = randomString()
                 val expectedGuilds = flowOf(mockk<Guild>(), mockk())
                 coEvery { setPrioritySupplier.getGuild(name) } throws Exception()
                 coEvery { getPrioritySupplier.getGuild(name) } returns expectedGuilds
@@ -424,7 +425,7 @@ class DatabaseFallbackEntitySupplierTest {
 
             @Test
             fun `should return empty flow if both return empty flow`() = runTest {
-                val name = getRandomString()
+                val name = randomString()
                 coEvery { setPrioritySupplier.getGuild(name) } returns emptyFlow()
                 coEvery { getPrioritySupplier.getGuild(name) } returns emptyFlow()
 
@@ -714,6 +715,4 @@ class DatabaseFallbackEntitySupplierTest {
         }
 
     }
-
-    private fun randomEntityId() = UUID.randomUUID()
 }

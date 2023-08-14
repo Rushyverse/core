@@ -3,8 +3,8 @@ package com.github.rushyverse.core.supplier.http
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.data.ProfileIdCacheService
 import com.github.rushyverse.core.data.ProfileSkinCacheService
-import com.github.rushyverse.core.utils.createProfileId
-import com.github.rushyverse.core.utils.createProfileSkin
+import com.github.rushyverse.core.utils.randomProfileId
+import com.github.rushyverse.core.utils.randomProfileSkin
 import io.mockk.coEvery
 import io.mockk.coJustRun
 import io.mockk.coVerify
@@ -44,7 +44,7 @@ class HttpCacheEntitySupplierTest {
             val configuration = HttpSupplierConfiguration(mockk(), mockk(), cacheService)
             val supplier = HttpCacheEntitySupplier(configuration)
 
-            val profile = createProfileId()
+            val profile = randomProfileId()
             val name = profile.name
             coEvery { cacheService.getIdByName(name) } returns profile
 
@@ -58,7 +58,7 @@ class HttpCacheEntitySupplierTest {
             val configuration = HttpSupplierConfiguration(mockk(), mockk(), cacheService)
             val supplier = HttpCacheEntitySupplier(configuration)
 
-            val profile = createProfileId()
+            val profile = randomProfileId()
             coJustRun { cacheService.save(profile) }
 
             supplier.save(profile)
@@ -87,7 +87,7 @@ class HttpCacheEntitySupplierTest {
             val configuration = HttpSupplierConfiguration(mockk(), profileSkinCacheService, mockk())
             val supplier = HttpCacheEntitySupplier(configuration)
 
-            val profile = createProfileSkin()
+            val profile = randomProfileSkin()
             val uuid = profile.id
             coEvery { profileSkinCacheService.getSkinById(uuid) } returns profile
 
@@ -101,7 +101,7 @@ class HttpCacheEntitySupplierTest {
             val configuration = HttpSupplierConfiguration(mockk(), profileSkinCacheService, mockk())
             val supplier = HttpCacheEntitySupplier(configuration)
 
-            val profile = createProfileSkin()
+            val profile = randomProfileSkin()
             coJustRun { profileSkinCacheService.save(profile) }
 
             supplier.save(profile)

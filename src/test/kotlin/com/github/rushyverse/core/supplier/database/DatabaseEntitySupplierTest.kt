@@ -1,7 +1,8 @@
 package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.data.*
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomEntityId
+import com.github.rushyverse.core.utils.randomString
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -67,7 +68,7 @@ class DatabaseEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendDatabaseService.addFriend(any(), any()) } returns true
                 assertTrue { databaseEntitySupplier.addFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendDatabaseService.addFriend(any(), any()) }
@@ -101,7 +102,7 @@ class DatabaseEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendDatabaseService.addPendingFriend(any(), any()) } returns true
                 assertTrue { databaseEntitySupplier.addPendingFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendDatabaseService.addPendingFriend(any(), any()) }
@@ -135,7 +136,7 @@ class DatabaseEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendDatabaseService.removeFriend(any(), any()) } returns true
                 assertTrue { databaseEntitySupplier.removeFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendDatabaseService.removeFriend(any(), any()) }
@@ -174,7 +175,7 @@ class DatabaseEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendDatabaseService.removePendingFriend(any(), any()) } returns true
                 assertTrue { databaseEntitySupplier.removePendingFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendDatabaseService.removePendingFriend(any(), any()) }
@@ -274,7 +275,7 @@ class DatabaseEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendDatabaseService.isFriend(any(), any()) } returns true
                 assertTrue { databaseEntitySupplier.isFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendDatabaseService.isFriend(any(), any()) }
@@ -308,7 +309,7 @@ class DatabaseEntitySupplierTest {
             }
 
             @Test
-            fun `should return true when supplier returns false`() = runTest {
+            fun `should return true when supplier returns true`() = runTest {
                 coEvery { friendDatabaseService.isPendingFriend(any(), any()) } returns true
                 assertTrue { databaseEntitySupplier.isPendingFriend(mockk(), mockk()) }
                 coVerify(exactly = 1) { friendDatabaseService.isPendingFriend(any(), any()) }
@@ -350,7 +351,7 @@ class DatabaseEntitySupplierTest {
                 val guild = mockk<Guild>()
                 coEvery { guildDatabaseService.createGuild(capture(slot1), capture(slot2)) } returns guild
 
-                val value1 = getRandomString()
+                val value1 = randomString()
                 val value2 = randomEntityId()
                 databaseEntitySupplier.createGuild(value1, value2)
                 coVerify(exactly = 1) { guildDatabaseService.createGuild(any(), any()) }
@@ -363,7 +364,7 @@ class DatabaseEntitySupplierTest {
             fun `should return the supplier result`() = runTest {
                 val guild = mockk<Guild>()
                 coEvery { guildDatabaseService.createGuild(any(), any()) } returns guild
-                val supplierGuild = databaseEntitySupplier.createGuild(getRandomString(), randomEntityId())
+                val supplierGuild = databaseEntitySupplier.createGuild(randomString(), randomEntityId())
                 assertEquals(guild, supplierGuild)
                 coVerify(exactly = 1) { guildDatabaseService.createGuild(any(), any()) }
             }
@@ -431,7 +432,7 @@ class DatabaseEntitySupplierTest {
                 val guilds = flowOf(mockk<Guild>(), mockk<Guild>())
                 coEvery { guildDatabaseService.getGuild(capture(slot)) } returns guilds
 
-                val id = getRandomString()
+                val id = randomString()
                 val supplierGuild = databaseEntitySupplier.getGuild(id)
                 assertEquals(guilds, supplierGuild)
                 coVerify(exactly = 1) { guildDatabaseService.getGuild(any<String>()) }
@@ -717,6 +718,4 @@ class DatabaseEntitySupplierTest {
         }
 
     }
-
-    private fun randomEntityId() = UUID.randomUUID()
 }

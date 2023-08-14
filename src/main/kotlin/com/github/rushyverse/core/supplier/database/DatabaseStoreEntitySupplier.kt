@@ -169,15 +169,15 @@ public class DatabaseStoreEntitySupplier(
             importCatchFailure(it, cache::addInvitation)
         }
 
-    override suspend fun save(player: Player): Boolean {
+    override suspend fun savePlayer(player: Player): Boolean {
         TODO("Not yet implemented")
     }
 
-    override suspend fun get(uuid: UUID): Player? {
+    override suspend fun getPlayer(uuid: UUID): Player? {
         TODO("Not yet implemented")
     }
 
-    override suspend fun remove(uuid: UUID): Boolean {
+    override suspend fun removePlayer(uuid: UUID): Boolean {
         TODO("Not yet implemented")
     }
 

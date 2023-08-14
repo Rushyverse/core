@@ -4,9 +4,9 @@ import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.ProfileIdCacheService
 import com.github.rushyverse.core.data.ProfileSkinCacheService
-import com.github.rushyverse.core.utils.createProfileId
-import com.github.rushyverse.core.utils.createProfileSkin
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomProfileId
+import com.github.rushyverse.core.utils.randomProfileSkin
+import com.github.rushyverse.core.utils.randomString
 import io.lettuce.core.RedisURI
 import io.mockk.coEvery
 import io.mockk.every
@@ -62,10 +62,10 @@ class HttpStoreEntitySupplierTest {
 
     @Test
     fun `get configuration will get from cache supplier`() = runTest {
-        val cacheSupplier = mockk<HttpCacheEntitySupplier>(getRandomString())
+        val cacheSupplier = mockk<HttpCacheEntitySupplier>(randomString())
         storeEntitySupplier = HttpStoreEntitySupplier(cacheSupplier, mockSupplier)
 
-        val configuration = mockk<HttpSupplierConfiguration>(getRandomString())
+        val configuration = mockk<HttpSupplierConfiguration>(randomString())
         every { cacheSupplier.configuration } returns configuration
 
         assertEquals(configuration, storeEntitySupplier.configuration)
@@ -83,7 +83,7 @@ class HttpStoreEntitySupplierTest {
 
         @Test
         override fun `data not stored into cache if data not exists`() = runTest {
-            val id = createProfileId()
+            val id = randomProfileId()
             val name = id.name
             coEvery { mockSupplier.getIdByName(name) } returns null
             assertNull(storeEntitySupplier.getIdByName(name))
@@ -92,7 +92,7 @@ class HttpStoreEntitySupplierTest {
 
         @Test
         override fun `data stored if found`() = runTest {
-            val id = createProfileId()
+            val id = randomProfileId()
             val name = id.name
             coEvery { mockSupplier.getIdByName(name) } returns id
             assertEquals(id, storeEntitySupplier.getIdByName(name))
@@ -107,7 +107,7 @@ class HttpStoreEntitySupplierTest {
 
         @Test
         override fun `data not stored into cache if data not exists`() = runTest {
-            val skin = createProfileSkin()
+            val skin = randomProfileSkin()
             val uuid = skin.id
             coEvery { mockSupplier.getSkinById(uuid) } returns null
             assertNull(storeEntitySupplier.getSkinById(uuid))
@@ -116,7 +116,7 @@ class HttpStoreEntitySupplierTest {
 
         @Test
         override fun `data stored if found`() = runTest {
-            val skin = createProfileSkin()
+            val skin = randomProfileSkin()
             val uuid = skin.id
             coEvery { mockSupplier.getSkinById(uuid) } returns skin
             assertEquals(skin, storeEntitySupplier.getSkinById(uuid))

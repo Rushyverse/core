@@ -1,21 +1,32 @@
 package com.github.rushyverse.core.utils
 
+import com.github.rushyverse.core.data.Player
+import com.github.rushyverse.core.data.Rank
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import java.util.*
 
 val stringGenerator = generateSequence { UUID.randomUUID().toString() }.distinct().iterator()
 
-fun getRandomString() = stringGenerator.next()
+fun randomString() = stringGenerator.next()
 
-fun createProfileId(): ProfileId {
-    return ProfileId(name = getRandomString(), id = getRandomString())
+fun randomProfileId(): ProfileId {
+    return ProfileId(name = randomString(), id = randomString())
 }
 
-fun createProfileSkin(id: ProfileId? = null): ProfileSkin {
+fun randomProfileSkin(id: ProfileId? = null): ProfileSkin {
     return ProfileSkin(
-        id = id?.id ?: getRandomString(),
-        name = id?.name ?: getRandomString(),
+        id = id?.id ?: randomString(),
+        name = id?.name ?: randomString(),
         properties = emptyList()
     )
 }
+
+fun createPlayer(): Player {
+    return Player(
+        uuid = UUID.randomUUID(),
+        rank = Rank.entries.random()
+    )
+}
+
+public fun randomEntityId() = UUID.randomUUID()

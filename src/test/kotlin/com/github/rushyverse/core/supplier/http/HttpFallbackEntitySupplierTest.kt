@@ -1,8 +1,8 @@
 package com.github.rushyverse.core.supplier.http
 
-import com.github.rushyverse.core.utils.createProfileId
-import com.github.rushyverse.core.utils.createProfileSkin
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomProfileId
+import com.github.rushyverse.core.utils.randomProfileSkin
+import com.github.rushyverse.core.utils.randomString
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
@@ -18,14 +18,14 @@ class HttpFallbackEntitySupplierTest {
 
     @BeforeTest
     fun onBefore() {
-        fallbackEntitySupplier = HttpFallbackEntitySupplier(mockk(getRandomString()), mockk(getRandomString()))
+        fallbackEntitySupplier = HttpFallbackEntitySupplier(mockk(randomString()), mockk(randomString()))
     }
 
     @Test
     fun `get configuration will get from first supplier`() = runTest {
         val firstSupplier = fallbackEntitySupplier.first
 
-        val configuration = mockk<HttpSupplierConfiguration>(getRandomString())
+        val configuration = mockk<HttpSupplierConfiguration>(randomString())
         every { firstSupplier.configuration } returns configuration
 
         assertEquals(configuration, fallbackEntitySupplier.configuration)
@@ -45,7 +45,7 @@ class HttpFallbackEntitySupplierTest {
         override fun `data is not present into both supplier`() = runTest {
             val first = fallbackEntitySupplier.first
             val second = fallbackEntitySupplier.second
-            val id = createProfileId()
+            val id = randomProfileId()
             val name = id.name
 
             coEvery { first.getIdByName(any()) } returns null
@@ -61,7 +61,7 @@ class HttpFallbackEntitySupplierTest {
         override fun `data is present into one of both supplier`() = runTest {
             val first = fallbackEntitySupplier.first
             val second = fallbackEntitySupplier.second
-            val id = createProfileId()
+            val id = randomProfileId()
             val name = id.name
 
             coEvery { first.getIdByName(any()) } returns id
@@ -90,7 +90,7 @@ class HttpFallbackEntitySupplierTest {
         override fun `data is not present into both supplier`() = runTest {
             val first = fallbackEntitySupplier.first
             val second = fallbackEntitySupplier.second
-            val skin = createProfileSkin()
+            val skin = randomProfileSkin()
             val id = skin.id
 
             coEvery { first.getSkinById(any()) } returns null
@@ -106,7 +106,7 @@ class HttpFallbackEntitySupplierTest {
         override fun `data is present into one of both supplier`() = runTest {
             val first = fallbackEntitySupplier.first
             val second = fallbackEntitySupplier.second
-            val skin = createProfileSkin()
+            val skin = randomProfileSkin()
             val id = skin.id
 
             coEvery { first.getSkinById(any()) } returns skin

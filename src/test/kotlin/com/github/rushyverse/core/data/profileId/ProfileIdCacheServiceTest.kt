@@ -3,8 +3,8 @@ package com.github.rushyverse.core.data.profileId
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.ProfileIdCacheService
-import com.github.rushyverse.core.utils.createProfileId
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomProfileId
+import com.github.rushyverse.core.utils.randomString
 import com.github.rushyverse.core.utils.getTTL
 import io.lettuce.core.RedisURI
 import kotlinx.coroutines.flow.toList
@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Timeout
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.test.*
 import kotlin.time.Duration.Companion.hours
@@ -43,7 +42,7 @@ class ProfileIdCacheServiceTest {
         cacheClient = CacheClient {
             uri = RedisURI.create(redisContainer.url)
         }
-        service = ProfileIdCacheService(cacheClient, null, getRandomString())
+        service = ProfileIdCacheService(cacheClient, null, randomString())
     }
 
     @AfterTest
@@ -69,21 +68,21 @@ class ProfileIdCacheServiceTest {
 
         @Test
         fun `data is not into the cache`() = runTest {
-            val profile = createProfileId()
+            val profile = randomProfileId()
             service.save(profile)
-            assertNull(service.getIdByName(getRandomString()))
+            assertNull(service.getIdByName(randomString()))
         }
 
         @Test
         fun `data is retrieved from the cache`() = runTest {
-            val profile = createProfileId()
+            val profile = randomProfileId()
             service.save(profile)
             assertEquals(profile, service.getIdByName(profile.name))
         }
 
         @Test
         fun `data is retrieved from the cache with name key but serial value is not valid`() = runTest {
-            val profile = createProfileId()
+            val profile = randomProfileId()
             val key = profile.name
             cacheClient.connect {
                 val keySerial = cacheClient.binaryFormat.encodeToByteArray(String.serializer(), service.prefixKey + key)
@@ -94,7 +93,7 @@ class ProfileIdCacheServiceTest {
 
         @Test
         fun `should not set the expiration of the data if expiration defined`() = runTest {
-            val profile = createProfileId()
+            val profile = randomProfileId()
             service.save(profile)
             assertEquals(-1, cacheClient.getTTL(service, profile.name))
             assertEquals(profile, service.getIdByName(profile.name))
@@ -103,7 +102,7 @@ class ProfileIdCacheServiceTest {
 
         @Test
         fun `should not set the expiration of the data if expiration is not defined`() = runTest {
-            val profile = createProfileId()
+            val profile = randomProfileId()
             service.save(profile)
             assertEquals(-1, cacheClient.getTTL(service, profile.name))
 
@@ -121,7 +120,7 @@ class ProfileIdCacheServiceTest {
 
         @Test
         fun `should define the key`() = runTest {
-            val profile = createProfileId()
+            val profile = randomProfileId()
             val key = profile.name
             service.save(profile)
 
@@ -133,7 +132,7 @@ class ProfileIdCacheServiceTest {
 
         @Test
         fun `save identity with key not exists`() = runTest {
-            val profile = createProfileId()
+            val profile = randomProfileId()
             val key = profile.name
             assertNull(service.getIdByName(key))
             service.save(profile)
@@ -142,7 +141,7 @@ class ProfileIdCacheServiceTest {
 
         @Test
         fun `save identity but key already exists`() = runTest {
-            val profile = createProfileId()
+            val profile = randomProfileId()
             val key = profile.name
 
             assertNull(service.getIdByName(key))
@@ -156,7 +155,7 @@ class ProfileIdCacheServiceTest {
 
         @Test
         fun `data is saved using the human readable format from client`() = runTest {
-            val profile = createProfileId()
+            val profile = randomProfileId()
             val key = profile.name
             service.save(profile)
 
@@ -173,7 +172,7 @@ class ProfileIdCacheServiceTest {
 
         @Test
         fun `should set the expiration of the data if expiration defined`() = runTest {
-            val profile = createProfileId()
+            val profile = randomProfileId()
             service = ProfileIdCacheService(cacheClient, 40.seconds)
             service.save(profile)
             assertEquals(40, cacheClient.getTTL(service, profile.name))
@@ -181,7 +180,7 @@ class ProfileIdCacheServiceTest {
 
         @Test
         fun `should not set the expiration of the data if expiration is not defined`() = runTest {
-            val profile = createProfileId()
+            val profile = randomProfileId()
             service = ProfileIdCacheService(cacheClient, null)
             service.save(profile)
             assertEquals(-1, cacheClient.getTTL(service, profile.name))

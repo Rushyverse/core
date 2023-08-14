@@ -993,7 +993,7 @@ class FriendDatabaseServiceTest {
 
     private suspend fun saveNewPlayer(uuid: UUID = UUID.randomUUID()): UUID {
         val player = Player(uuid, Rank.PLAYER)
-        playerService.save(player)
+        playerService.savePlayer(player)
         return player.uuid
     }
 }

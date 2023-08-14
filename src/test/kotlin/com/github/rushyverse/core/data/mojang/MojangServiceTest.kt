@@ -3,9 +3,9 @@ package com.github.rushyverse.core.data.mojang
 import com.github.rushyverse.core.data.MojangService
 import com.github.rushyverse.core.supplier.http.HttpSupplierConfiguration
 import com.github.rushyverse.core.supplier.http.IHttpEntitySupplier
-import com.github.rushyverse.core.utils.createProfileId
-import com.github.rushyverse.core.utils.createProfileSkin
-import com.github.rushyverse.core.utils.getRandomString
+import com.github.rushyverse.core.utils.randomProfileId
+import com.github.rushyverse.core.utils.randomProfileSkin
+import com.github.rushyverse.core.utils.randomString
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -26,12 +26,12 @@ class MojangServiceTest {
     @BeforeTest
     fun onBefore() {
         configuration = HttpSupplierConfiguration(
-            mockk(getRandomString()),
-            mockk(getRandomString()),
-            mockk(getRandomString()),
+            mockk(randomString()),
+            mockk(randomString()),
+            mockk(randomString()),
         )
 
-        val mockSupplier = mockk<IHttpEntitySupplier>(getRandomString())
+        val mockSupplier = mockk<IHttpEntitySupplier>(randomString())
         every { mockSupplier.configuration } returns configuration
 
         serviceImpl = MojangService(mockSupplier)
@@ -45,7 +45,7 @@ class MojangServiceTest {
     @Test
     fun `change supplier strategy`() {
         val initStrategy = serviceImpl.supplier
-        val newStrategy = mockk<IHttpEntitySupplier>(getRandomString())
+        val newStrategy = mockk<IHttpEntitySupplier>(randomString())
 
         val newService = serviceImpl.withStrategy {
             assertEquals(configuration, it)
@@ -61,8 +61,8 @@ class MojangServiceTest {
 
         @Test
         override fun `data is not found into supplier`() = runTest {
-            val profileId = createProfileId()
-            val profileSkin = createProfileSkin(profileId)
+            val profileId = randomProfileId()
+            val profileSkin = randomProfileSkin(profileId)
             val id = profileId.id
             val name = profileId.name
             coEvery { supplier.getIdByName(any()) } returns null
@@ -76,8 +76,8 @@ class MojangServiceTest {
 
         @Test
         override fun `data is retrieved from supplier`() = runTest {
-            val profileId = createProfileId()
-            val profileSkin = createProfileSkin(profileId)
+            val profileId = randomProfileId()
+            val profileSkin = randomProfileSkin(profileId)
             val id = profileId.id
             val name = profileId.name
             coEvery { supplier.getIdByName(name) } returns profileId
@@ -93,12 +93,12 @@ class MojangServiceTest {
         @Test
         override fun `data is not found into supplier`() = runTest {
             coEvery { supplier.getIdByName(any()) } returns null
-            assertNull(serviceImpl.getIdByName(getRandomString()))
+            assertNull(serviceImpl.getIdByName(randomString()))
         }
 
         @Test
         override fun `data is retrieved from supplier`() = runTest {
-            val id = createProfileId()
+            val id = randomProfileId()
             val name = id.name
             coEvery { supplier.getIdByName(name) } returns id
             assertEquals(id, serviceImpl.getIdByName(name))
@@ -112,12 +112,12 @@ class MojangServiceTest {
         @Test
         override fun `data is not found into supplier`() = runTest {
             coEvery { supplier.getSkinById(any()) } returns null
-            assertNull(serviceImpl.getSkinById(getRandomString()))
+            assertNull(serviceImpl.getSkinById(randomString()))
         }
 
         @Test
         override fun `data is retrieved from supplier`() = runTest {
-            val skin = createProfileSkin()
+            val skin = randomProfileSkin()
             val id = skin.id
             coEvery { supplier.getSkinById(id) } returns skin
             assertEquals(skin, serviceImpl.getSkinById(id))
