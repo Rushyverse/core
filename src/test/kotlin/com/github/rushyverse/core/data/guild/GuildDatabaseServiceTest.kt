@@ -1177,7 +1177,8 @@ class GuildDatabaseServiceTest {
             val invitesNotExpired = List(2) { GuildInvite(guild.id, saveNewPlayer(), null) }
             invitesNotExpired.forEach { service.addInvitation(it.guildId, it.entityId, it.expiredAt) }
 
-            val invitesExpired = List(2) { GuildInvite(guild.id, saveNewPlayer(), Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS)) }
+            val invitesExpired =
+                List(2) { GuildInvite(guild.id, saveNewPlayer(), Instant.now().plusMillis(WAIT_EXPIRATION_MILLIS)) }
             invitesExpired.forEach { service.addInvitation(it.guildId, it.entityId, it.expiredAt) }
 
             delay(WAIT_EXPIRATION_MILLIS * 2)

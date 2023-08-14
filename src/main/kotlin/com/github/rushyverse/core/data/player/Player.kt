@@ -101,14 +101,14 @@ public class PlayerCacheService(
             val playerStored = connection.hget(addKey, uuidByteArray)
 
             val playerSerializer = Player.serializer()
-            val result = if(playerStored == null) {
+            val result = if (playerStored == null) {
                 // Save the player if it is not in cache.
                 connection.hset(addKey, uuidByteArray, encodeToByteArray(playerSerializer, player)) == true
             } else {
                 // Verify if the player is the same as the one we want to save.
                 // If it is not, save it to update the cache.
                 val decodedPlayerStored = decodeFromByteArrayOrNull(playerSerializer, playerStored)
-                if(decodedPlayerStored != player) {
+                if (decodedPlayerStored != player) {
                     connection.hset(addKey, uuidByteArray, encodeToByteArray(playerSerializer, player))
                     true
                 } else {

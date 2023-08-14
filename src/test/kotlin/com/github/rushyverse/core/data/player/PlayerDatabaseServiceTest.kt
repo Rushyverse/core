@@ -1,7 +1,6 @@
 package com.github.rushyverse.core.data.player
 
 import com.github.rushyverse.core.container.createPSQLContainer
-import com.github.rushyverse.core.data.*
 import com.github.rushyverse.core.data.utils.DatabaseUtils
 import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
 import com.github.rushyverse.core.utils.createPlayer
@@ -15,7 +14,9 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.MountableFile
 import java.util.*
-import kotlin.test.*
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 
 @Testcontainers
 class PlayerDatabaseServiceTest {

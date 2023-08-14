@@ -1,7 +1,9 @@
 package com.github.rushyverse.core.data.friend
 
 import com.github.rushyverse.core.container.createPSQLContainer
-import com.github.rushyverse.core.data.*
+import com.github.rushyverse.core.data.Friend
+import com.github.rushyverse.core.data.FriendDatabaseService
+import com.github.rushyverse.core.data._Friend
 import com.github.rushyverse.core.data.player.PlayerDatabaseService
 import com.github.rushyverse.core.data.player._Player
 import com.github.rushyverse.core.data.utils.DatabaseUtils

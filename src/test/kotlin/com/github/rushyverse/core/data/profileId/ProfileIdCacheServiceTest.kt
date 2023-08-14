@@ -3,9 +3,9 @@ package com.github.rushyverse.core.data.profileId
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.ProfileIdCacheService
+import com.github.rushyverse.core.utils.getTTL
 import com.github.rushyverse.core.utils.randomProfileId
 import com.github.rushyverse.core.utils.randomString
-import com.github.rushyverse.core.utils.getTTL
 import io.lettuce.core.RedisURI
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await
