@@ -7,9 +7,7 @@ import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguratio
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.supplier.database.IDatabaseStrategizable
 import kotlinx.serialization.Serializable
-import org.komapper.annotation.KomapperEntity
-import org.komapper.annotation.KomapperId
-import org.komapper.annotation.KomapperTable
+import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.r2dbc.R2dbcDatabase
 import java.util.*
@@ -71,6 +69,7 @@ public data class Player(
     @KomapperId
     @Serializable(with = UUIDSerializer::class)
     val uuid: UUID,
+    @KomapperEnum(type = EnumType.NAME)
     val rank: Rank,
 )
 
@@ -171,6 +170,7 @@ public class PlayerDatabaseService(public val database: R2dbcDatabase) : IPlayer
             }
             .where {
                 meta.uuid eq player.uuid
+                meta.rank notEq player.rank
             }
             .single(player)
 
