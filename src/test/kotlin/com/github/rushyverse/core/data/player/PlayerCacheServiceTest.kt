@@ -2,10 +2,8 @@ package com.github.rushyverse.core.data.player
 
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
-import com.github.rushyverse.core.data.Player
-import com.github.rushyverse.core.data.PlayerCacheService
-import com.github.rushyverse.core.data.Rank
 import com.github.rushyverse.core.serializer.UUIDSerializer
+import com.github.rushyverse.core.utils.createPlayer
 import io.kotest.matchers.shouldBe
 import io.lettuce.core.FlushMode
 import io.lettuce.core.RedisURI
@@ -70,7 +68,7 @@ class PlayerCacheServiceTest {
 
         @Test
         fun `should create a new player if ID does not exist`() = runTest {
-            val player = Player(UUID.randomUUID(), Rank.PLAYER)
+            val player = createPlayer()
             service.savePlayer(player) shouldBe true
 
             getAdded() shouldBe listOf(player)
@@ -78,7 +76,7 @@ class PlayerCacheServiceTest {
 
         @Test
         fun `should update an existing player if ID exists`() = runTest {
-            val player = Player(UUID.randomUUID(), Rank.PLAYER)
+            val player = createPlayer().copy(rank = Rank.PLAYER)
             val playerUpdated = player.copy(rank = Rank.ADMIN)
 
             service.savePlayer(player) shouldBe true
@@ -89,7 +87,7 @@ class PlayerCacheServiceTest {
 
         @Test
         fun `should delete removed key for player when created`() = runTest {
-            val player = Player(UUID.randomUUID(), Rank.PLAYER)
+            val player = createPlayer()
 
             service.removePlayer(player.uuid)
 
@@ -103,7 +101,7 @@ class PlayerCacheServiceTest {
 
         @Test
         fun `should delete removed key for player when updated`() = runTest {
-            val player = Player(UUID.randomUUID(), Rank.PLAYER)
+            val player = createPlayer()
             service.savePlayer(player) shouldBe true
 
             val playerUpdated = player.copy(rank = Rank.ADMIN)
@@ -120,7 +118,7 @@ class PlayerCacheServiceTest {
 
         @Test
         fun `should delete removed key for player nothing change`() = runTest {
-            val player = Player(UUID.randomUUID(), Rank.PLAYER)
+            val player = createPlayer()
             service.savePlayer(player) shouldBe true
 
             service.removePlayer(player.uuid)
@@ -136,7 +134,7 @@ class PlayerCacheServiceTest {
 
         @Test
         fun `should return false if no updated`() = runTest {
-            val player = Player(UUID.randomUUID(), Rank.PLAYER)
+            val player = createPlayer()
 
             service.savePlayer(player) shouldBe true
             service.savePlayer(player) shouldBe false

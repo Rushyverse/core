@@ -4,6 +4,7 @@ import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
 import com.github.rushyverse.core.container.createRedisContainer
 import com.github.rushyverse.core.data.*
+import com.github.rushyverse.core.data.player.IPlayerCacheService
 import com.github.rushyverse.core.serializer.UUIDSerializer
 import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import io.lettuce.core.RedisURI

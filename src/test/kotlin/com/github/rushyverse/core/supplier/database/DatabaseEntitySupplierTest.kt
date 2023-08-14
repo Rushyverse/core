@@ -1,6 +1,7 @@
 package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.data.*
+import com.github.rushyverse.core.data.player.IPlayerCacheService
 import com.github.rushyverse.core.utils.randomEntityId
 import com.github.rushyverse.core.utils.randomString
 import io.mockk.coEvery

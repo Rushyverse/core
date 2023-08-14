@@ -1,4 +1,4 @@
-package com.github.rushyverse.core.data
+package com.github.rushyverse.core.data.player
 
 import com.github.rushyverse.core.cache.AbstractCacheService
 import com.github.rushyverse.core.cache.CacheClient
@@ -50,14 +50,6 @@ public interface IPlayerCacheService : IPlayerService
 public interface IPlayerDatabaseService : IPlayerService
 
 /**
- * Rank of a player.
- */
-public enum class Rank {
-    PLAYER,
-    ADMIN
-}
-
-/**
  * Table to store players in database.
  * @property uuid Unique identifier of the player.
  * @property rank Rank of the player.
@@ -71,6 +63,8 @@ public data class Player(
     val uuid: UUID,
     @KomapperEnum(type = EnumType.NAME)
     val rank: Rank,
+    @KomapperEnum(type = EnumType.NAME)
+    val language: SupportedLanguage
 )
 
 /**

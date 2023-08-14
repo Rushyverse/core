@@ -4,6 +4,7 @@ import com.github.rushyverse.core.container.createPSQLContainer
 import com.github.rushyverse.core.data.*
 import com.github.rushyverse.core.data.utils.DatabaseUtils
 import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
+import com.github.rushyverse.core.utils.createPlayer
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -50,14 +51,14 @@ class PlayerDatabaseServiceTest {
 
         @Test
         fun `should create a new player if ID does not exist`() = runTest {
-            val player = Player(UUID.randomUUID(), Rank.PLAYER)
+            val player = createPlayer()
             playerService.savePlayer(player) shouldBe true
             getAll() shouldBe listOf(player)
         }
 
         @Test
         fun `should update an existing player if ID exists`() = runTest {
-            val player = Player(UUID.randomUUID(), Rank.PLAYER)
+            val player = createPlayer().copy(rank = Rank.PLAYER)
             playerService.savePlayer(player) shouldBe true
 
             val playerUpdated = player.copy(rank = Rank.ADMIN)
@@ -67,7 +68,7 @@ class PlayerDatabaseServiceTest {
 
         @Test
         fun `should return false if no rows were affected`() = runTest {
-            val player = Player(UUID.randomUUID(), Rank.PLAYER)
+            val player = createPlayer()
             playerService.savePlayer(player) shouldBe true
             playerService.savePlayer(player) shouldBe false
         }
@@ -80,7 +81,7 @@ class PlayerDatabaseServiceTest {
         @Test
         fun `should return null if ID does not exist`() = runTest {
             List(10) {
-                Player(UUID.randomUUID(), Rank.PLAYER)
+                createPlayer()
             }.forEach {
                 playerService.savePlayer(it)
             }
@@ -90,7 +91,7 @@ class PlayerDatabaseServiceTest {
 
         @Test
         fun `should return the player if ID exists`() = runTest {
-            val player = Player(UUID.randomUUID(), Rank.PLAYER)
+            val player = createPlayer()
             playerService.savePlayer(player) shouldBe true
             playerService.getPlayer(player.uuid) shouldBe player
         }
@@ -103,7 +104,7 @@ class PlayerDatabaseServiceTest {
         @Test
         fun `should return false if ID does not exist`() = runTest {
             List(10) {
-                Player(UUID.randomUUID(), Rank.PLAYER)
+                createPlayer()
             }.forEach {
                 playerService.savePlayer(it)
             }
@@ -114,7 +115,7 @@ class PlayerDatabaseServiceTest {
         @Test
         fun `should return true if ID exist`() = runTest {
             val players = List(10) {
-                Player(UUID.randomUUID(), Rank.PLAYER)
+                createPlayer()
             }
 
             players.forEach {

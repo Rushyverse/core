@@ -1,7 +1,8 @@
 package com.github.rushyverse.core.utils
 
-import com.github.rushyverse.core.data.Player
-import com.github.rushyverse.core.data.Rank
+import com.github.rushyverse.core.data.player.Player
+import com.github.rushyverse.core.data.player.Rank
+import com.github.rushyverse.core.data.player.SupportedLanguage
 import io.github.universeproject.kotlinmojangapi.ProfileId
 import io.github.universeproject.kotlinmojangapi.ProfileSkin
 import java.util.*
@@ -22,10 +23,11 @@ fun randomProfileSkin(id: ProfileId? = null): ProfileSkin {
     )
 }
 
-fun createPlayer(): Player {
+fun createPlayer(uuid: UUID = UUID.randomUUID()): Player {
     return Player(
-        uuid = UUID.randomUUID(),
-        rank = Rank.entries.random()
+        uuid = uuid,
+        rank = Rank.entries.random(),
+        language = SupportedLanguage.entries.random()
     )
 }
 

@@ -3,7 +3,7 @@ package com.github.rushyverse.core.supplier.database
 import com.github.rushyverse.core.data.IFriendCacheService
 import com.github.rushyverse.core.data.IFriendDatabaseService
 import com.github.rushyverse.core.data.IGuildCacheService
-import com.github.rushyverse.core.data.IPlayerCacheService
+import com.github.rushyverse.core.data.player.IPlayerCacheService
 import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals

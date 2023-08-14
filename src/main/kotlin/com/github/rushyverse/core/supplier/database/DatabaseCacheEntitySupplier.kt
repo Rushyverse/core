@@ -2,7 +2,7 @@ package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.data.IFriendCacheService
 import com.github.rushyverse.core.data.IGuildCacheService
-import com.github.rushyverse.core.data.IPlayerCacheService
+import com.github.rushyverse.core.data.player.IPlayerCacheService
 
 /**
  * [IDatabaseEntitySupplier] that uses cache to manage entities.

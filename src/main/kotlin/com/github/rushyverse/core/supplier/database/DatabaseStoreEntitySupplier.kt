@@ -3,7 +3,7 @@ package com.github.rushyverse.core.supplier.database
 import com.github.rushyverse.core.data.Guild
 import com.github.rushyverse.core.data.GuildInvite
 import com.github.rushyverse.core.data.GuildMember
-import com.github.rushyverse.core.data.Player
+import com.github.rushyverse.core.data.player.Player
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*

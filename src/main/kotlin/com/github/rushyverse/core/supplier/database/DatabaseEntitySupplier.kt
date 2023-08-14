@@ -2,7 +2,7 @@ package com.github.rushyverse.core.supplier.database
 
 import com.github.rushyverse.core.data.IFriendDatabaseService
 import com.github.rushyverse.core.data.IGuildDatabaseService
-import com.github.rushyverse.core.data.IPlayerDatabaseService
+import com.github.rushyverse.core.data.player.IPlayerDatabaseService
 
 /**
  * [IDatabaseEntitySupplier] that uses database to manage entities.

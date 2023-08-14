@@ -1,7 +1,5 @@
 package com.github.rushyverse.core.data.player
 
-import com.github.rushyverse.core.data.Player
-import com.github.rushyverse.core.data.PlayerService
 import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.utils.createPlayer
