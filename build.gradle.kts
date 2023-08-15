@@ -39,7 +39,7 @@ dependencies {
     val ktSerializationVersion = "1.5.1"
     val coroutinesCoreVersion = "1.7.3"
     val loggingVersion = "3.0.5"
-    val mockkVersion = "1.13.5"
+    val mockkVersion = "1.13.7"
     val junitVersion = "5.10.0"
     val testContainersVersion = "1.18.3"
     val lettuceVersion = "6.2.3.RELEASE"
