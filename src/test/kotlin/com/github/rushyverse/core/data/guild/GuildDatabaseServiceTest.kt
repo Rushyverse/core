@@ -6,6 +6,7 @@ import com.github.rushyverse.core.data.player.PlayerDatabaseService
 import com.github.rushyverse.core.data.player._Player
 import com.github.rushyverse.core.data.utils.DatabaseUtils
 import com.github.rushyverse.core.data.utils.DatabaseUtils.createR2dbcDatabase
+import com.github.rushyverse.core.data.utils.MicroClockProvider
 import com.github.rushyverse.core.utils.createPlayer
 import com.github.rushyverse.core.utils.randomString
 import kotlinx.coroutines.delay
@@ -69,9 +70,7 @@ class GuildDatabaseServiceTest {
 
     @BeforeTest
     fun onBefore() {
-        database =
-            createR2dbcDatabase(psqlContainer) // R2dbcDatabase(createConnectionOptions(psqlContainer), clockProvider = MicroClockProvider())
-        service = GuildDatabaseService(database)
+        database = createR2dbcDatabase(psqlContainer, clockProvider = MicroClockProvider())
         playerService = PlayerDatabaseService(database)
     }
 
