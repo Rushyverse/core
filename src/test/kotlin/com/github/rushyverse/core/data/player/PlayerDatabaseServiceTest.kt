@@ -2,7 +2,7 @@ package com.github.rushyverse.core.data.player
 
 import com.github.rushyverse.core.container.createPSQLContainer
 import com.github.rushyverse.core.data.utils.DatabaseUtils
-import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
+import com.github.rushyverse.core.data.utils.DatabaseUtils.createR2dbcDatabase
 import com.github.rushyverse.core.utils.createPlayer
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.runBlocking
@@ -17,6 +17,7 @@ import java.util.*
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+
 
 @Testcontainers
 class PlayerDatabaseServiceTest {
@@ -38,7 +39,7 @@ class PlayerDatabaseServiceTest {
 
     @BeforeTest
     fun onBefore() = runBlocking {
-        database = R2dbcDatabase(createConnectionOptions(psqlContainer))
+        database = createR2dbcDatabase(psqlContainer)
         playerService = PlayerDatabaseService(database)
     }
 

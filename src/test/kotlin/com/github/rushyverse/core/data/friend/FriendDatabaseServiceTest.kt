@@ -7,7 +7,7 @@ import com.github.rushyverse.core.data._Friend
 import com.github.rushyverse.core.data.player.PlayerDatabaseService
 import com.github.rushyverse.core.data.player._Player
 import com.github.rushyverse.core.data.utils.DatabaseUtils
-import com.github.rushyverse.core.data.utils.DatabaseUtils.createConnectionOptions
+import com.github.rushyverse.core.data.utils.DatabaseUtils.createR2dbcDatabase
 import com.github.rushyverse.core.utils.createPlayer
 import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.flow.toList
@@ -50,7 +50,7 @@ class FriendDatabaseServiceTest {
 
     @BeforeTest
     fun onBefore() = runBlocking {
-        database = R2dbcDatabase(createConnectionOptions(psqlContainer))
+        database = createR2dbcDatabase(psqlContainer)
         service = FriendDatabaseService(database)
         playerService = PlayerDatabaseService(database)
     }

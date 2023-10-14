@@ -27,7 +27,7 @@ fun createPlayer(uuid: UUID = UUID.randomUUID()): Player {
     return Player(
         uuid = uuid,
         rank = Rank.entries.random(),
-        language = Language.entries.random()
+        language = randomString()
     )
 }
 

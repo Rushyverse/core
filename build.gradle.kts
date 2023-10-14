@@ -6,6 +6,7 @@ plugins {
     id("org.jetbrains.dokka") version "1.8.20"
     id("com.google.devtools.ksp") version "1.9.0-1.0.13"
     id("io.gitlab.arturbosch.detekt") version "1.23.1"
+    id("org.jlleitschuh.gradle.ktlint") version "11.5.1"
     `java-library`
     `maven-publish`
     jacoco
@@ -45,7 +46,7 @@ dependencies {
     val kotlinMojangApi = "2.3.0"
     val nettyCodecVersion = "4.1.96.Final"
     val assertJcoreVersion = "3.24.2"
-    val komapperVersion = "1.12.0"
+    val komapperVersion = "1.14.0"
     val kotestVersion = "5.6.2"
 
     api(kotlin("stdlib"))

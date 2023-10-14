@@ -61,10 +61,9 @@ public data class Player(
     @KomapperId
     @Serializable(with = UUIDSerializer::class)
     val uuid: UUID,
-    @KomapperEnum(type = EnumType.NAME)
-    val rank: Rank,
-    @KomapperEnum(type = EnumType.NAME)
-    val language: Language
+    @KomapperEnum(type = EnumType.TYPE)
+    val rank: Rank?,
+    val language: String
 )
 
 /**
@@ -153,6 +152,10 @@ public class PlayerCacheService(
 
 }
 
+/**
+ * Implementation of [IPlayerDatabaseService] that uses [R2dbcDatabase] to manage data in database.
+ * @property database Database client.
+ */
 public class PlayerDatabaseService(public val database: R2dbcDatabase) : IPlayerDatabaseService {
 
     override suspend fun savePlayer(player: Player): Boolean {
@@ -189,6 +192,10 @@ public class PlayerDatabaseService(public val database: R2dbcDatabase) : IPlayer
 
 }
 
+/**
+ * Service for managing players.
+ * @property supplier Supplier of the service.
+ */
 public class PlayerService(override val supplier: IDatabaseEntitySupplier) : IPlayerService by supplier,
     IDatabaseStrategizable {
 
