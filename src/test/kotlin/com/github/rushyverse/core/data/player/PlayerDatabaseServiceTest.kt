@@ -92,7 +92,7 @@ class PlayerDatabaseServiceTest {
         }
 
         @Test
-        fun `should return the player if ID exists`() = runTest {
+        fun `should return the player if ID exists`() = runBlocking<Unit> {
             val player = createPlayer()
             playerService.savePlayer(player) shouldBe true
             playerService.getPlayer(player.uuid) shouldBe player

@@ -164,10 +164,16 @@ public class PlayerDatabaseService(public val database: R2dbcDatabase) : IPlayer
             .onDuplicateKeyUpdate()
             .set {
                 meta.rank eq player.rank
+                meta.language eq player.language
             }
             .where {
                 meta.uuid eq player.uuid
-                meta.rank notEq player.rank
+                and {
+                    meta.rank notEq player.rank
+                    or {
+                        meta.language notEq player.language
+                    }
+                }
             }
             .single(player)
 
