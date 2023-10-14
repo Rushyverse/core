@@ -71,6 +71,7 @@ class GuildDatabaseServiceTest {
     @BeforeTest
     fun onBefore() {
         database = createR2dbcDatabase(psqlContainer, clockProvider = MicroClockProvider())
+        service = GuildDatabaseService(database)
         playerService = PlayerDatabaseService(database)
     }
 
