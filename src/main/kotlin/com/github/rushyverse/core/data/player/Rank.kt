@@ -5,11 +5,20 @@ import io.r2dbc.spi.Statement
 import org.komapper.r2dbc.spi.R2dbcUserDefinedDataType
 import kotlin.reflect.KClass
 
+/**
+ * Rank of a player.
+ */
 public enum class Rank {
     PLAYER,
     ADMIN
 }
 
+/**
+ * User-defined data type for [Rank].
+ * Allows defining the way to store and retrieve [Rank] in the database.
+ * The class is registered in /src/main/resources/META-INF/services/org.komapper.r2dbc.spi.R2dbcUserDefinedDataType
+ * @see Rank
+ */
 public class RankType : R2dbcUserDefinedDataType<Rank> {
 
     override val name: String = "rank"
