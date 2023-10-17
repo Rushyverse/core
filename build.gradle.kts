@@ -46,7 +46,7 @@ dependencies {
     val mojangApi = "v1.0.1"
     val nettyCodecVersion = "4.1.96.Final"
     val assertJcoreVersion = "3.24.2"
-    val komapperVersion = "1.12.0"
+    val komapperVersion = "1.14.1"
     val kotestVersion = "5.6.2"
 
     api(kotlin("stdlib"))
