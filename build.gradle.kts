@@ -47,7 +47,7 @@ dependencies {
     val nettyCodecVersion = "4.1.96.Final"
     val assertJcoreVersion = "3.24.2"
     val komapperVersion = "1.12.0"
-    val kotestVersion = "5.6.2"
+    val kotestVersion = "5.8.0"
 
     api(kotlin("stdlib"))
     api(kotlin("reflect"))
