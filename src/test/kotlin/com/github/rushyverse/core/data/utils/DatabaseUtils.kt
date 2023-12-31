@@ -28,7 +28,10 @@ class MicroClockProvider(private val zoneId: ZoneId = ZoneId.systemDefault()) : 
 
 object DatabaseUtils {
 
-    fun createR2dbcDatabase(container: PostgreSQLContainer<*>, clockProvider: ClockProvider = DefaultClockProvider()): R2dbcDatabase {
+    fun createR2dbcDatabase(
+        container: PostgreSQLContainer<*>,
+        clockProvider: ClockProvider = DefaultClockProvider()
+    ): R2dbcDatabase {
         return R2dbcDatabase(
             connectionFactory = createPostgresqlConnectionFactory(container),
             dialect = PostgreSqlR2dbcDialect(),

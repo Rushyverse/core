@@ -71,8 +71,8 @@ class PlayerServiceTest {
         @ParameterizedTest
         @ValueSource(booleans = [true, false])
         fun `should return supplier result`(result: Boolean) = runTest {
-            coEvery { supplier.savePlayer(any()) } returns true
-            assertTrue { service.savePlayer(mockk()) }
+            coEvery { supplier.savePlayer(any()) } returns result
+            service.savePlayer(mockk()) shouldBe result
             coVerify(exactly = 1) { supplier.savePlayer(any()) }
         }
     }

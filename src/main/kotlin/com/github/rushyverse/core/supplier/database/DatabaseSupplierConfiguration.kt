@@ -11,6 +11,7 @@ import com.github.rushyverse.core.data.player.IPlayerDatabaseService
  * Contains all necessary services to manage entities linked to the database and cache.
  * @property friendServices Friends services.
  * @property guildServices Guild services.
+ * @property playerServices Player services.
  */
 public data class DatabaseSupplierConfiguration(
     val friendServices: Pair<IFriendCacheService, IFriendDatabaseService>,

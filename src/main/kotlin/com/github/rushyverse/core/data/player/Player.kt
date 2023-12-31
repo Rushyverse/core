@@ -53,6 +53,7 @@ public interface IPlayerDatabaseService : IPlayerService
  * Table to store players in database.
  * @property uuid Unique identifier of the player.
  * @property rank Rank of the player.
+ * @property language Language of the player.
  */
 @KomapperEntity
 @KomapperTable("player")

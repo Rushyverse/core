@@ -18,7 +18,6 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
-
 @Testcontainers
 class PlayerDatabaseServiceTest {
 
