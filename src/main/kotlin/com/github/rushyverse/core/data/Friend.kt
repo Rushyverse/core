@@ -343,8 +343,8 @@ public class FriendCacheService(
     ): Boolean {
         return cacheClient.connect { connection ->
             val added = add(connection, uuid, friends, addList)
-            val removed = remove(connection, uuid, friends, removeList)
-            added || removed
+            remove(connection, uuid, friends, removeList)
+            added
         }
     }
 
@@ -381,7 +381,7 @@ public class FriendCacheService(
         friends: Collection<UUID>,
         type: Type
     ): Boolean {
-        return bulkAction(connection, uuid, friends, type) { key, values ->
+        return bulkAction(uuid, friends, type) { key, values ->
             connection.sadd(key, *values)
         }
     }
@@ -400,17 +400,24 @@ public class FriendCacheService(
         friends: Collection<UUID>,
         type: Type
     ): Boolean {
-        return bulkAction(connection, uuid, friends, type) { key, values ->
+        return bulkAction(uuid, friends, type) { key, values ->
             connection.srem(key, *values)
         }
     }
 
-    private suspend fun bulkAction(
-        connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
+/**
+     * Execute an action of [friends] for the given [type].
+     * @param uuid UUID of the user.
+     * @param friends UUIDs of the friends.
+     * @param type Type of the relationship.
+     * @param action Action to execute.
+     * @return True if the action was executed successfully, false otherwise.
+     */
+    private suspend inline fun bulkAction(
         uuid: UUID,
         friends: Collection<UUID>,
         type: Type,
-        action: suspend (ByteArray, Array<ByteArray>) -> Long?
+        action: (ByteArray, Array<ByteArray>) -> Long?
     ): Boolean {
         if (friends.isEmpty()) return true
 

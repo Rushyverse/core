@@ -232,7 +232,7 @@ class DatabaseStoreEntitySupplierTest {
 
                 assertEquals(emptyList(), entitySupplier.getFriends(id).toList())
                 coVerify(exactly = 1) { supplier.getFriends(id) }
-                coVerify(exactly = 1) { cache.addFriends(id, emptySet()) }
+                coVerify(exactly = 1) { cache.addFriends(id, emptyList()) }
             }
 
             @Test
@@ -240,11 +240,14 @@ class DatabaseStoreEntitySupplierTest {
                 val id = UUID.randomUUID()
                 val friends = List(5) { UUID.randomUUID() }
                 coEvery { supplier.getFriends(id) } returns friends.asFlow()
-                coEvery { cache.addFriends(id, any()) } returns true
+
+                val slot = slot<Collection<UUID>>()
+                coEvery { cache.addFriends(id, capture(slot)) } returns true
 
                 assertEquals(friends, entitySupplier.getFriends(id).toList())
                 coVerify(exactly = 1) { supplier.getFriends(id) }
-                coVerify(exactly = 1) { cache.addFriends(id, friends.toSet()) }
+                coVerify(exactly = 1) { cache.addFriends(id, any()) }
+                assertThat(slot.captured).containsExactlyInAnyOrderElementsOf(friends)
             }
         }
 
@@ -259,7 +262,7 @@ class DatabaseStoreEntitySupplierTest {
 
                 assertEquals(emptyList(), entitySupplier.getPendingFriends(id).toList())
                 coVerify(exactly = 1) { supplier.getPendingFriends(id) }
-                coVerify(exactly = 1) { cache.addPendingFriends(id, emptySet()) }
+                coVerify(exactly = 1) { cache.addPendingFriends(id, emptyList()) }
             }
 
             @Test
@@ -267,11 +270,15 @@ class DatabaseStoreEntitySupplierTest {
                 val id = UUID.randomUUID()
                 val friends = List(5) { UUID.randomUUID() }
                 coEvery { supplier.getPendingFriends(id) } returns friends.asFlow()
-                coEvery { cache.addPendingFriends(id, any()) } returns true
+
+                val slot = slot<Collection<UUID>>()
+                coEvery { cache.addPendingFriends(id, capture(slot)) } returns true
 
                 assertEquals(friends, entitySupplier.getPendingFriends(id).toList())
                 coVerify(exactly = 1) { supplier.getPendingFriends(id) }
-                coVerify(exactly = 1) { cache.addPendingFriends(id, friends.toSet()) }
+                coVerify(exactly = 1) { cache.addPendingFriends(id, any()) }
+
+                assertThat(slot.captured).containsExactlyInAnyOrderElementsOf(friends)
             }
         }
 
