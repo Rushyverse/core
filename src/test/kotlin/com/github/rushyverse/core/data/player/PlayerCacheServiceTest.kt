@@ -7,6 +7,11 @@ import com.github.rushyverse.core.utils.createPlayer
 import io.kotest.matchers.shouldBe
 import io.lettuce.core.FlushMode
 import io.lettuce.core.RedisURI
+import java.util.*
+import java.util.concurrent.TimeUnit
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
@@ -17,11 +22,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Timeout
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import java.util.*
-import java.util.concurrent.TimeUnit
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
 
 @Timeout(10, unit = TimeUnit.SECONDS)
 @Testcontainers
@@ -140,6 +140,66 @@ class PlayerCacheServiceTest {
             service.savePlayer(player) shouldBe false
 
             getAdded() shouldBe listOf(player)
+        }
+
+    }
+
+    @Nested
+    inner class Get {
+
+        @Test
+        fun `should return null if ID does not exist`() = runTest {
+            val player = createPlayer()
+            service.savePlayer(player) shouldBe true
+            service.getPlayer(UUID.randomUUID()) shouldBe null
+
+            getRemoved() shouldBe emptyList()
+            getAdded() shouldBe listOf(player)
+        }
+
+        @Test
+        fun `should return the player if ID exists`() = runTest {
+            val player = createPlayer()
+            service.savePlayer(player) shouldBe true
+            service.getPlayer(player.uuid) shouldBe player
+
+            getRemoved() shouldBe emptyList()
+            getAdded() shouldBe listOf(player)
+        }
+
+        @Test
+        fun `should return null if ID exists but player was removed`() = runTest {
+            val player = createPlayer()
+            service.savePlayer(player) shouldBe true
+            service.removePlayer(player.uuid) shouldBe true
+            service.getPlayer(player.uuid) shouldBe null
+
+            getRemoved() shouldBe listOf(player.uuid)
+            getAdded() shouldBe emptyList()
+        }
+    }
+
+    @Nested
+    inner class Remove {
+
+        @Test
+        fun `should return false if ID does not exist`() = runTest {
+            val player = createPlayer()
+            service.savePlayer(player) shouldBe true
+
+            val removedUUID = UUID.randomUUID()
+            service.removePlayer(removedUUID) shouldBe true
+            getRemoved() shouldBe listOf(removedUUID)
+            getAdded() shouldBe listOf(player)
+        }
+
+        @Test
+        fun `should return true if ID exists`() = runTest {
+            val player = createPlayer()
+            service.savePlayer(player) shouldBe true
+            service.removePlayer(player.uuid) shouldBe true
+            getRemoved() shouldBe listOf(player.uuid)
+            getAdded() shouldBe emptyList()
         }
 
     }
