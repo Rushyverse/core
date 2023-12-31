@@ -256,12 +256,12 @@ class DatabaseCacheEntitySupplierTest {
                 val slotUuid1 = slot<UUID>()
                 val slotFriends = slot<Set<UUID>>()
 
-                coEvery { friendCacheService.setFriends(capture(slotUuid1), capture(slotFriends)) } returns true
+                coEvery { friendCacheService.addFriends(capture(slotUuid1), capture(slotFriends)) } returns true
 
                 val uuid1 = UUID.randomUUID()
                 val friends = List(5) { UUID.randomUUID() }.toSet()
-                assertTrue { cacheEntitySupplier.setFriends(uuid1, friends) }
-                coVerify(exactly = 1) { friendCacheService.setFriends(any(), any()) }
+                assertTrue { cacheEntitySupplier.addFriends(uuid1, friends) }
+                coVerify(exactly = 1) { friendCacheService.addFriends(any(), any()) }
 
                 assertEquals(uuid1, slotUuid1.captured)
                 assertEquals(friends, slotFriends.captured)
@@ -269,16 +269,16 @@ class DatabaseCacheEntitySupplierTest {
 
             @Test
             fun `should return false when supplier returns false`() = runTest {
-                coEvery { friendCacheService.setFriends(any(), any()) } returns false
-                assertFalse { cacheEntitySupplier.setFriends(mockk(), mockk()) }
-                coVerify(exactly = 1) { friendCacheService.setFriends(any(), any()) }
+                coEvery { friendCacheService.addFriends(any(), any()) } returns false
+                assertFalse { cacheEntitySupplier.addFriends(mockk(), mockk()) }
+                coVerify(exactly = 1) { friendCacheService.addFriends(any(), any()) }
             }
 
             @Test
             fun `should return true when supplier returns true`() = runTest {
-                coEvery { friendCacheService.setFriends(any(), any()) } returns true
-                assertTrue { cacheEntitySupplier.setFriends(mockk(), mockk()) }
-                coVerify(exactly = 1) { friendCacheService.setFriends(any(), any()) }
+                coEvery { friendCacheService.addFriends(any(), any()) } returns true
+                assertTrue { cacheEntitySupplier.addFriends(mockk(), mockk()) }
+                coVerify(exactly = 1) { friendCacheService.addFriends(any(), any()) }
             }
 
         }
@@ -291,12 +291,12 @@ class DatabaseCacheEntitySupplierTest {
                 val slotUuid1 = slot<UUID>()
                 val slotFriends = slot<Set<UUID>>()
 
-                coEvery { friendCacheService.setPendingFriends(capture(slotUuid1), capture(slotFriends)) } returns true
+                coEvery { friendCacheService.addPendingFriends(capture(slotUuid1), capture(slotFriends)) } returns true
 
                 val uuid1 = UUID.randomUUID()
                 val friends = List(5) { UUID.randomUUID() }.toSet()
-                assertTrue { cacheEntitySupplier.setPendingFriends(uuid1, friends) }
-                coVerify(exactly = 1) { friendCacheService.setPendingFriends(any(), any()) }
+                assertTrue { cacheEntitySupplier.addPendingFriends(uuid1, friends) }
+                coVerify(exactly = 1) { friendCacheService.addPendingFriends(any(), any()) }
 
                 assertEquals(uuid1, slotUuid1.captured)
                 assertEquals(friends, slotFriends.captured)
@@ -304,16 +304,16 @@ class DatabaseCacheEntitySupplierTest {
 
             @Test
             fun `should return false when supplier returns false`() = runTest {
-                coEvery { friendCacheService.setPendingFriends(any(), any()) } returns false
-                assertFalse { cacheEntitySupplier.setPendingFriends(mockk(), mockk()) }
-                coVerify(exactly = 1) { friendCacheService.setPendingFriends(any(), any()) }
+                coEvery { friendCacheService.addPendingFriends(any(), any()) } returns false
+                assertFalse { cacheEntitySupplier.addPendingFriends(mockk(), mockk()) }
+                coVerify(exactly = 1) { friendCacheService.addPendingFriends(any(), any()) }
             }
 
             @Test
             fun `should return true when supplier returns true`() = runTest {
-                coEvery { friendCacheService.setPendingFriends(any(), any()) } returns true
-                assertTrue { cacheEntitySupplier.setPendingFriends(mockk(), mockk()) }
-                coVerify(exactly = 1) { friendCacheService.setPendingFriends(any(), any()) }
+                coEvery { friendCacheService.addPendingFriends(any(), any()) } returns true
+                assertTrue { cacheEntitySupplier.addPendingFriends(mockk(), mockk()) }
+                coVerify(exactly = 1) { friendCacheService.addPendingFriends(any(), any()) }
             }
 
         }

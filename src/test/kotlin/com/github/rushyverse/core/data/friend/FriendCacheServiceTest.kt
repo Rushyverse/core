@@ -1379,7 +1379,7 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should define the key`() = runTest {
-            assertTrue { cacheService.setFriends(uuid1, setOf(uuid2)) }
+            assertTrue { cacheService.addFriends(uuid1, setOf(uuid2)) }
 
             cacheClient.connect {
                 val expectedKey = "user:${uuid1}:friends".encodeToByteArray()
@@ -1392,7 +1392,7 @@ class FriendCacheServiceTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
 
-            cacheService.setFriends(uuid1, setOf(uuid2, uuid3, uuid4))
+            cacheService.addFriends(uuid1, setOf(uuid2, uuid3, uuid4))
 
             cacheClient.connect {
                 assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).containsExactlyInAnyOrder(
@@ -1412,7 +1412,7 @@ class FriendCacheServiceTest {
                 add(it, uuid1, uuid2, FriendCacheService.Type.FRIENDS)
             }
 
-            cacheService.setFriends(uuid1, setOf(uuid3, uuid4))
+            cacheService.addFriends(uuid1, setOf(uuid3, uuid4))
 
             cacheClient.connect {
                 assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).containsExactlyInAnyOrder(uuid3, uuid4)
@@ -1433,7 +1433,7 @@ class FriendCacheServiceTest {
                 add(it, uuid1, UUID.randomUUID(), FriendCacheService.Type.REMOVE_PENDING_FRIEND)
             }
 
-            cacheService.setFriends(uuid1, setOf(uuid3, uuid4))
+            cacheService.addFriends(uuid1, setOf(uuid3, uuid4))
 
             cacheClient.connect {
                 assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).containsExactlyInAnyOrder(uuid3, uuid4)
@@ -1454,7 +1454,7 @@ class FriendCacheServiceTest {
                 add(it, uuid1, UUID.randomUUID(), FriendCacheService.Type.REMOVE_FRIEND)
             }
 
-            cacheService.setFriends(uuid1, setOf(uuid3, uuid4))
+            cacheService.addFriends(uuid1, setOf(uuid3, uuid4))
 
             cacheClient.connect {
                 assertThat(getAll(it, uuid1, FriendCacheService.Type.FRIENDS)).containsExactlyInAnyOrder(uuid3, uuid4)
@@ -1476,7 +1476,7 @@ class FriendCacheServiceTest {
 
         @Test
         fun `should define the key`() = runTest {
-            assertTrue { cacheService.setPendingFriends(uuid1, setOf(uuid2)) }
+            assertTrue { cacheService.addPendingFriends(uuid1, setOf(uuid2)) }
 
             cacheClient.connect {
                 val expectedKey = "user:${uuid1}:friends:pending".encodeToByteArray()
@@ -1489,7 +1489,7 @@ class FriendCacheServiceTest {
             val uuid3 = UUID.randomUUID()
             val uuid4 = UUID.randomUUID()
 
-            cacheService.setPendingFriends(uuid1, setOf(uuid2, uuid3, uuid4))
+            cacheService.addPendingFriends(uuid1, setOf(uuid2, uuid3, uuid4))
 
             cacheClient.connect {
                 assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(
@@ -1509,7 +1509,7 @@ class FriendCacheServiceTest {
                 add(it, uuid1, uuid2, FriendCacheService.Type.PENDING_FRIENDS)
             }
 
-            cacheService.setPendingFriends(uuid1, setOf(uuid3, uuid4))
+            cacheService.addPendingFriends(uuid1, setOf(uuid3, uuid4))
 
             cacheClient.connect {
                 assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(
@@ -1533,7 +1533,7 @@ class FriendCacheServiceTest {
                 add(it, uuid1, UUID.randomUUID(), FriendCacheService.Type.REMOVE_FRIEND)
             }
 
-            cacheService.setPendingFriends(uuid1, setOf(uuid3, uuid4))
+            cacheService.addPendingFriends(uuid1, setOf(uuid3, uuid4))
 
             cacheClient.connect {
                 assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(
@@ -1557,7 +1557,7 @@ class FriendCacheServiceTest {
                 add(it, uuid1, UUID.randomUUID(), FriendCacheService.Type.REMOVE_PENDING_FRIEND)
             }
 
-            cacheService.setPendingFriends(uuid1, setOf(uuid3, uuid4))
+            cacheService.addPendingFriends(uuid1, setOf(uuid3, uuid4))
 
             cacheClient.connect {
                 assertThat(getAll(it, uuid1, FriendCacheService.Type.PENDING_FRIENDS)).containsExactlyInAnyOrder(

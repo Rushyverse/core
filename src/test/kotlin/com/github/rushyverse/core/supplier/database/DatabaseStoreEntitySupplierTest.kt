@@ -228,11 +228,11 @@ class DatabaseStoreEntitySupplierTest {
             fun `should store empty list in cache if the flow is empty`() = runTest {
                 val id = UUID.randomUUID()
                 coEvery { supplier.getFriends(id) } returns emptyFlow()
-                coEvery { cache.setFriends(id, any()) } returns true
+                coEvery { cache.addFriends(id, any()) } returns true
 
                 assertEquals(emptyList(), entitySupplier.getFriends(id).toList())
                 coVerify(exactly = 1) { supplier.getFriends(id) }
-                coVerify(exactly = 1) { cache.setFriends(id, emptySet()) }
+                coVerify(exactly = 1) { cache.addFriends(id, emptySet()) }
             }
 
             @Test
@@ -240,11 +240,11 @@ class DatabaseStoreEntitySupplierTest {
                 val id = UUID.randomUUID()
                 val friends = List(5) { UUID.randomUUID() }
                 coEvery { supplier.getFriends(id) } returns friends.asFlow()
-                coEvery { cache.setFriends(id, any()) } returns true
+                coEvery { cache.addFriends(id, any()) } returns true
 
                 assertEquals(friends, entitySupplier.getFriends(id).toList())
                 coVerify(exactly = 1) { supplier.getFriends(id) }
-                coVerify(exactly = 1) { cache.setFriends(id, friends.toSet()) }
+                coVerify(exactly = 1) { cache.addFriends(id, friends.toSet()) }
             }
         }
 
@@ -255,11 +255,11 @@ class DatabaseStoreEntitySupplierTest {
             fun `should store empty list in cache if the flow is empty`() = runTest {
                 val id = UUID.randomUUID()
                 coEvery { supplier.getPendingFriends(id) } returns emptyFlow()
-                coEvery { cache.setPendingFriends(id, any()) } returns true
+                coEvery { cache.addPendingFriends(id, any()) } returns true
 
                 assertEquals(emptyList(), entitySupplier.getPendingFriends(id).toList())
                 coVerify(exactly = 1) { supplier.getPendingFriends(id) }
-                coVerify(exactly = 1) { cache.setPendingFriends(id, emptySet()) }
+                coVerify(exactly = 1) { cache.addPendingFriends(id, emptySet()) }
             }
 
             @Test
@@ -267,11 +267,11 @@ class DatabaseStoreEntitySupplierTest {
                 val id = UUID.randomUUID()
                 val friends = List(5) { UUID.randomUUID() }
                 coEvery { supplier.getPendingFriends(id) } returns friends.asFlow()
-                coEvery { cache.setPendingFriends(id, any()) } returns true
+                coEvery { cache.addPendingFriends(id, any()) } returns true
 
                 assertEquals(friends, entitySupplier.getPendingFriends(id).toList())
                 coVerify(exactly = 1) { supplier.getPendingFriends(id) }
-                coVerify(exactly = 1) { cache.setPendingFriends(id, friends.toSet()) }
+                coVerify(exactly = 1) { cache.addPendingFriends(id, friends.toSet()) }
             }
         }
 

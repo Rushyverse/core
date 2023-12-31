@@ -127,14 +127,14 @@ public class DatabaseFallbackEntitySupplier(
     }
 
     override suspend fun savePlayer(player: Player): Boolean {
-        TODO("Not yet implemented")
+        return setPriority.savePlayer(player)
     }
 
     override suspend fun getPlayer(uuid: UUID): Player? {
-        TODO("Not yet implemented")
+        return getPriority.getPlayer(uuid) ?: setPriority.getPlayer(uuid)
     }
 
     override suspend fun removePlayer(uuid: UUID): Boolean {
-        TODO("Not yet implemented")
+        return setPriority.removePlayer(uuid)
     }
 }
