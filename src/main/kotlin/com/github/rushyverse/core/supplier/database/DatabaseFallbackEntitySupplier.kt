@@ -67,8 +67,8 @@ public class DatabaseFallbackEntitySupplier(
         return setPriority.deleteExpiredInvitations()
     }
 
-    override suspend fun createGuild(name: String, ownerId: String): Guild {
-        return setPriority.createGuild(name, ownerId)
+    override suspend fun createGuild(name: String, ownerId: String, createdAt: Instant): Guild {
+        return setPriority.createGuild(name, ownerId, createdAt)
     }
 
     override suspend fun deleteGuild(id: Int): Boolean {
@@ -97,12 +97,12 @@ public class DatabaseFallbackEntitySupplier(
         return getPriority.hasInvitation(guildId, entityId) || setPriority.hasInvitation(guildId, entityId)
     }
 
-    override suspend fun addMember(guildId: Int, entityId: String): Boolean {
-        return setPriority.addMember(guildId, entityId)
+    override suspend fun addMember(member: GuildMember): Boolean {
+        return setPriority.addMember(member)
     }
 
-    override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
-        return setPriority.addInvitation(guildId, entityId, expiredAt)
+    override suspend fun addInvitation(invite: GuildInvite): Boolean {
+        return setPriority.addInvitation(invite)
     }
 
     override suspend fun removeMember(guildId: Int, entityId: String): Boolean {

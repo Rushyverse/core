@@ -90,8 +90,8 @@ public class DatabaseStoreEntitySupplier(
         supplierDeletedDeferred.await().plus(cacheDeleted)
     }
 
-    override suspend fun createGuild(name: String, ownerId: String): Guild {
-        return supplier.createGuild(name, ownerId).also {
+    override suspend fun createGuild(name: String, ownerId: String, createdAt: Instant): Guild {
+        return supplier.createGuild(name, ownerId, createdAt).also {
             importCatchFailure(it, cache::addGuild)
         }
     }
@@ -126,18 +126,18 @@ public class DatabaseStoreEntitySupplier(
         return supplier.hasInvitation(guildId, entityId)
     }
 
-    override suspend fun addMember(guildId: Int, entityId: String): Boolean {
-        return supplier.addMember(guildId, entityId).also {
+    override suspend fun addMember(member: GuildMember): Boolean {
+        return supplier.addMember(member).also {
             if (it) {
-                cache.addMember(guildId, entityId)
+                cache.addMember(member)
             }
         }
     }
 
-    override suspend fun addInvitation(guildId: Int, entityId: String, expiredAt: Instant?): Boolean {
-        return supplier.addInvitation(guildId, entityId, expiredAt).also {
+    override suspend fun addInvitation(invite: GuildInvite): Boolean {
+        return supplier.addInvitation(invite).also {
             if (it) {
-                cache.addInvitation(guildId, entityId, expiredAt)
+                cache.addInvitation(invite)
             }
         }
     }
