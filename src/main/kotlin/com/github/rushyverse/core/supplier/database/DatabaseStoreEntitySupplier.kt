@@ -138,11 +138,11 @@ public class DatabaseStoreEntitySupplier(
     }
 
     override fun getMembers(guildId: Int): Flow<GuildMember> {
-        return importValues(supplier.getMembers(guildId)) { /*cache.addMembers(guildId, it)*/ }
+        return importValues(supplier.getMembers(guildId)) { cache.addMembers(it) }
     }
 
     override fun getInvitations(guildId: Int): Flow<GuildInvite> {
-        return importValues(supplier.getInvitations(guildId)) { /*cache.addInvitations(guildId, it)*/ }
+        return importValues(supplier.getInvitations(guildId)) { cache.addInvitations(it) }
     }
 
     override suspend fun savePlayer(player: Player): Boolean {

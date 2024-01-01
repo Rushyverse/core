@@ -845,12 +845,14 @@ class DatabaseStoreEntitySupplierTest {
                 val invites = List(10) { GuildInvite(id, randomEntityId(), mockk()) }
                 coEvery { supplier.getInvitations(id) } returns invites.asFlow()
 
+                val slot = slot<Collection<GuildInvite>>()
+                coEvery { cache.addInvitations(capture(slot)) } returns true
+
                 assertThat(entitySupplier.getInvitations(id).toList()).containsExactlyElementsOf(invites)
                 coVerify(exactly = 1) { supplier.getInvitations(id) }
-                coVerify(exactly = invites.size) { cache.addInvitation(any()) }
-                invites.forEach {
-                    coVerify(exactly = 1) { cache.addInvitation(it) }
-                }
+                coVerify(exactly = 1) { cache.addInvitations(any()) }
+
+                assertThat(slot.captured).containsExactlyElementsOf(invites)
             }
 
             @Test

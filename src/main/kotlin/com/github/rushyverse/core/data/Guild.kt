@@ -8,11 +8,20 @@ import com.github.rushyverse.core.data._GuildInvite.Companion.guildInvite
 import com.github.rushyverse.core.extension.safeCollect
 import com.github.rushyverse.core.serializer.InstantSerializer
 import com.github.rushyverse.core.serializer.UUIDSerializer
+import com.github.rushyverse.core.supplier.database.DatabaseCacheEntitySupplier
+import com.github.rushyverse.core.supplier.database.DatabaseEntitySupplier
 import com.github.rushyverse.core.supplier.database.DatabaseSupplierConfiguration
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.supplier.database.IDatabaseStrategizable
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.r2dbc.spi.R2dbcException
+import java.time.Instant
+import java.util.*
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -23,10 +32,6 @@ import org.komapper.annotation.*
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.query.bind
 import org.komapper.r2dbc.R2dbcDatabase
-import java.time.Instant
-import java.util.*
-import kotlin.contracts.InvocationKind
-import kotlin.contracts.contract
 
 /**
  * Exception about guilds information.
@@ -221,6 +226,16 @@ public interface IGuildService {
     public suspend fun addMember(guildId: Int, entityId: UUID): Boolean
 
     /**
+     * Add members to a guild.
+     * @param guildId ID of the guild.
+     * @param entityIds IDs of the member.
+     * @return `true` if the entities were added, `false` if they were already a member.
+     * @throws GuildMemberIsOwnerOfGuildException If the entity is the owner of the guild.
+     */
+    @Throws(GuildMemberIsOwnerOfGuildException::class)
+    public suspend fun addMembers(guildId: Int, entityIds: Collection<UUID>): Boolean
+
+    /**
      * Send an invitation to join the guild to an entity.
      * @param guildId ID of the guild.
      * @param entityId ID of the entity.
@@ -295,6 +310,13 @@ public interface IGuildCacheService : IGuildService {
     public suspend fun addMember(member: GuildMember): Boolean
 
     /**
+     * Add all members to a guild with all the information.
+     * @param members Members to add.
+     * @return `true` if the member was added, `false` otherwise.
+     */
+    public suspend fun addMembers(members: Collection<GuildMember>): Boolean
+
+    /**
      * Add an invitation to join a guild with all the information.
      * @param invite Invitation to add.
      * @return `true` if the invitation was added, `false` otherwise.
@@ -302,6 +324,40 @@ public interface IGuildCacheService : IGuildService {
      * @throws GuildInvitedIsAlreadyMemberException If the entity is already a member of the guild.
      */
     public suspend fun addInvitation(invite: GuildInvite): Boolean
+
+    /**
+     * Add all invitations to join a guild with all the information.
+     * @param invites Invitations to add.
+     * @return `true` if the invitation was added, `false` otherwise.
+     */
+    public suspend fun addInvitations(invites: Collection<GuildInvite>): Boolean
+
+    /**
+     * Get all created guilds from the cache.
+     * The imported guilds from the database are not included.
+     * @return A flow of all guilds.
+     */
+    public fun getGuilds(): Flow<Guild>
+
+    /**
+     * Get all guilds that have been removed.
+     * @return A flow of all ids of removed guilds.
+     */
+    public fun getRemovedGuilds(): Flow<Int>
+
+    /**
+     * Get all members of a guild that have been removed.
+     * @param guildId ID of the guild.
+     * @return A flow of all ids of removed members.
+     */
+    public fun getRemovedMembers(guildId: Int): Flow<UUID>
+
+    /**
+     * Get all invitations of a guild that have been removed.
+     * @param guildId ID of the guild.
+     * @return A flow of all ids of removed invitations.
+     */
+    public fun getRemovedInvitation(guildId: Int): Flow<UUID>
 
 }
 
@@ -379,6 +435,20 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
             database.runQuery(query) > 0
         } catch (e: R2dbcException) {
             mapException(e, guildId, entityId)
+        }
+    }
+
+    override suspend fun addMembers(guildId: Int, entityIds: Collection<UUID>): Boolean {
+        val members = entityIds.map { GuildMember(guildId, it) }
+
+        val query = QueryDsl.insert(_GuildMember.guildMember)
+            .onDuplicateKeyIgnore()
+            .multiple(members)
+
+        return try {
+            database.runQuery(query) > 0
+        } catch (e: R2dbcException) {
+            mapException(e, guildId, entityIds.first())
         }
     }
 
@@ -517,6 +587,86 @@ public class GuildCacheService(
          * @return `true` if the ID is in range, `false` otherwise.
          */
         fun isCacheGuild(id: Int): Boolean = id in RANGE_GUILD_ID
+
+        public suspend fun cacheToDatabase(uuid: UUID, configuration: DatabaseSupplierConfiguration): Boolean =
+            coroutineScope {
+                val cache = IDatabaseEntitySupplier.cache(configuration)
+                val database = IDatabaseEntitySupplier.database(configuration)
+
+                val removedDatabaseGuild = cache.getRemovedGuilds().toSet()
+
+                val (cacheGuilds, databaseGuilds) = cache.getGuilds().toList()
+                    .partition { isCacheGuild(it.id) }
+
+                val cacheGuildsDeferred = cacheGuilds.map { cacheGuild ->
+                    async {
+                        val cacheGuildId = cacheGuild.id
+                        val cacheToDatabaseGuild = database.createGuild(cacheGuild.name, cacheGuild.ownerId, cacheGuild.createdAt)
+                        val databaseGuildId = cacheToDatabaseGuild.id
+
+                        exportAddInvitationToDatabase(cache, database, cacheGuildId, databaseGuildId)
+                        exportAddMemberToDatabase(cache, database, cacheGuildId, databaseGuildId)
+                    }
+                }
+
+                databaseGuilds.forEach { databaseGuild ->
+                    val databaseGuildId = databaseGuild.id
+
+                    if (databaseGuildId in removedDatabaseGuild) {
+                        database.deleteGuild(databaseGuildId)
+                    } else {
+                        exportRemoveInvitationToDatabase(cache, database, databaseGuildId, databaseGuildId)
+                        exportRemoveMemberToDatabase(cache, database, databaseGuildId, databaseGuildId)
+                        exportAddInvitationToDatabase(cache, database, databaseGuildId, databaseGuildId)
+                        exportAddMemberToDatabase(cache, database, databaseGuildId, databaseGuildId)
+                    }
+                }
+
+                cacheGuildsDeferred.awaitAll()
+                true
+            }
+
+        private suspend fun exportAddInvitationToDatabase(
+            cache: DatabaseCacheEntitySupplier,
+            database: DatabaseEntitySupplier,
+            cacheGuildId: Int,
+            databaseGuildId: Int
+        ) {
+            cache.getInvitations(cacheGuildId).collect {
+                database.addInvitation(databaseGuildId, it.entityId, it.expiredAt)
+            }
+        }
+
+        private suspend fun exportRemoveInvitationToDatabase(
+            cache: DatabaseCacheEntitySupplier,
+            database: DatabaseEntitySupplier,
+            cacheGuildId: Int,
+            databaseGuildId: Int
+        ) {
+            val removedInvitation = cache.getRemovedInvitation(cacheGuildId).toList()
+            database.removeInvitations(databaseGuildId, removedInvitation)
+        }
+
+        private suspend fun exportAddMemberToDatabase(
+            cache: DatabaseCacheEntitySupplier,
+            database: DatabaseEntitySupplier,
+            cacheGuildId: Int,
+            databaseGuildId: Int
+        ) {
+            // TODO Add createAt field
+            val cacheToDatabaseMember = cache.getMembers(cacheGuildId).map { it.entityId }.toList()
+                database.addMembers(databaseGuildId, cacheToDatabaseMember)
+        }
+
+        private suspend fun exportRemoveMemberToDatabase(
+            cache: DatabaseCacheEntitySupplier,
+            database: DatabaseEntitySupplier,
+            cacheGuildId: Int,
+            databaseGuildId: Int
+        ) {
+            val removedMember = cache.getRemovedMembers(cacheGuildId).toList()
+            database.removeMembers(databaseGuildId, removedMember)
+        }
     }
 
     /**
@@ -589,7 +739,7 @@ public class GuildCacheService(
             supplier.deleteGuild(it)
         }
 
-        getAddedGuilds().collect {
+        getGuilds().collect {
             val guildCacheId = it.id
             val guild = if (isCacheGuild(guildCacheId)) {
                 supplier.createGuild(it.name, it.ownerId)
@@ -673,14 +823,14 @@ public class GuildCacheService(
 
     override fun getGuild(name: String): Flow<Guild> {
         requireGuildNameNotBlank(name)
-        return getAddedGuilds().filter { it.name == name }
+        return getGuilds().filter { it.name == name }
     }
 
     /**
      * Get all added guilds.
      * @return Flow of all added guilds.
      */
-    private fun getAddedGuilds(): Flow<Guild> =
+    override fun getGuilds(): Flow<Guild> =
         getAllKeyValues(wildcardAddGuildKey())
             .mapNotNull { decodeFromByteArrayOrNull(Guild.serializer(), it) }
 
@@ -688,7 +838,7 @@ public class GuildCacheService(
      * Get all removed guilds.
      * @return Flow of all ids of removed guilds.
      */
-    private fun getRemovedGuilds(): Flow<Int> = channelFlow {
+    public override fun getRemovedGuilds(): Flow<Int> = channelFlow {
         cacheClient.connect { connection ->
             connection.smembers(removeGuildKey())
                 .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
@@ -789,6 +939,11 @@ public class GuildCacheService(
         return setMember(member)
     }
 
+    override suspend fun addMembers(members: Collection<GuildMember>): Boolean {
+        // We want to add all members, so we don't want to stop if one fails except in case of exception
+        return members.map { addMember(it) }.all { it }
+    }
+
     /**
      * Add a member to a guild.
      * If the member is deleted, it will be removed from the deleted set to be added.
@@ -830,11 +985,7 @@ public class GuildCacheService(
         }
     }
 
-    /**
-     * Get all removed members for entities.
-     * @return Flow of entity ID of all removed members.
-     */
-    private fun getRemovedMembers(guildId: Int): Flow<UUID> {
+    public override fun getRemovedMembers(guildId: Int): Flow<UUID> {
         return getAllValuesOfSet(removeMemberKey(guildId.toString()))
             .mapNotNull { decodeFromByteArrayOrNull(UUIDSerializer, it) }
     }
@@ -885,6 +1036,11 @@ public class GuildCacheService(
         val guildId = invite.guildId
         requireImportedGuild(guildId)
         return setInvitation(invite)
+    }
+
+    override suspend fun addInvitations(invites: Collection<GuildInvite>): Boolean {
+        // We want to add all invites, so we don't want to stop if one fails except in case of exception
+        return invites.map { addInvitation(it) }.all { it }
     }
 
     /**
@@ -1025,12 +1181,7 @@ public class GuildCacheService(
         }
     }
 
-    /**
-     * Get all removed invitations for entities.
-     * @param guildId ID of the guild.
-     * @return Flow of entities that have been removed of invitations.
-     */
-    private fun getRemovedInvitation(guildId: Int): Flow<UUID> {
+    public override fun getRemovedInvitation(guildId: Int): Flow<UUID> {
         return getAllValuesOfSet(removeInvitationKey(guildId.toString())).mapNotNull {
             decodeFromByteArrayOrNull(UUIDSerializer, it)
         }
@@ -1096,7 +1247,7 @@ public class GuildCacheService(
      * @return Flow of all invitations.
      */
     private fun getAddedInvitations(): Flow<GuildInvite> =
-        getAddedGuilds().flatMapMerge { getAddedInvitations(it.id) }
+        getGuilds().flatMapMerge { getAddedInvitations(it.id) }
 
     /**
      * Get all invitations of a guild.
@@ -1111,13 +1262,9 @@ public class GuildCacheService(
 
     override fun getMembers(guildId: Int): Flow<GuildMember> {
         return channelFlow {
-            val guildExists = cacheClient.connect {
-                val guild = getGuild(it, guildId) ?: return@connect false
+            val guild = getGuild(guildId)
+            if (guild != null) {
                 send(GuildMember(guild.id, guild.ownerId, guild.createdAt))
-                true
-            }
-
-            if (guildExists) {
                 getAddedMembers(guildId).collect { send(it) }
             }
         }
