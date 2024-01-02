@@ -96,13 +96,13 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override suspend fun deleteGuild(id: Int): Boolean = coroutineScope {
+    override suspend fun deleteGuild(id: Long): Boolean = coroutineScope {
         val supplierDeletedDeferred = async { supplier.deleteGuild(id) }
         val cacheDeleted = cache.deleteGuild(id)
         supplierDeletedDeferred.await() || cacheDeleted
     }
 
-    override suspend fun getGuild(id: Int): Guild? {
+    override suspend fun getGuild(id: Long): Guild? {
         return supplier.getGuild(id)?.also {
             importCatchFailure(it, cache::addGuild)
         }
@@ -114,15 +114,15 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
+    override suspend fun isOwner(guildId: Long, entityId: String): Boolean {
         return supplier.isOwner(guildId, entityId)
     }
 
-    override suspend fun isMember(guildId: Int, entityId: String): Boolean {
+    override suspend fun isMember(guildId: Long, entityId: String): Boolean {
         return supplier.isMember(guildId, entityId)
     }
 
-    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+    override suspend fun hasInvitation(guildId: Long, entityId: String): Boolean {
         return supplier.hasInvitation(guildId, entityId)
     }
 
@@ -142,7 +142,7 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
+    override suspend fun removeMember(guildId: Long, entityId: String): Boolean {
         return supplier.removeMember(guildId, entityId).also {
             if (it) {
                 cache.removeMember(guildId, entityId)
@@ -150,7 +150,7 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
+    override suspend fun removeInvitation(guildId: Long, entityId: String): Boolean {
         return supplier.removeInvitation(guildId, entityId).also {
             if (it) {
                 cache.removeInvitation(guildId, entityId)
@@ -158,12 +158,12 @@ public class DatabaseStoreEntitySupplier(
         }
     }
 
-    override fun getMembers(guildId: Int): Flow<GuildMember> = supplier.getMembers(guildId)
+    override fun getMembers(guildId: Long): Flow<GuildMember> = supplier.getMembers(guildId)
         .onEach {
             importCatchFailure(it, cache::addMember)
         }
 
-    override fun getInvitations(guildId: Int): Flow<GuildInvite> = supplier.getInvitations(guildId)
+    override fun getInvitations(guildId: Long): Flow<GuildInvite> = supplier.getInvitations(guildId)
         .onEach {
             importCatchFailure(it, cache::addInvitation)
         }

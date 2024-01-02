@@ -21,6 +21,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import org.komapper.annotation.*
+import org.komapper.core.DryRunDatabaseConfig.id
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.query.bind
 import org.komapper.r2dbc.R2dbcDatabase
@@ -40,7 +41,7 @@ public open class GuildNotFoundException(reason: String?) : GuildException(reaso
  * @property guild ID of the guild.
  * @property entity ID of the entity.
  */
-public open class GuildInvitedIsAlreadyMemberException(public val guild: Int, public val entity: String) :
+public open class GuildInvitedIsAlreadyMemberException(public val guild: Long, public val entity: String) :
     GuildException("The entity $entity cannot be invited to the guild $guild because he is already a member of it")
 
 /**
@@ -48,7 +49,7 @@ public open class GuildInvitedIsAlreadyMemberException(public val guild: Int, pu
  * @property guild ID of the guild.
  * @property entity ID of the entity.
  */
-public open class GuildMemberIsOwnerOfGuildException(public val guild: Int, public val entity: String) :
+public open class GuildMemberIsOwnerOfGuildException(public val guild: Long, public val entity: String) :
     GuildException("The entity $entity cannot be set as a member of the guild $guild because he is the owner")
 
 /**
@@ -59,7 +60,7 @@ public interface GuildEntityIds {
     /**
      * ID of the guild.
      */
-    public val guildId: Int
+    public val guildId: Long
 
     /**
      * ID of the entity.
@@ -80,11 +81,9 @@ public interface GuildEntityIds {
 @Serializable
 public data class Guild(
     @KomapperId
-    @KomapperAutoIncrement
-    val id: Int,
+    val id: Long,
     val name: String,
     val ownerId: String,
-    @KomapperCreatedAt
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant = Instant.now()
 )
@@ -100,12 +99,11 @@ public data class Guild(
 @Serializable
 public data class GuildInvite(
     @KomapperId
-    override val guildId: Int,
+    override val guildId: Long,
     @KomapperId
     override val entityId: String,
     @Serializable(with = InstantSerializer::class)
     val expiredAt: Instant?,
-    @KomapperCreatedAt
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant = Instant.now(),
 ) : GuildEntityIds {
@@ -131,12 +129,11 @@ public data class GuildInvite(
 @Serializable
 public data class GuildMember(
     @KomapperId
-    override val guildId: Int,
+    override val guildId: Long,
     @KomapperId
     override val entityId: String,
-    @KomapperCreatedAt
     @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant = Instant.EPOCH,
+    val createdAt: Instant = Instant.now(),
 ) : GuildEntityIds
 
 /**
@@ -154,23 +151,35 @@ public interface IGuildService {
      * Create a guild with a name and define someone as the owner.
      * @param name Name of the guild.
      * @param ownerId ID of the owner.
+     * @param createdAt Timestamp of when the guild was created.
      * @return The created guild.
      */
-    public suspend fun createGuild(name: String, ownerId: String, createdAt: Instant = Instant.now()): Guild
+    public suspend fun createGuild(name: String, ownerId: String, createdAt: Instant = Instant.now()): Guild {
+        val guild = Guild(generateUniqueID(), name, ownerId, createdAt)
+        // Should never fail because the ID is unique
+        assert(createGuild(guild)) { "Guild ${guild.id} already exists" }
+        return guild
+    }
+
+    /**
+     * Create a guild with all the information.
+     * @param guild Guild to create.
+     */
+    public suspend fun createGuild(guild: Guild): Boolean
 
     /**
      * Delete a guild by its ID.
      * @param id ID of the guild.
      * @return `true` if the guild was deleted, `false` if it did not exist.
      */
-    public suspend fun deleteGuild(id: Int): Boolean
+    public suspend fun deleteGuild(id: Long): Boolean
 
     /**
      * Get a guild by its ID.
      * @param id ID of the guild.
      * @return The guild, or `null` if it does not exist.
      */
-    public suspend fun getGuild(id: Int): Guild?
+    public suspend fun getGuild(id: Long): Guild?
 
     /**
      * Get the guilds with the name
@@ -185,7 +194,7 @@ public interface IGuildService {
      * @param entityId ID of the entity.
      * @return `true` if the entity is the owner, `false` if the entity is not the owner or the guild does not exist.
      */
-    public suspend fun isOwner(guildId: Int, entityId: String): Boolean
+    public suspend fun isOwner(guildId: Long, entityId: String): Boolean
 
     /**
      * Check if an entity is a member of a guild.
@@ -193,7 +202,7 @@ public interface IGuildService {
      * @param entityId ID of the entity.
      * @return `true` if an entity is a member, `false` if the entity is not a member or the guild does not exist.
      */
-    public suspend fun isMember(guildId: Int, entityId: String): Boolean
+    public suspend fun isMember(guildId: Long, entityId: String): Boolean
 
     /**
      * Check if an entity has been invited to a guild.
@@ -202,7 +211,7 @@ public interface IGuildService {
      * @return `true` if the entity has been invited,
      * `false` if the entity has not been invited or the guild does not exist.
      */
-    public suspend fun hasInvitation(guildId: Int, entityId: String): Boolean
+    public suspend fun hasInvitation(guildId: Long, entityId: String): Boolean
 
     /**
      * Add a member to a guild.
@@ -228,7 +237,7 @@ public interface IGuildService {
      * @param entityId ID of the member.
      * @return `true` if the entity was removed, `false` if the entity was not a member or the guild does not exist.
      */
-    public suspend fun removeMember(guildId: Int, entityId: String): Boolean
+    public suspend fun removeMember(guildId: Long, entityId: String): Boolean
 
     /**
      * Remove an invitation to join a guild.
@@ -236,21 +245,21 @@ public interface IGuildService {
      * @param entityId ID of the entity.
      * @return `true` if the invitation was removed, `false` if the entity was not invited or the guild does not exist.
      */
-    public suspend fun removeInvitation(guildId: Int, entityId: String): Boolean
+    public suspend fun removeInvitation(guildId: Long, entityId: String): Boolean
 
     /**
      * Get all members of a guild.
      * @param guildId ID of the guild.
      * @return A flow of all members, should be empty if no members exist or the guild does not exist.
      */
-    public fun getMembers(guildId: Int): Flow<GuildMember>
+    public fun getMembers(guildId: Long): Flow<GuildMember>
 
     /**
      * Get all ids of entities that have been invited to a guild.
      * @param guildId ID of the guild.
      * @return A flow of all invited, should be empty if no members exist or the guild does not exist.
      */
-    public fun getInvitations(guildId: Int): Flow<GuildInvite>
+    public fun getInvitations(guildId: Long): Flow<GuildInvite>
 }
 
 /**
@@ -267,7 +276,7 @@ public interface IGuildCacheService : IGuildService {
      * Merge all cache guilds data into the supplier.
      * @param supplier Supplier to merge into.
      */
-    public suspend fun merge(supplier: IDatabaseEntitySupplier): Collection<Pair<Int, Int>>
+    public suspend fun merge(supplier: IDatabaseEntitySupplier)
 
     /**
      * Add a guild with all the information.
@@ -297,16 +306,20 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         return database.runQuery(query)
     }
 
-    override suspend fun createGuild(name: String, ownerId: String, createdAt: Instant): Guild {
+    override suspend fun createGuild(guild: Guild): Boolean {
+        val name = guild.name
+        val ownerId = guild.ownerId
         requireGuildNameNotBlank(name)
         requireOwnerIdNotBlank(ownerId)
 
-        val guild = Guild(0, name, ownerId, createdAt)
-        val query = QueryDsl.insert(_Guild.guild).single(guild)
-        return database.runQuery(query)
+        val query = QueryDsl.insert(_Guild.guild)
+            .onDuplicateKeyIgnore()
+            .single(guild)
+
+        return database.runQuery(query) > 0
     }
 
-    override suspend fun deleteGuild(id: Int): Boolean {
+    override suspend fun deleteGuild(id: Long): Boolean {
         val meta = guild
         val query = QueryDsl.delete(meta).where {
             meta.id eq id
@@ -314,7 +327,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         return database.runQuery(query) > 0
     }
 
-    override suspend fun getGuild(id: Int): Guild? {
+    override suspend fun getGuild(id: Long): Guild? {
         val meta = guild
         val query = QueryDsl.from(meta).where {
             meta.id eq id
@@ -332,7 +345,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         return database.flowQuery(query)
     }
 
-    override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
+    override suspend fun isOwner(guildId: Long, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
         val meta = guild
@@ -390,7 +403,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         }
     }
 
-    override suspend fun isMember(guildId: Int, entityId: String): Boolean {
+    override suspend fun isMember(guildId: Long, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
         val query = QueryDsl.executeTemplate(
@@ -402,7 +415,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         return database.runQuery(query) == 1L
     }
 
-    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+    override suspend fun hasInvitation(guildId: Long, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
         val meta = guildInvite
@@ -415,7 +428,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         return !invite.isExpired()
     }
 
-    override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
+    override suspend fun removeMember(guildId: Long, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
         val meta = _GuildMember.guildMember
@@ -427,7 +440,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         return database.runQuery(query) > 0
     }
 
-    override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
+    override suspend fun removeInvitation(guildId: Long, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
 
         val meta = guildInvite
@@ -438,7 +451,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         return database.runQuery(query) > 0
     }
 
-    override fun getMembers(guildId: Int): Flow<GuildMember> {
+    override fun getMembers(guildId: Long): Flow<GuildMember> {
         val meta = _GuildMember.guildMember.clone(table = "guild_members_with_owner")
 
         val query = QueryDsl.from(meta).where {
@@ -448,7 +461,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
         return database.flowQuery(query).filterNotNull()
     }
 
-    override fun getInvitations(guildId: Int): Flow<GuildInvite> {
+    override fun getInvitations(guildId: Long): Flow<GuildInvite> {
         val meta = guildInvite
         val query = QueryDsl.from(meta).where {
             meta.guildId eq guildId
@@ -463,7 +476,7 @@ public class GuildDatabaseService(public val database: R2dbcDatabase) : IGuildDa
      * @param exception The exception to map.
      * @return Nothing, always throws an exception.
      */
-    private fun mapException(exception: R2dbcException, guild: Int, entity: String): Nothing {
+    private fun mapException(exception: R2dbcException, guild: Long, entity: String): Nothing {
         throw when (exception.sqlState) {
             MEMBER_IS_OWNER_OF_GUILD_EXCEPTION_CODE -> GuildMemberIsOwnerOfGuildException(guild, entity)
             INVITED_IS_ALREADY_MEMBER_EXCEPTION_CODE -> GuildInvitedIsAlreadyMemberException(guild, entity)
@@ -485,20 +498,6 @@ public class GuildCacheService(
     public val prefixCommonKey: String = "guild:",
     prefixKey: String = "$prefixCommonKey%s:"
 ) : AbstractCacheService(client, prefixKey), IGuildCacheService {
-
-    private companion object {
-        /**
-         * Range of possible ID to generate new guild.
-         */
-        val RANGE_GUILD_ID: IntRange = Int.MIN_VALUE until 0
-
-        /**
-         * Check if the ID is in the range of possible ID generated by [GuildCacheService].
-         * @param id The ID to check.
-         * @return `true` if the ID is in range, `false` otherwise.
-         */
-        fun isCacheGuild(id: Int): Boolean = id in RANGE_GUILD_ID
-    }
 
     /**
      * Type of data stored in cache.
@@ -565,86 +564,60 @@ public class GuildCacheService(
         return numberOfDeletions
     }
 
-    override suspend fun merge(supplier: IDatabaseEntitySupplier): Collection<Pair<Int, Int>> {
+    override suspend fun merge(supplier: IDatabaseEntitySupplier) {
         getRemovedGuilds().safeCollect {
             supplier.deleteGuild(it)
         }
 
-
-        return getAddedGuilds().map {
-            val guildCacheId = it.id
-            val guild = if (isCacheGuild(guildCacheId)) {
-                supplier.createGuild(it.name, it.ownerId, it.createdAt)
+        getAddedGuilds().mapNotNull { cacheGuild ->
+            val guildId = cacheGuild.id
+            if (supplier.getGuild(guildId) == null) {
+                supplier.createGuild(cacheGuild)
             } else {
                 // When the guild comes from the cache, we don't need to
                 // remove information, because the "delete" information is not persisted.
                 // However, when the guild comes from the database,
                 // the deleted information is persisted, so we need to remove them from the database.
-                getRemovedMembers(guildCacheId).safeCollect { entity ->
-                    supplier.removeMember(guildCacheId, entity)
+                getRemovedMembers(guildId).safeCollect { entity ->
+                    supplier.removeMember(guildId, entity)
                 }
-                getRemovedInvitation(guildCacheId).safeCollect { entity ->
-                    supplier.removeInvitation(guildCacheId, entity)
+                getRemovedInvitation(guildId).safeCollect { entity ->
+                    supplier.removeInvitation(guildId, entity)
                 }
-                it
             }
 
-            val guildId = guild.id
-            getInvitations(guildCacheId).safeCollect(supplier::addInvitation)
-            getAddedMembers(guildCacheId).safeCollect(supplier::addMember)
-
-            // When the cache guild ID is not the same, the guild was created from cache.
-            // So, for the next operation, the ID used to interact with this guild should be the one from the database.
-            // In this case, we can delete the guild from cache.
-            if(guildCacheId != guildId) {
-                deleteGuild(guildCacheId)
-            }
-
-            guildCacheId to guildId
+            getInvitations(guildId).safeCollect(supplier::addInvitation)
+            getAddedMembers(guildId).safeCollect(supplier::addMember)
         }.toList()
     }
 
-    override suspend fun createGuild(name: String, ownerId: String, createdAt: Instant): Guild {
+    override suspend fun createGuild(guild: Guild): Boolean {
+        val name = guild.name
+        val ownerId = guild.ownerId
         requireGuildNameNotBlank(name)
         requireOwnerIdNotBlank(ownerId)
 
-        var guild: Guild
-        cacheClient.connect { connection ->
-            do {
-                // Negative ID to avoid conflict with database ID generator
-                val id = RANGE_GUILD_ID.random()
-                guild = Guild(id, name, ownerId, createdAt)
-
-                val key = addGuildKey(id.toString())
-                val value = encodeToByteArray(Guild.serializer(), guild)
-            } while (connection.setnx(key, value) != true)
+        return cacheClient.connect { connection ->
+            val key = addGuildKey(id.toString())
+            val value = encodeToByteArray(Guild.serializer(), guild)
+            connection.setnx(key, value) == true
         }
-
-        return guild
     }
 
     override suspend fun addGuild(guild: Guild): Boolean {
-        require(guild.id !in RANGE_GUILD_ID) {
-            "Guild ID must be between ${RANGE_GUILD_ID.first} and ${RANGE_GUILD_ID.last}"
-        }
-
         return cacheClient.connect {
             val key = addGuildKey(guild.id.toString())
             it.set(key, encodeToByteArray(Guild.serializer(), guild)) == "OK"
         }
     }
 
-    override suspend fun deleteGuild(id: Int): Boolean {
+    override suspend fun deleteGuild(id: Long): Boolean {
         return cacheClient.connect {
-            if (isCacheGuild(id)) {
-                deleteGuildData(it, id)
-            } else {
-                hasGuild(it, id) && deleteGuildData(it, id).and(guildMarkAsDeleted(it, id))
-            }
+            hasGuild(it, id) && deleteGuildData(it, id).and(guildMarkAsDeleted(it, id))
         }
     }
 
-    override suspend fun getGuild(id: Int): Guild? {
+    override suspend fun getGuild(id: Long): Guild? {
         return cacheClient.connect { connection ->
             getGuild(connection, id)
         }
@@ -656,7 +629,7 @@ public class GuildCacheService(
      * @param id ID of the guild.
      * @return The guild, or `null` if it does not exist.
      */
-    private suspend fun getGuild(connection: RedisCoroutinesCommands<ByteArray, ByteArray>, id: Int): Guild? {
+    private suspend fun getGuild(connection: RedisCoroutinesCommands<ByteArray, ByteArray>, id: Long): Guild? {
         val guildIdString = id.toString()
         return connection.get(addGuildKey(guildIdString))?.let {
             decodeFromByteArrayOrNull(Guild.serializer(), it)
@@ -680,10 +653,10 @@ public class GuildCacheService(
      * Get all removed guilds.
      * @return Flow of all ids of removed guilds.
      */
-    private fun getRemovedGuilds(): Flow<Int> = channelFlow {
+    private fun getRemovedGuilds(): Flow<Long> = channelFlow {
         cacheClient.connect { connection ->
             connection.smembers(removeGuildKey())
-                .mapNotNull { decodeFromByteArrayOrNull(Int.serializer(), it) }
+                .mapNotNull { decodeFromByteArrayOrNull(Long.serializer(), it) }
                 .collect { send(it) }
         }
     }
@@ -710,7 +683,7 @@ public class GuildCacheService(
      */
     private suspend fun hasGuild(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        id: Int
+        id: Long
     ): Boolean {
         val guildIdString = id.toString()
         val addKey = addGuildKey(guildIdString)
@@ -725,10 +698,10 @@ public class GuildCacheService(
      */
     private suspend fun guildMarkAsDeleted(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        id: Int
+        id: Long
     ): Boolean {
         val key = removeGuildKey()
-        val value = encodeToByteArray(Int.serializer(), id)
+        val value = encodeToByteArray(Long.serializer(), id)
         val result = connection.sadd(key, value)
         return result != null && result > 0
     }
@@ -741,7 +714,7 @@ public class GuildCacheService(
      */
     private suspend fun deleteGuildData(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        guildId: Int
+        guildId: Long
     ): Boolean {
         val keys = getAllKeysLinkedToGuild(guildId.toString()).toList()
         if (keys.isEmpty()) {
@@ -760,14 +733,14 @@ public class GuildCacheService(
      */
     private suspend fun requireGuildExists(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        id: Int
+        id: Long
     ) {
         if (!hasGuild(connection, id)) {
             throwGuildNotFoundException(id)
         }
     }
 
-    override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
+    override suspend fun isOwner(guildId: Long, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
         return getGuild(guildId)?.ownerId == entityId
     }
@@ -786,21 +759,19 @@ public class GuildCacheService(
             setEntityValueIfNotEquals(it, this::addMemberKey, member, GuildMember.serializer()).also { isAdded ->
                 if (isAdded) {
                     val guildIdString = guildId.toString()
-                    if (!isCacheGuild(guildId)) {
-                        removeMarkAsDeleted(it, removeMemberKey(guildIdString), entityId)
-                    }
+                    removeMarkAsDeleted(it, removeMemberKey(guildIdString), entityId)
                     removeEntityValue(it, addInvitationKey(guildIdString), entityId)
                 }
             }
         }
     }
 
-    override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
+    override suspend fun removeMember(guildId: Long, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
         return cacheClient.connect {
             val guildIdString = guildId.toString()
             removeEntityValue(it, addMemberKey(guildIdString), entityId).also { isRemoved ->
-                if (isRemoved && !isCacheGuild(guildId)) {
+                if (isRemoved) {
                     markAsDeleted(it, removeMemberKey(guildIdString), entityId)
                 }
             }
@@ -811,7 +782,7 @@ public class GuildCacheService(
      * Get all removed members for entities.
      * @return Flow of entity ID of all removed members.
      */
-    private fun getRemovedMembers(guildId: Int): Flow<String> {
+    private fun getRemovedMembers(guildId: Long): Flow<String> {
         return getAllValuesOfSet(removeMemberKey(guildId.toString()))
             .mapNotNull { decodeFromByteArrayOrNull(String.serializer(), it) }
     }
@@ -821,12 +792,12 @@ public class GuildCacheService(
      * @param guildId Guild ID.
      * @return Flow of all added members.
      */
-    private fun getAddedMembers(guildId: Int): Flow<GuildMember> {
+    private fun getAddedMembers(guildId: Long): Flow<GuildMember> {
         return getAllValuesOfMap(addMemberKey(guildId.toString()))
             .mapNotNull { decodeFromByteArrayOrNull(GuildMember.serializer(), it) }
     }
 
-    override suspend fun isMember(guildId: Int, entityId: String): Boolean {
+    override suspend fun isMember(guildId: Long, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
         return cacheClient.connect {
             isMember(it, guildId, entityId)
@@ -844,7 +815,7 @@ public class GuildCacheService(
      */
     private suspend inline fun isMember(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        guildId: Int,
+        guildId: Long,
         entityId: String
     ): Boolean {
         val guild = getGuild(connection, guildId)
@@ -865,14 +836,14 @@ public class GuildCacheService(
             requireEntityIsNotMember(it, guildId, entityId)
 
             setEntityValueIfNotEquals(it, this::addInvitationKey, invite, GuildInvite.serializer()).also { isAdded ->
-                if (isAdded && !isCacheGuild(guildId)) {
+                if (isAdded) {
                     removeMarkAsDeleted(it, removeInvitationKey(guildId.toString()), invite.entityId)
                 }
             }
         }
     }
 
-    override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
+    override suspend fun removeInvitation(guildId: Long, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
         return cacheClient.connect {
             removeInvitation(it, guildId, entityId)
@@ -881,12 +852,12 @@ public class GuildCacheService(
 
     private suspend fun removeInvitation(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        guildId: Int,
+        guildId: Long,
         entityId: String
     ): Boolean {
         val guildIdString = guildId.toString()
         return removeEntityValue(connection, addInvitationKey(guildIdString), entityId).also { isRemoved ->
-            if (isRemoved && !isCacheGuild(guildId)) {
+            if (isRemoved) {
                 markAsDeleted(connection, removeInvitationKey(guildIdString), entityId)
             }
         }
@@ -901,7 +872,7 @@ public class GuildCacheService(
      */
     private suspend fun requireEntityIsNotMember(
         connection: RedisCoroutinesCommands<ByteArray, ByteArray>,
-        guildId: Int,
+        guildId: Long,
         entityId: String
     ) {
         if (isMember(connection, guildId, entityId)) {
@@ -975,7 +946,7 @@ public class GuildCacheService(
         return connection.hget(key, encodedField)?.let { decodeFromByteArrayOrNull(serializer, it) }
     }
 
-    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+    override suspend fun hasInvitation(guildId: Long, entityId: String): Boolean {
         requireEntityIdNotBlank(entityId)
         return cacheClient.connect {
             val invite = getEntityValue(
@@ -993,7 +964,7 @@ public class GuildCacheService(
      * @param guildId ID of the guild.
      * @return Flow of entities that have been removed of invitations.
      */
-    private fun getRemovedInvitation(guildId: Int): Flow<String> {
+    private fun getRemovedInvitation(guildId: Long): Flow<String> {
         return getAllValuesOfSet(removeInvitationKey(guildId.toString())).mapNotNull {
             decodeFromByteArrayOrNull(String.serializer(), it)
         }
@@ -1048,7 +1019,7 @@ public class GuildCacheService(
         return connection.srem(key, value) == 1L
     }
 
-    override fun getInvitations(guildId: Int): Flow<GuildInvite> {
+    override fun getInvitations(guildId: Long): Flow<GuildInvite> {
         return getAddedInvitations(guildId)
             .filter { !it.isExpired() }
     }
@@ -1067,12 +1038,12 @@ public class GuildCacheService(
      * @param guildId ID of the guild.
      * @return Flow of all invitations of the guild.
      */
-    private fun getAddedInvitations(guildId: Int): Flow<GuildInvite> {
+    private fun getAddedInvitations(guildId: Long): Flow<GuildInvite> {
         return getAllValuesOfMap(addInvitationKey(guildId.toString()))
             .mapNotNull { decodeFromByteArrayOrNull(GuildInvite.serializer(), it) }
     }
 
-    override fun getMembers(guildId: Int): Flow<GuildMember> {
+    override fun getMembers(guildId: Long): Flow<GuildMember> {
         return channelFlow {
             val guildExists = cacheClient.connect {
                 val guild = getGuild(it, guildId) ?: return@connect false
@@ -1139,7 +1110,7 @@ public class GuildCacheService(
      * Throw [GuildNotFoundException] with a message containing the ID of the guild.
      * @param id ID of guild that was not found.
      */
-    private fun throwGuildNotFoundException(id: Int): Nothing {
+    private fun throwGuildNotFoundException(id: Long): Nothing {
         throw GuildNotFoundException("Unable to find guild with ID $id in cache")
     }
 
@@ -1260,6 +1231,18 @@ private fun requireExpiredAtAfterNow(expiredAt: Instant) {
 private fun requireValidInvitation(entityId: String, expiredAt: Instant?) {
     requireEntityIdNotBlank(entityId)
     expiredAt?.let { requireExpiredAtAfterNow(it) }
+}
+
+/**
+ * Generate a unique ID.
+ * The ID is composed of the current timestamp and a random number.
+ * This allows to keep the same ID when the guild is created in the cache and in the database.
+ * @return The generated ID.
+ */
+private fun generateUniqueID(): Long {
+    val timestamp = Instant.now().toEpochMilli()
+    val randomPart = (100000L..999999L).random()
+    return timestamp + randomPart
 }
 
 /**

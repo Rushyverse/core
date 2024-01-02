@@ -71,11 +71,11 @@ public class DatabaseFallbackEntitySupplier(
         return setPriority.createGuild(name, ownerId, createdAt)
     }
 
-    override suspend fun deleteGuild(id: Int): Boolean {
+    override suspend fun deleteGuild(id: Long): Boolean {
         return setPriority.deleteGuild(id)
     }
 
-    override suspend fun getGuild(id: Int): Guild? {
+    override suspend fun getGuild(id: Long): Guild? {
         return getPriority.getGuild(id) ?: setPriority.getGuild(id)
     }
 
@@ -85,15 +85,15 @@ public class DatabaseFallbackEntitySupplier(
         }
     }
 
-    override suspend fun isOwner(guildId: Int, entityId: String): Boolean {
+    override suspend fun isOwner(guildId: Long, entityId: String): Boolean {
         return getPriority.isOwner(guildId, entityId) || setPriority.isOwner(guildId, entityId)
     }
 
-    override suspend fun isMember(guildId: Int, entityId: String): Boolean {
+    override suspend fun isMember(guildId: Long, entityId: String): Boolean {
         return getPriority.isMember(guildId, entityId) || setPriority.isMember(guildId, entityId)
     }
 
-    override suspend fun hasInvitation(guildId: Int, entityId: String): Boolean {
+    override suspend fun hasInvitation(guildId: Long, entityId: String): Boolean {
         return getPriority.hasInvitation(guildId, entityId) || setPriority.hasInvitation(guildId, entityId)
     }
 
@@ -105,21 +105,21 @@ public class DatabaseFallbackEntitySupplier(
         return setPriority.addInvitation(invite)
     }
 
-    override suspend fun removeMember(guildId: Int, entityId: String): Boolean {
+    override suspend fun removeMember(guildId: Long, entityId: String): Boolean {
         return setPriority.removeMember(guildId, entityId)
     }
 
-    override suspend fun removeInvitation(guildId: Int, entityId: String): Boolean {
+    override suspend fun removeInvitation(guildId: Long, entityId: String): Boolean {
         return setPriority.removeInvitation(guildId, entityId)
     }
 
-    override fun getMembers(guildId: Int): Flow<GuildMember> {
+    override fun getMembers(guildId: Long): Flow<GuildMember> {
         return getPriority.getMembers(guildId).onEmpty {
             emitAll(setPriority.getMembers(guildId))
         }
     }
 
-    override fun getInvitations(guildId: Int): Flow<GuildInvite> {
+    override fun getInvitations(guildId: Long): Flow<GuildInvite> {
         return getPriority.getInvitations(guildId).onEmpty {
             emitAll(setPriority.getInvitations(guildId))
         }

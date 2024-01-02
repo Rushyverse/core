@@ -85,17 +85,15 @@ class GuildDatabaseServiceTest {
         @Test
         fun `should return 0 if all invitations don't have expiration date`() = runTest {
             val guild = service.createGuild(getRandomString(), getRandomString())
-            val invitations = List(5) { getRandomString() }
+            val invitations = List(5) { GuildInvite(guild.id, getRandomString(), null) }
             invitations.forEach {
-                service.addInvitation(guild.id, it, null)
+                service.addInvitation(it)
             }
 
             assertEquals(0, service.deleteExpiredInvitations())
 
             val invites = getAllInvites().map { it.defaultTime() }
-            assertThat(invites).containsExactlyElementsOf(
-                invitations.map { GuildInvite(guild.id, it, null) }
-            )
+            assertThat(invites).containsExactlyElementsOf(invitations)
         }
 
         @Test
