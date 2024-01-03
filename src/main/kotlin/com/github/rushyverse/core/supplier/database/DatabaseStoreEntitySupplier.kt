@@ -90,82 +90,84 @@ public class DatabaseStoreEntitySupplier(
         supplierDeletedDeferred.await().plus(cacheDeleted)
     }
 
-    override suspend fun createGuild(name: String, ownerId: String, createdAt: Instant): Guild {
-        return supplier.createGuild(name, ownerId, createdAt).also {
-            importCatchFailure(it, cache::addGuild)
+    override suspend fun createGuild(guild: Guild): Boolean {
+        return supplier.createGuild(guild).also {
+            if (it) {
+                cache.addGuild(guild)
+            }
         }
     }
 
-    override suspend fun deleteGuild(id: Long): Boolean = coroutineScope {
-        val supplierDeletedDeferred = async { supplier.deleteGuild(id) }
-        val cacheDeleted = cache.deleteGuild(id)
+    override suspend fun deleteGuild(guildId: String): Boolean = coroutineScope {
+        val supplierDeletedDeferred = async { supplier.deleteGuild(guildId) }
+        val cacheDeleted = cache.deleteGuild(guildId)
         supplierDeletedDeferred.await() || cacheDeleted
     }
 
-    override suspend fun getGuild(id: Long): Guild? {
-        return supplier.getGuild(id)?.also {
+    override suspend fun getGuildById(guildId: String): Guild? {
+        return supplier.getGuildById(guildId)?.also {
             importCatchFailure(it, cache::addGuild)
         }
     }
 
-    override fun getGuild(name: String): Flow<Guild> {
-        return supplier.getGuild(name).onEach {
+    override fun getGuildByName(name: String): Flow<Guild> {
+        return supplier.getGuildByName(name).onEach {
             importCatchFailure(it, cache::addGuild)
         }
     }
 
-    override suspend fun isOwner(guildId: Long, entityId: String): Boolean {
-        return supplier.isOwner(guildId, entityId)
+    override suspend fun isGuildOwner(guildId: String, entityId: String): Boolean {
+        return supplier.isGuildOwner(guildId, entityId)
     }
 
-    override suspend fun isMember(guildId: Long, entityId: String): Boolean {
-        return supplier.isMember(guildId, entityId)
+    override suspend fun isGuildMember(guildId: String, entityId: String): Boolean {
+        return supplier.isGuildMember(guildId, entityId)
     }
 
-    override suspend fun hasInvitation(guildId: Long, entityId: String): Boolean {
-        return supplier.hasInvitation(guildId, entityId)
+    override suspend fun hasGuildInvitation(guildId: String, entityId: String): Boolean {
+        return supplier.hasGuildInvitation(guildId, entityId)
     }
 
-    override suspend fun addMember(member: GuildMember): Boolean {
-        return supplier.addMember(member).also {
+    override suspend fun addGuildMember(member: GuildMember): Boolean {
+        return supplier.addGuildMember(member).also {
             if (it) {
-                cache.addMember(member)
+                cache.addGuildMember(member)
             }
         }
     }
 
-    override suspend fun addInvitation(invite: GuildInvite): Boolean {
-        return supplier.addInvitation(invite).also {
+    override suspend fun addGuildInvitation(invite: GuildInvite): Boolean {
+        return supplier.addGuildInvitation(invite).also {
             if (it) {
-                cache.addInvitation(invite)
+                cache.addGuildInvitation(invite)
             }
         }
     }
 
-    override suspend fun removeMember(guildId: Long, entityId: String): Boolean {
-        return supplier.removeMember(guildId, entityId).also {
+    override suspend fun removeGuildMember(guildId: String, entityId: String): Boolean {
+        return supplier.removeGuildMember(guildId, entityId).also {
             if (it) {
-                cache.removeMember(guildId, entityId)
+                cache.removeGuildMember(guildId, entityId)
             }
         }
     }
 
-    override suspend fun removeInvitation(guildId: Long, entityId: String): Boolean {
-        return supplier.removeInvitation(guildId, entityId).also {
+    override suspend fun removeGuildInvitation(guildId: String, entityId: String): Boolean {
+        return supplier.removeGuildInvitation(guildId, entityId).also {
             if (it) {
-                cache.removeInvitation(guildId, entityId)
+                cache.removeGuildInvitation(guildId, entityId)
             }
         }
     }
 
-    override fun getMembers(guildId: Long): Flow<GuildMember> = supplier.getMembers(guildId)
+    override fun getGuildMembers(guildId: String): Flow<GuildMember> = supplier.getGuildMembers(guildId)
         .onEach {
-            importCatchFailure(it, cache::addMember)
+            importCatchFailure(it, cache::addGuildMember)
         }
 
-    override fun getInvitations(guildId: Long): Flow<GuildInvite> = supplier.getInvitations(guildId)
+    override fun getGuildInvitations(guildId: String): Flow<GuildInvite> = supplier.getGuildInvitations(guildId)
         .onEach {
-            importCatchFailure(it, cache::addInvitation)
+            importCatchFailure(it, cache::addGuildInvitation)
         }
 
     /**
