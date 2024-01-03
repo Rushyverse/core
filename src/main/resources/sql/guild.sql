@@ -1,7 +1,7 @@
 -- Create table to store guilds
 CREATE TABLE guild
 (
-    id         SERIAL                   NOT NULL,
+    id         VARCHAR(16)              NOT NULL,
     name       VARCHAR(50)              NOT NULL
         CONSTRAINT ck_guild_name_not_empty CHECK (name <> ''),
     owner_id   VARCHAR(50)              NOT NULL
@@ -16,7 +16,7 @@ CREATE INDEX idx_guild_name ON guild (name);
 -- Create table to store guild members
 CREATE TABLE guild_member
 (
-    guild_id   INTEGER                  NOT NULL,
+    guild_id   VARCHAR(16)              NOT NULL,
     entity_id  VARCHAR(50)              NOT NULL
         CONSTRAINT ck_guild_member_entity_id_not_empty CHECK (entity_id <> ''), -- TODO Replace by foreign key to entity table
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE guild_member
 -- Create table to store guild invites
 CREATE TABLE guild_invite
 (
-    guild_id   INTEGER                  NOT NULL,
+    guild_id   VARCHAR(16)              NOT NULL,
     entity_id  VARCHAR(50)              NOT NULL
         CONSTRAINT ck_guild_invite_entity_id_not_empty CHECK (entity_id <> ''), -- TODO Replace by foreign key to entity table
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -95,7 +95,7 @@ EXECUTE PROCEDURE delete_invite();
 -- First parameter is the guild id
 -- Second parameter is the entity id
 -- Returns a table with 1 if the entity is a member of the guild, an empty table otherwise
-CREATE OR REPLACE FUNCTION is_member(guild INTEGER, entity VARCHAR(50))
+CREATE OR REPLACE FUNCTION is_member(guild VARCHAR(16), entity VARCHAR(50))
     RETURNS TABLE
             (
                 is_member INTEGER
