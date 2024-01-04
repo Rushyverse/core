@@ -12,6 +12,7 @@ import com.github.rushyverse.core.supplier.database.IDatabaseStrategizable
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.r2dbc.spi.R2dbcException
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlinx.coroutines.flow.*
@@ -21,7 +22,6 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import org.komapper.annotation.*
-import org.komapper.core.DryRunDatabaseConfig.id
 import org.komapper.core.dsl.QueryDsl
 import org.komapper.core.dsl.query.bind
 import org.komapper.r2dbc.R2dbcDatabase
@@ -85,7 +85,7 @@ public data class Guild(
     val name: String,
     val ownerId: String,
     @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant = Instant.now()
+    val createdAt: Instant = generateCreateAt()
 )
 
 /**
@@ -105,7 +105,7 @@ public data class GuildInvite(
     @Serializable(with = InstantSerializer::class)
     val expiredAt: Instant?,
     @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant = Instant.now(),
+    val createdAt: Instant = generateCreateAt()
 ) : GuildEntityIds {
 
     /**
@@ -133,7 +133,7 @@ public data class GuildMember(
     @KomapperId
     override val entityId: String,
     @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant = Instant.now(),
+    val createdAt: Instant = generateCreateAt(),
 ) : GuildEntityIds
 
 /**
@@ -154,7 +154,7 @@ public interface IGuildService {
      * @param createdAt Timestamp of when the guild was created.
      * @return The created guild.
      */
-    public suspend fun createGuild(name: String, ownerId: String, createdAt: Instant = Instant.now()): Guild {
+    public suspend fun createGuild(name: String, ownerId: String, createdAt: Instant = generateCreateAt()): Guild {
         val guild = Guild(generateUniqueID(), name, ownerId, createdAt)
         // Should never fail because the ID is unique
         assert(createGuild(guild)) { "Guild ${guild.id} already exists" }
@@ -598,7 +598,7 @@ public class GuildCacheService(
         requireOwnerIdNotBlank(ownerId)
 
         return cacheClient.connect { connection ->
-            val key = addGuildKey(id.toString())
+            val key = addGuildKey(guild.id)
             val value = encodeToByteArray(Guild.serializer(), guild)
             connection.setnx(key, value) == true
         }
@@ -1047,13 +1047,12 @@ public class GuildCacheService(
 
     override fun getGuildMembers(guildId: String): Flow<GuildMember> {
         return channelFlow {
-            val guildExists = cacheClient.connect { connection ->
-                val guild = getGuild(connection, guildId) ?: return@connect false
-                send(GuildMember(guild.id, guild.ownerId, guild.createdAt))
-                true
+            val guild = cacheClient.connect { connection ->
+                getGuild(connection, guildId)
             }
 
-            if (guildExists) {
+            if (guild != null) {
+                send(GuildMember(guild.id, guild.ownerId, guild.createdAt))
                 getAddedMembers(guildId).collect { send(it) }
             }
         }
@@ -1238,7 +1237,7 @@ private fun requireValidInvitation(entityId: String, expiredAt: Instant?) {
 /**
  * Generate a unique ID.
  * The ID is composed of the current timestamp and a random number.
- * This allows to keep the same ID when the guild is created in the cache and in the database.
+ * This allows keeping the same ID when the guild is created in the cache and in the database.
  * @return The generated ID.
  */
 private fun generateUniqueID(): String {
@@ -1246,6 +1245,13 @@ private fun generateUniqueID(): String {
     val randomPart = (100..999L).random()
     return "$timestamp$randomPart"
 }
+
+/**
+ * Generate a new [Instant] based on the current time truncated to milliseconds.
+ * Use the UTC timezone.
+ * @return Current instant.
+ */
+private fun generateCreateAt(): Instant = Instant.now().truncatedTo(ChronoUnit.MILLIS)
 
 /**
  * Implementation of [IGuildService] to manage guilds according to a [IDatabaseEntitySupplier].
