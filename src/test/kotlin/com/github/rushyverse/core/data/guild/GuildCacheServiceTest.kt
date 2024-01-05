@@ -90,19 +90,12 @@ class GuildCacheServiceTest {
         @BeforeTest
         fun onBefore() {
             supplier = mockk()
-
-            var id = 0
-            coEvery { supplier.createGuild(any(), any()) } answers {
-                val name = arg<String>(0)
-                val ownerId = arg<String>(1)
-                Guild(getRandomString(), name, ownerId)
-            }
         }
 
         @Test
         fun `should not create guild`() = runTest {
             val guilds = List(5) { Guild(getRandomString(), getRandomString(), getRandomString()) }
-            guilds.forEach { service.addGuild(it) }
+            guilds.forEach { service.createGuild(it) }
 
             guilds.forEach { guild ->
                 coEvery { supplier.getGuildById(guild.id) } returns guild
@@ -115,12 +108,28 @@ class GuildCacheServiceTest {
         }
 
         @Test
+        fun `should create guild`() = runTest {
+            val guilds = List(5) { Guild(getRandomString(), getRandomString(), getRandomString()) }
+            guilds.forEach { guild ->
+                service.createGuild(guild)
+                coEvery { supplier.getGuildById(guild.id) } returns null
+                coEvery { supplier.createGuild(guild) } returns true
+            }
+
+            service.merge(supplier)
+
+            guilds.forEach { guild ->
+                coVerify(exactly = 1) { supplier.createGuild(guild) }
+            }
+        }
+
+        @Test
         fun `should delete guild`() = runTest {
             val guilds = List(5) { Guild(getRandomString(), getRandomString(), getRandomString()) }
-            guilds.forEach { service.addGuild(it) }
+            guilds.forEach { service.createGuild(it) }
             guilds.take(3).forEach { service.deleteGuild(it.id) }
 
-            coEvery { supplier.getGuildById(any()) } returns null
+            coEvery { supplier.getGuildById(any()) } returns mockk()
             coEvery { supplier.deleteGuild(any()) } returns true
             service.merge(supplier)
 
@@ -135,7 +144,7 @@ class GuildCacheServiceTest {
         @Test
         fun `should not import expired invitation`() = runBlocking {
             val guild = Guild(getRandomString(), getRandomString(), getRandomString())
-            service.addGuild(guild)
+            service.createGuild(guild)
             val guildId = guild.id
             val now = Instant.now()
 
@@ -150,6 +159,7 @@ class GuildCacheServiceTest {
 
             delay(WAIT_EXPIRATION_MILLIS)
 
+            coEvery { supplier.getGuildById(any()) } returns mockk()
             coEvery { supplier.addGuildInvitation(any()) } returns true
             service.merge(supplier)
 
@@ -161,7 +171,7 @@ class GuildCacheServiceTest {
         fun `should add member and invitation`() = runTest {
             val guild = Guild(getRandomString(), getRandomString(), getRandomString())
             val guildId = guild.id
-            service.addGuild(guild)
+            service.createGuild(guild)
 
             val size = 5
             val members = List(size) { GuildMember(guildId, getRandomString()) }
@@ -188,7 +198,7 @@ class GuildCacheServiceTest {
         fun `should remove member and invitation`() = runTest {
             val guild = Guild(getRandomString(), getRandomString(), getRandomString())
             val guildId = guild.id
-            service.addGuild(guild)
+            service.createGuild(guild)
 
             val size = 5
             val members = List(size) { GuildMember(guildId, getRandomString()) }
@@ -217,11 +227,12 @@ class GuildCacheServiceTest {
         fun `should continue delete guild if an exception occurred`() = runTest {
             val size = 3
             val guild = List(size) { Guild(getRandomString(), getRandomString(), getRandomString()) }
-            guild.forEach { service.addGuild(it) }
+            guild.forEach { service.createGuild(it) }
 
             val toDelete = size - 1
             guild.take(toDelete).forEach { service.deleteGuild(it.id) }
 
+            coEvery { supplier.getGuildById(any()) } returns mockk()
             coEvery { supplier.deleteGuild(any()) } throws Exception()
             service.merge(supplier)
 
@@ -236,7 +247,7 @@ class GuildCacheServiceTest {
         @Test
         fun `should continue remove member if an exception occurred`() = runTest {
             val guild = Guild(getRandomString(), getRandomString(), getRandomString())
-            service.addGuild(guild)
+            service.createGuild(guild)
 
             val size = 5
             val members = List(size) { GuildMember(guild.id, getRandomString()) }
@@ -256,7 +267,7 @@ class GuildCacheServiceTest {
         @Test
         fun `should continue remove invitation if an exception occurred`() = runTest {
             val guild = Guild(getRandomString(), getRandomString(), getRandomString())
-            service.addGuild(guild)
+            service.createGuild(guild)
 
             val size = 5
             val invites = List(size) { GuildInvite(guild.id, getRandomString(), null) }
@@ -276,7 +287,7 @@ class GuildCacheServiceTest {
         @Test
         fun `should continue add member if an exception occurred`() = runTest {
             val guild = Guild(getRandomString(), getRandomString(), getRandomString())
-            service.addGuild(guild)
+            service.createGuild(guild)
 
             val size = 5
             val members = List(size) { GuildMember(guild.id, getRandomString()) }
@@ -294,7 +305,7 @@ class GuildCacheServiceTest {
         @Test
         fun `should continue add invitation if an exception occurred`() = runTest {
             val guild = Guild(getRandomString(), getRandomString(), getRandomString())
-            service.addGuild(guild)
+            service.createGuild(guild)
 
             val size = 5
             val invites = List(size) { GuildInvite(guild.id, getRandomString(), null) }
@@ -321,7 +332,7 @@ class GuildCacheServiceTest {
         @Test
         fun `should mark as deleted the expired invitation`() = runBlocking<Unit> {
             val guild = Guild(getRandomString(), getRandomString(), getRandomString())
-            service.addGuild(guild)
+            service.createGuild(guild)
             val guildId = guild.id
 
             val invitations = List(5) { GuildInvite(guildId, getRandomString(), null) }
@@ -341,7 +352,7 @@ class GuildCacheServiceTest {
         @Test
         fun `should remove all expired invitations`() = runBlocking<Unit> {
             val guild = Guild(getRandomString(), getRandomString(), getRandomString())
-            service.addGuild(guild)
+            service.createGuild(guild)
             val guildId = guild.id
             val invitations = List(5) { GuildInvite(guildId, getRandomString(), null) }
             val seconds = 1L
@@ -389,7 +400,7 @@ class GuildCacheServiceTest {
             val expirationDate = Instant.now().plusSeconds(seconds)
 
             val guild = Guild(getRandomString(), getRandomString(), getRandomString())
-            service.addGuild(guild)
+            service.createGuild(guild)
 
             val guild2 = service.createGuild(getRandomString(), getRandomString())
             val invitations1 = List(2) { GuildInvite(guild.id, getRandomString(), expirationDate) }
@@ -2332,7 +2343,7 @@ class GuildCacheServiceTest {
         crossinline block: suspend (Guild) -> Unit
     ) {
         var guild = Guild(getRandomString(), getRandomString(), getRandomString())
-        service.addGuild(guild)
+        service.createGuild(guild)
         block(guild)
 
         cacheClient.connect {

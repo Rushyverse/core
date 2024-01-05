@@ -15,6 +15,9 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -277,13 +280,6 @@ public interface IGuildCacheService : IGuildService {
      * @param supplier Supplier to merge into.
      */
     public suspend fun merge(supplier: IDatabaseEntitySupplier)
-
-    /**
-     * Add a guild with all the information.
-     * @param guild Guild to add.
-     * @return `true` if the guild was added, `false` if it was not imported.
-     */
-    public suspend fun addGuild(guild: Guild): Boolean
 }
 
 /**
@@ -569,26 +565,24 @@ public class GuildCacheService(
             supplier.deleteGuild(it)
         }
 
-        getAddedGuilds().mapNotNull { cacheGuild ->
-            val guildId = cacheGuild.id
-            if (supplier.getGuildById(guildId) == null) {
-                supplier.createGuild(cacheGuild)
-            } else {
-                // When the guild comes from the cache, we don't need to
-                // remove information, because the "delete" information is not persisted.
-                // However, when the guild comes from the database,
-                // the deleted information is persisted, so we need to remove them from the database.
-                getRemovedMembers(guildId).safeCollect { entity ->
-                    supplier.removeGuildMember(guildId, entity)
+        coroutineScope {
+            getAddedGuilds().map { cacheGuild ->
+                async {
+                    val guildId = cacheGuild.id
+                    if (supplier.getGuildById(guildId) == null) {
+                        supplier.createGuild(cacheGuild)
+                    }
+                    getRemovedMembers(guildId).safeCollect { entity ->
+                        supplier.removeGuildMember(guildId, entity)
+                    }
+                    getRemovedInvitation(guildId).safeCollect { entity ->
+                        supplier.removeGuildInvitation(guildId, entity)
+                    }
+                    getGuildInvitations(guildId).safeCollect(supplier::addGuildInvitation)
+                    getAddedMembers(guildId).safeCollect(supplier::addGuildMember)
                 }
-                getRemovedInvitation(guildId).safeCollect { entity ->
-                    supplier.removeGuildInvitation(guildId, entity)
-                }
-            }
-
-            getGuildInvitations(guildId).safeCollect(supplier::addGuildInvitation)
-            getAddedMembers(guildId).safeCollect(supplier::addGuildMember)
-        }.toList()
+            }.toList().awaitAll()
+        }
     }
 
     override suspend fun createGuild(guild: Guild): Boolean {
@@ -600,14 +594,7 @@ public class GuildCacheService(
         return cacheClient.connect { connection ->
             val key = addGuildKey(guild.id)
             val value = encodeToByteArray(Guild.serializer(), guild)
-            connection.setnx(key, value) == true
-        }
-    }
-
-    override suspend fun addGuild(guild: Guild): Boolean {
-        return cacheClient.connect { connection ->
-            val key = addGuildKey(guild.id)
-            connection.set(key, encodeToByteArray(Guild.serializer(), guild)) == "OK"
+            connection.set(key, value) == "OK"
         }
     }
 
@@ -1242,7 +1229,7 @@ private fun requireValidInvitation(entityId: String, expiredAt: Instant?) {
  */
 private fun generateUniqueID(): String {
     val timestamp = Instant.now().toEpochMilli()
-    val randomPart = (100..999L).random()
+    val randomPart = (0..999).random()
     return "$timestamp$randomPart"
 }
 
