@@ -6,6 +6,7 @@ import com.github.rushyverse.core.data.Guild
 import com.github.rushyverse.core.data.GuildCacheService
 import com.github.rushyverse.core.data.GuildInvite
 import com.github.rushyverse.core.data.GuildMember
+import com.github.rushyverse.core.data.IGuildService
 import com.github.rushyverse.core.supplier.database.IDatabaseEntitySupplier
 import com.github.rushyverse.core.utils.getRandomString
 import io.lettuce.core.FlushMode
@@ -35,8 +36,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.Assert.assertNotEquals
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Timeout
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
@@ -65,9 +70,7 @@ class GuildCacheServiceTest {
 
     @AfterTest
     fun onAfter() = runBlocking<Unit> {
-        cacheClient.connect {
-            it.flushall(FlushMode.SYNC)
-        }
+        flushAll()
         cacheClient.closeAsync().await()
     }
 
@@ -402,7 +405,7 @@ class GuildCacheServiceTest {
             val guild = Guild(getRandomString(), getRandomString(), getRandomString())
             service.createGuild(guild)
 
-            val guild2 = service.createGuild(getRandomString(), getRandomString())
+            val guild2 = createGuildWithRandomID(service)
             val invitations1 = List(2) { GuildInvite(guild.id, getRandomString(), expirationDate) }
             val invitations2 = List(2) { GuildInvite(guild2.id, getRandomString(), expirationDate) }
 
@@ -430,91 +433,91 @@ class GuildCacheServiceTest {
 
     }
 
-//    @Nested
-//    inner class CreateGuild {
-//
-//        @Nested
-//        inner class Owner {
-//
-//            @Test
-//            fun `should create and store a new guild`() = runTest {
-//                val guild = service.createGuild(getRandomString(), getRandomString())
-//                assertThat(getAllAddedGuilds()).containsExactly(guild)
-//                assertThat(getAllDeletedGuilds()).isEmpty()
-//            }
-//
-//            @Test
-//            fun `should create guild if owner is an owner of another guild`() = runTest {
-//                val guild = service.createGuild(getRandomString(), getRandomString())
-//                val guild2 = service.createGuild(getRandomString(), guild.ownerId)
-//                assertNotEquals(guild.id, guild2.id)
-//
-//                val guilds = getAllAddedGuilds()
-//                assertThat(guilds).containsExactlyInAnyOrder(guild, guild2)
-//                assertThat(getAllDeletedGuilds()).isEmpty()
-//            }
-//
-//            @Test
-//            fun `should create guild if owner is a member of another guild`() = runTest {
-//                val entity = getRandomString()
-//                val guild = service.createGuild(getRandomString(), getRandomString())
-//                service.addGuildMember(guild.id, entity)
-//
-//                val guild2 = service.createGuild(getRandomString(), entity)
-//
-//                val guilds = getAllAddedGuilds()
-//                assertThat(guilds).containsExactlyInAnyOrder(guild, guild2)
-//                assertThat(getAllDeletedGuilds()).isEmpty()
-//            }
-//
-//            @ParameterizedTest
-//            @ValueSource(strings = ["", " ", "  ", "   "])
-//            fun `should throw if owner is blank`(id: String) = runTest {
-//                assertThrows<IllegalArgumentException> {
-//                    service.createGuild(getRandomString(), id)
-//                }
-//            }
-//        }
-//
-//        @Nested
-//        inner class Name {
-//
-//            @Test
-//            fun `should create guilds with the same name`() = runTest {
-//                val name = getRandomString()
-//                val guild = service.createGuild(name, getRandomString())
-//                val guild2 = service.createGuild(name, getRandomString())
-//                assertNotEquals(guild.id, guild2.id)
-//
-//                val guilds = getAllAddedGuilds()
-//                assertThat(guilds).containsExactlyInAnyOrder(guild, guild2)
-//                assertThat(getAllDeletedGuilds()).isEmpty()
-//            }
-//
-//            @ParameterizedTest
-//            @ValueSource(strings = ["", " ", "  ", "   "])
-//            fun `should throw if name is blank`(name: String) = runTest {
-//                assertThrows<IllegalArgumentException> {
-//                    service.createGuild(name, getRandomString())
-//                }
-//            }
-//        }
-//
-//        @Test
-//        fun `should create distinct id for each guild created`() = runTest {
-//            val expectedSize = 1000
-//
-//            val idsCreated = List(expectedSize) {
-//                service.createGuild(getRandomString(), getRandomString())
-//            }.map { it.id }
-//            assertEquals(expectedSize, idsCreated.toSet().size)
-//
-//            val addedIds: List<Int> = getAllAddedGuilds().map { it.id }
-//            assertThat(idsCreated).containsExactlyInAnyOrderElementsOf(addedIds)
-//            assertThat(getAllDeletedGuilds()).isEmpty()
-//        }
-//
-//    }
+    @Nested
+    inner class CreateGuild {
+
+        @Nested
+        inner class Owner {
+
+            @Test
+            fun `should create and store a new guild`() = runTest {
+                val guild = createGuildWithRandomID(service)
+                assertThat(getAllAddedGuilds()).containsExactly(guild)
+                assertThat(getAllDeletedGuilds()).isEmpty()
+            }
+
+            @Test
+            fun `should create guild if owner is an owner of another guild`() = runTest {
+                val guild = createGuildWithRandomID(service)
+                val guild2 = createGuildWithRandomID(service, ownerId = guild.ownerId)
+                assertNotEquals(guild.id, guild2.id)
+
+                val guilds = getAllAddedGuilds()
+                assertThat(guilds).containsExactlyInAnyOrder(guild, guild2)
+                assertThat(getAllDeletedGuilds()).isEmpty()
+            }
+
+            @Test
+            fun `should create guild if owner is a member of another guild`() = runTest {
+                val entity = getRandomString()
+                val guild = createGuildWithRandomID(service)
+                service.addGuildMember(GuildMember(guild.id, entity))
+
+                val guild2 = createGuildWithRandomID(service, ownerId = entity)
+
+                val guilds = getAllAddedGuilds()
+                assertThat(guilds).containsExactlyInAnyOrder(guild, guild2)
+                assertThat(getAllDeletedGuilds()).isEmpty()
+            }
+
+            @ParameterizedTest
+            @ValueSource(strings = ["", " ", "  ", "   "])
+            fun `should throw if owner is blank`(id: String) = runTest {
+                assertThrows<IllegalArgumentException> {
+                    service.createGuild(getRandomString(), id)
+                }
+            }
+        }
+
+        @Nested
+        inner class Name {
+
+            @Test
+            fun `should create guilds with the same name`() = runTest {
+                val name = getRandomString()
+                val guild = createGuildWithRandomID(service, name)
+                val guild2 = createGuildWithRandomID(service, name)
+                assertNotEquals(guild.id, guild2.id)
+
+                val guilds = getAllAddedGuilds()
+                assertThat(guilds).containsExactlyInAnyOrder(guild, guild2)
+                assertThat(getAllDeletedGuilds()).isEmpty()
+            }
+
+            @ParameterizedTest
+            @ValueSource(strings = ["", " ", "  ", "   "])
+            fun `should throw if name is blank`(name: String) = runTest {
+                assertThrows<IllegalArgumentException> {
+                    service.createGuild(name, getRandomString())
+                }
+            }
+        }
+
+        @Test
+        fun `should create distinct id for each guild created`() = runTest {
+            val expectedSize = 1000
+
+            val idsCreated = List(expectedSize) {
+                createGuildWithRandomID(service)
+            }.map { it.id }
+            assertEquals(expectedSize, idsCreated.toSet().size)
+
+            val addedIds = getAllAddedGuilds().map { it.id }
+            assertThat(idsCreated).containsExactlyInAnyOrderElementsOf(addedIds)
+            assertThat(getAllDeletedGuilds()).isEmpty()
+        }
+
+    }
 //
 //    @Nested
 //    inner class DeleteGuild {
@@ -2345,12 +2348,31 @@ class GuildCacheServiceTest {
         var guild = Guild(getRandomString(), getRandomString(), getRandomString())
         service.createGuild(guild)
         block(guild)
-
-        cacheClient.connect {
-            it.flushall(FlushMode.SYNC)
-        }
-
+        flushAll()
         guild = service.createGuild(getRandomString(), getRandomString())
         block(guild)
     }
+
+    private suspend fun flushAll() {
+        cacheClient.connect {
+            it.flushall(FlushMode.SYNC)
+        }
+    }
+
+    private suspend fun createGuildWithID(
+        service: IGuildService,
+        id: String,
+        name: String = getRandomString(),
+        ownerId: String = getRandomString(),
+        createdAt: Instant = Instant.EPOCH
+    ) = service.createGuild(Guild(id, name, ownerId, createdAt))
+
+    private suspend fun createGuildWithRandomID(
+        service: IGuildService,
+        name: String = getRandomString(),
+        ownerId: String = getRandomString(),
+        createdAt: Instant = Instant.EPOCH
+    ) = service.createGuild(name, ownerId, createdAt)
+
+
 }
